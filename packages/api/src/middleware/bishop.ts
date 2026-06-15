@@ -7,8 +7,8 @@ import { createMiddleware } from 'hono/factory';
 export const bishopMiddleware = createMiddleware(async (c, next) => {
   const user = c.get('user');
 
-  if (!user || user.role !== 'bishop') {
-    return c.json({ error: 'Forbidden: Bishop access required' }, 403);
+  if (!user || (user.role !== 'bishop' && user.role !== 'admin')) {
+    return c.json({ error: 'Forbidden: Bishop or Admin access required' }, 403);
   }
 
   await next();

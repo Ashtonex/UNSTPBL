@@ -1,4 +1,4 @@
-export type UserRole = 'member' | 'bishop';
+export type UserRole = 'member' | 'bishop' | 'admin';
 export type Testament = 'old' | 'new';
 export type VerseMode = 'manual' | 'sequential';
 
