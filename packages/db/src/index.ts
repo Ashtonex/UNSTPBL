@@ -1,0 +1,16 @@
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from './schema.js';
+
+export function createDb(connectionString?: string) {
+  const client = postgres(
+    connectionString ||
+      process.env.DATABASE_URL ||
+      'postgresql://unstpbl:unstpbl_dev@localhost:5432/unstpbl',
+    { prepare: false },
+  );
+  return drizzle(client, { schema });
+}
+
+export type Database = ReturnType<typeof createDb>;
+export * from './schema.js';

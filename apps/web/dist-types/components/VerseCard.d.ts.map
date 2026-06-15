@@ -1,0 +1,1 @@
+{"version":3,"file":"VerseCard.d.ts","sourceRoot":"","sources":["../../src/components/VerseCard.tsx"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,iBAAiB,CAAC;AAElD,KAAK,cAAc,GAAG;IACpB,KAAK,EAAE,UAAU,CAAC;IAClB,UAAU,EAAE,OAAO,CAAC;IACpB,UAAU,EAAE,MAAM,IAAI,CAAC;CACxB,CAAC;AAEF,wBAAgB,SAAS,CAAC,EAAE,KAAK,EAAE,UAAU,EAAE,UAAU,EAAE,EAAE,cAAc,2CAmC1E"}

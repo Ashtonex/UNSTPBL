@@ -1,0 +1,31 @@
+{
+  "name": "@unstpbl/db",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "migrate": "drizzle-kit migrate",
+    "generate": "drizzle-kit generate",
+    "seed": "tsx scripts/seed-bible.ts",
+    "lint": "eslint src",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.31.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.22.0",
+    "typescript": "~5.5.0",
+    "tsx": "^4.15.0",
+    "dotenv": "^16.4.0"
+  }
+}
