@@ -12,6 +12,9 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!navigator.onLine) {
+    throw new Error('Offline');
+  }
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -34,20 +37,88 @@ export const api = {
   getVerseToday: () => apiFetch<DailyVerse>('/verses/today'),
   getVerseHistory: (days = 7) =>
     apiFetch<{ verses: DailyVerse[]; days: number }>(`/verses/history?days=${days}`),
-  markAsRead: (verseScheduleId: string) =>
-    apiFetch<{ success: boolean }>('/verses/read', {
-      method: 'POST',
-      body: JSON.stringify({ verseScheduleId }),
-    }),
+  markAsRead: async (verseScheduleId: string) => {
+    try {
+      return await apiFetch<{ success: boolean }>('/verses/read', {
+        method: 'POST',
+        body: JSON.stringify({ verseScheduleId }),
+      });
+    } catch (err: any) {
+      if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('Offline')) {
+        console.warn('Offline: Queueing read verse schedule', verseScheduleId);
+        const pending = JSON.parse(localStorage.getItem('pending-reads') || '[]');
+        if (!pending.includes(verseScheduleId)) {
+          pending.push(verseScheduleId);
+          localStorage.setItem('pending-reads', JSON.stringify(pending));
+        }
+        return { success: true };
+      }
+      throw err;
+    }
+  },
   getAdminBooks: () =>
     apiFetch<{ books: BibleBook[] }>('/admin/books'),
   getAdminStats: () =>
     apiFetch<AdminStats>('/admin/stats'),
+  getAdminStatsTrends: () =>
+    apiFetch<{ trends: Array<{ date: string; signups: number; reads: number }> }>('/admin/stats/trends'),
+  getAdminStatsTranslations: () =>
+    apiFetch<{ translations: Array<{ name: string; value: number }> }>('/admin/stats/translations'),
+  subscribePush: (subscription: any) =>
+    apiFetch<{ success: boolean }>('/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(subscription),
+    }),
+  unsubscribePush: () =>
+    apiFetch<{ success: boolean }>('/push/unsubscribe', {
+      method: 'POST',
+    }),
   scheduleVerse: (data: { date: string; bookId: number; chapter: number; verseNumber: number }) =>
     apiFetch<{ success: boolean }>('/admin/schedule', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  syncPendingQueue: async () => {
+    if (!navigator.onLine) return;
+
+    // 1. Sync pending reads
+    const pendingReads = JSON.parse(localStorage.getItem('pending-reads') || '[]');
+    if (pendingReads.length > 0) {
+      console.log(`Syncing ${pendingReads.length} pending reads...`);
+      const remaining: string[] = [];
+      for (const verseScheduleId of pendingReads) {
+        try {
+          await apiFetch('/verses/read', {
+            method: 'POST',
+            body: JSON.stringify({ verseScheduleId }),
+          });
+        } catch (err) {
+          console.error(`Failed to sync read for ${verseScheduleId}:`, err);
+          remaining.push(verseScheduleId);
+        }
+      }
+      if (remaining.length > 0) {
+        localStorage.setItem('pending-reads', JSON.stringify(remaining));
+      } else {
+        localStorage.removeItem('pending-reads');
+      }
+    }
+
+    // 2. Sync pending profile
+    const pendingProfile = JSON.parse(localStorage.getItem('pending-profile') || '{}');
+    if (Object.keys(pendingProfile).length > 0) {
+      console.log(`Syncing pending profile changes:`, pendingProfile);
+      try {
+        await apiFetch('/profile', {
+          method: 'PUT',
+          body: JSON.stringify(pendingProfile),
+        });
+        localStorage.removeItem('pending-profile');
+      } catch (err) {
+        console.error('Failed to sync profile update:', err);
+      }
+    }
+  },
   getProfile: async () => {
     try {
       return await apiFetch<{ profile: User }>('/profile');
@@ -126,6 +197,23 @@ export const api = {
         body: JSON.stringify(data),
       });
     } catch (err: any) {
+      if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('Offline')) {
+        console.warn('Offline: Queueing profile update', data);
+        const pending = JSON.parse(localStorage.getItem('pending-profile') || '{}');
+        const updated = { ...pending, ...data };
+        localStorage.setItem('pending-profile', JSON.stringify(updated));
+
+        return {
+          profile: {
+            id: 'offline-user',
+            email: 'offline@user.com',
+            role: 'member',
+            translation: 'KJV',
+            createdAt: new Date().toISOString(),
+            ...updated,
+          } as any,
+        };
+      }
       console.warn('API update /profile failed, falling back to direct Supabase update:', err);
       try {
         const { data: { session } } = await supabase.auth.getSession();

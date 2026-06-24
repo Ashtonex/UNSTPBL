@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
+import { api } from '../lib/api';
 
 export default function Layout() {
   const { signOut, profile } = useAuthStore();
@@ -10,6 +11,88 @@ export default function Layout() {
   const [visible, setVisible] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const prevScrollY = useRef(0);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Helper to register push subscription
+  const setupPushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('Push notifications not supported on this browser.');
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.log('Notification permission denied.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          console.error('VITE_VAPID_PUBLIC_KEY is not defined.');
+          return;
+        }
+
+        // Convert VAPID key to Uint8Array
+        const urlBase64ToUint8Array = (base64String: string) => {
+          const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+          const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        };
+
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
+
+      // Send subscription to backend
+      await api.subscribePush(subscription);
+      console.log('Push notification subscription successfully registered!');
+    } catch (err) {
+      console.error('Failed to set up push notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (profile) {
+      const timer = setTimeout(() => {
+        setupPushNotifications();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      api.syncPendingQueue();
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check and sync on mount
+    if (navigator.onLine) {
+      api.syncPendingQueue();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     let startY = 0;
@@ -103,11 +186,20 @@ export default function Layout() {
 
       {/* Main Content Layer */}
       <div className="relative z-10 flex-1 flex flex-col min-h-screen">
+        {isOffline && (
+          <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-600/90 backdrop-blur-md text-white text-center py-2 text-xs font-semibold shadow-md flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-3.536 4.978 4.978 0 011.414-3.536m0 0L5.636 5.636m0 0L3 3m2.636 2.636l2.829 2.829M12 12v.01" />
+            </svg>
+            You are offline. Changes will sync when back online.
+          </div>
+        )}
         {/* Header - Hides on scroll down, shows on scroll up, shrinks logo */}
         <header
           className={`fixed top-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10 px-4 transition-all duration-300 transform ${
             visible ? 'translate-y-0' : '-translate-y-full'
           } ${isScrolled ? 'py-1.5 bg-surface-950/80 shadow-lg' : 'py-3'}`}
+          style={{ marginTop: isOffline && visible ? '32px' : '0px' }}
         >
           <div className="max-w-lg mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -132,7 +224,10 @@ export default function Layout() {
         </header>
 
         {/* Main Content - Padded to compensate for fixed navbars */}
-        <main className="flex-1 px-4 pb-24 pt-28 max-w-lg mx-auto w-full">
+        <main
+          className="flex-1 px-4 pb-24 max-w-lg mx-auto w-full transition-all duration-300"
+          style={{ paddingTop: isOffline ? '144px' : '112px' }}
+        >
           <Outlet />
         </main>
 

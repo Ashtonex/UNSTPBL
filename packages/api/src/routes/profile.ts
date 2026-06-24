@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
-import { eq } from 'drizzle-orm';
 import { db } from '../lib/db.js';
-import { users } from '@unstpbl/db';
+import { users, eq } from '@unstpbl/db';
 import { authMiddleware } from '../middleware/auth.js';
 
 export const profileRoutes = new Hono();

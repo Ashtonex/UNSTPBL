@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
@@ -16,6 +28,19 @@ export default function AdminPage() {
     queryKey: ['admin-stats'],
     queryFn: api.getAdminStats,
     refetchInterval: 15000, // Refetch stats every 15 seconds
+  });
+
+  // Fetch Trends and Translation Breakdown
+  const { data: trendsData, isLoading: trendsLoading } = useQuery({
+    queryKey: ['admin-stats-trends'],
+    queryFn: api.getAdminStatsTrends,
+    refetchInterval: 60000,
+  });
+
+  const { data: translationsData, isLoading: translationsLoading } = useQuery({
+    queryKey: ['admin-stats-translations'],
+    queryFn: api.getAdminStatsTranslations,
+    refetchInterval: 60000,
   });
 
   // 2. Fetch Bible Books for dropdown selection
@@ -105,6 +130,78 @@ export default function AdminPage() {
               `${stats?.readRate ?? 0}%`
             )}
           </p>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Area Chart: Engagement Trends */}
+        <div className="glass-card p-5 animate-slide-up flex flex-col h-[320px]">
+          <h3 className="text-sm font-bold text-white mb-2">Congregation Engagement (30d)</h3>
+          <div className="flex-1 min-h-0">
+            {trendsLoading ? (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendsData?.trends || []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorReads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#eab308" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorSignups" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tickFormatter={(tick) => tick.split('-')[2]} stroke="rgba(255,255,255,0.3)" fontSize={10} />
+                  <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0b0f13', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    labelStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}
+                    itemStyle={{ fontSize: '12px' }}
+                  />
+                  <Area type="monotone" dataKey="reads" name="Reads" stroke="#eab308" fillOpacity={1} fill="url(#colorReads)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="signups" name="Signups" stroke="#06b6d4" fillOpacity={1} fill="url(#colorSignups)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Pie Chart: Translation breakdown */}
+        <div className="glass-card p-5 animate-slide-up flex flex-col h-[320px]">
+          <h3 className="text-sm font-bold text-white mb-2">Translation Preferences</h3>
+          <div className="flex-1 min-h-0 flex items-center justify-center">
+            {translationsLoading ? (
+              <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={translationsData?.translations || []}
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {(translationsData?.translations || []).map((_entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? '#eab308' : '#06b6d4'} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0b0f13', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    itemStyle={{ fontSize: '12px' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </div>
 

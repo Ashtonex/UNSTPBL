@@ -6,6 +6,7 @@
     "noEmit": true
   },
   "include": ["src", "vite-env.d.ts"],
+  "exclude": ["src/sw.ts"],
   "references": [
     { "path": "../../packages/shared" }
   ]

@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
@@ -33,18 +36,6 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
-          },
-        ],
-      },
-      workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /\/verses\/.*/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'verse-cache',
-              expiration: { maxEntries: 30, maxAgeSeconds: 7 * 24 * 60 * 60 },
-            },
           },
         ],
       },

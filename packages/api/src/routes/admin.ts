@@ -1,7 +1,16 @@
 import { Hono } from 'hono';
-import { eq, count, and } from 'drizzle-orm';
 import { db } from '../lib/db.js';
-import { bibleBooks, bibleVerses, verseSchedule, verseReadings, users } from '@unstpbl/db';
+import {
+  bibleBooks,
+  bibleVerses,
+  verseSchedule,
+  verseReadings,
+  users,
+  eq,
+  count,
+  and,
+  gte
+} from '@unstpbl/db';
 import { fetchVerseFromApi } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { bishopMiddleware } from '../middleware/bishop.js';
@@ -11,6 +20,84 @@ export const adminRoutes = new Hono();
 // Apply auth and bishop guards to all admin endpoints
 adminRoutes.use('*', authMiddleware);
 adminRoutes.use('*', bishopMiddleware);
+
+/**
+ * GET /admin/stats/trends — Get signups and verse reading completions trend for last 30 days.
+ */
+adminRoutes.get('/admin/stats/trends', async (c) => {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const userRecords = await db
+      .select({ createdAt: users.createdAt })
+      .from(users)
+      .where(gte(users.createdAt, thirtyDaysAgo));
+
+    const readingRecords = await db
+      .select({ readAt: verseReadings.readAt })
+      .from(verseReadings)
+      .where(gte(verseReadings.readAt, thirtyDaysAgo));
+
+    const trendMap: Record<string, { date: string; signups: number; reads: number }> = {};
+    
+    // Initialize the last 30 days
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      trendMap[dateStr] = { date: dateStr, signups: 0, reads: 0 };
+    }
+
+    // Group user signups
+    for (const record of userRecords) {
+      const dateStr = new Date(record.createdAt).toISOString().split('T')[0];
+      if (trendMap[dateStr]) {
+        trendMap[dateStr].signups++;
+      }
+    }
+
+    // Group readings
+    for (const record of readingRecords) {
+      const dateStr = new Date(record.readAt).toISOString().split('T')[0];
+      if (trendMap[dateStr]) {
+        trendMap[dateStr].reads++;
+      }
+    }
+
+    const trends = Object.values(trendMap).sort((a, b) => a.date.localeCompare(b.date));
+    return c.json({ trends });
+  } catch (err: any) {
+    console.error('Error fetching admin stats trends:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * GET /admin/stats/translations — Get breakdown of users preferred translations.
+ */
+adminRoutes.get('/admin/stats/translations', async (c) => {
+  try {
+    const translationCounts = await db
+      .select({
+        translation: users.translation,
+        value: count()
+      })
+      .from(users)
+      .groupBy(users.translation);
+
+    const translations = translationCounts.map(tc => ({
+      name: tc.translation || 'KJV',
+      value: tc.value
+    }));
+
+    return c.json({ translations });
+  } catch (err: any) {
+    console.error('Error fetching translation stats:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
 
 /**
  * GET /admin/books — Get all books in database for scheduling dropdowns.

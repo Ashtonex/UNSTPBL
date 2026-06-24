@@ -14,3 +14,4 @@ export function createDb(connectionString?: string) {
 
 export type Database = ReturnType<typeof createDb>;
 export * from './schema.js';
+export * from 'drizzle-orm';

@@ -1,8 +1,19 @@
 import { Hono } from 'hono';
-import { eq, desc, and, lte } from 'drizzle-orm';
 import { createClient } from '@supabase/supabase-js';
 import { db } from '../lib/db.js';
-import { verseSchedule, bibleVerses, bibleBooks, verseReadings, users } from '@unstpbl/db';
+import {
+  verseSchedule,
+  bibleVerses,
+  bibleBooks,
+  verseReadings,
+  users,
+  eq,
+  desc,
+  and,
+  lte,
+  gt,
+  asc
+} from '@unstpbl/db';
 import { fetchVerseFromApi, fetchVerseFromEsv } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { DEFAULT_FALLBACK_VERSE } from '@unstpbl/shared';
@@ -119,7 +130,7 @@ async function getOrCreateTodayVerse(todayDate: string): Promise<any> {
     return todaySchedule[0];
   }
 
-  // 2. Try to fall back to the most recent scheduled verse
+  // 2. Try to fall back to the most recent scheduled verse, but incrementing sequentially from bible_verses cache
   const lastScheduled = await db
     .select()
     .from(verseSchedule)
@@ -131,25 +142,45 @@ async function getOrCreateTodayVerse(todayDate: string): Promise<any> {
   if (lastScheduled.length > 0) {
     const last = lastScheduled[0];
     try {
-      await db.insert(verseSchedule).values({
-        date: todayDate,
-        verseId: last.bible_verses.id,
-        mode: 'sequential',
-        bookId: last.bible_verses.bookId,
-        chapter: last.bible_verses.chapter,
-      });
-
-      // Re-query to return joined structure
-      const newToday = await db
+      // Find the next verse in bible_verses where ID is greater than the last scheduled verse's verseId
+      let nextVerse = await db
         .select()
-        .from(verseSchedule)
-        .innerJoin(bibleVerses, eq(verseSchedule.verseId, bibleVerses.id))
-        .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id))
-        .where(eq(verseSchedule.date, todayDate))
+        .from(bibleVerses)
+        .where(gt(bibleVerses.id, last.verse_schedule.verseId))
+        .orderBy(asc(bibleVerses.id))
         .limit(1);
 
-      if (newToday.length > 0) {
-        return newToday[0];
+      // If no verse with greater ID is found, fall back to the first verse in bible_verses
+      if (nextVerse.length === 0) {
+        nextVerse = await db
+          .select()
+          .from(bibleVerses)
+          .orderBy(asc(bibleVerses.id))
+          .limit(1);
+      }
+
+      if (nextVerse.length > 0) {
+        const targetVerse = nextVerse[0];
+        await db.insert(verseSchedule).values({
+          date: todayDate,
+          verseId: targetVerse.id,
+          mode: 'sequential',
+          bookId: targetVerse.bookId,
+          chapter: targetVerse.chapter,
+        });
+
+        // Re-query to return joined structure
+        const newToday = await db
+          .select()
+          .from(verseSchedule)
+          .innerJoin(bibleVerses, eq(verseSchedule.verseId, bibleVerses.id))
+          .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id))
+          .where(eq(verseSchedule.date, todayDate))
+          .limit(1);
+
+        if (newToday.length > 0) {
+          return newToday[0];
+        }
       }
     } catch (err) {
       console.error('Failed to auto-schedule last verse:', err);

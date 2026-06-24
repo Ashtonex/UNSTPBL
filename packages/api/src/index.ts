@@ -3,11 +3,19 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import 'dotenv/config';
+import * as Sentry from '@sentry/node';
+
+// Initialize Sentry
+Sentry.init({
+  dsn: process.env.SENTRY_DSN_API || 'https://c00a078fcf47893596672eb2c21b4fa6@o4511622101925888.ingest.de.sentry.io/4511622119424080',
+  tracesSampleRate: 1.0,
+});
 
 import { healthRoutes } from './routes/health.js';
 import { verseRoutes } from './routes/verses.js';
 import { adminRoutes } from './routes/admin.js';
 import { profileRoutes } from './routes/profile.js';
+import { pushRoutes } from './routes/push.js';
 
 const app = new Hono();
 
@@ -40,6 +48,7 @@ app.route('/', healthRoutes);
 app.route('/', verseRoutes);
 app.route('/', adminRoutes);
 app.route('/', profileRoutes);
+app.route('/', pushRoutes);
 
 // ── Error Handling ──────────────────────────────────────────────────────────
 
@@ -47,6 +56,7 @@ app.notFound((c) => c.json({ error: 'Not found' }, 404));
 
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
+  Sentry.captureException(err);
   return c.json({ error: 'Internal server error' }, 500);
 });
 
