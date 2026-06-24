@@ -35,13 +35,13 @@ export default function LoginPage() {
         
         {/* Branding Area */}
         <div className="text-center mb-6">
-          <div className="inline-block relative mb-3">
+          <div className="inline-block relative mb-4">
             {/* Logo Glow Ring */}
-            <div className="absolute inset-0 bg-brand-500/20 rounded-2xl blur-md scale-105" />
+            <div className="absolute inset-0 bg-brand-500/15 rounded-3xl blur-lg scale-105" />
             <img
               src="/church_logo.png"
               alt="Church Logo"
-              className="relative z-10 w-36 h-36 rounded-2xl border border-white/10 shadow-2xl object-cover"
+              className="relative z-10 w-64 h-64 rounded-3xl border border-white/10 shadow-2xl object-contain bg-white/5 p-4"
             />
           </div>
           <h1 className="text-4xl font-black tracking-tight mb-1">

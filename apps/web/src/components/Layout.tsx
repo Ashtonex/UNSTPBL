@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
@@ -5,6 +6,39 @@ import { useAuthStore } from '../stores/auth';
 export default function Layout() {
   const { signOut, profile } = useAuthStore();
   const navigate = useNavigate();
+
+  const [visible, setVisible] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const prevScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // 1. Determine logo scroll-shrink state
+      setIsScrolled(currentScrollY > 20);
+
+      // 2. Determine navbars scroll-direction visibility state
+      const diff = currentScrollY - prevScrollY.current;
+
+      if (currentScrollY <= 20) {
+        setVisible(true);
+        prevScrollY.current = currentScrollY;
+      } else if (Math.abs(diff) > 8) {
+        if (diff > 0) {
+          // Scrolling down -> hide navbars
+          setVisible(false);
+        } else {
+          // Scrolling up -> show navbars
+          setVisible(true);
+        }
+        prevScrollY.current = currentScrollY;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -28,14 +62,20 @@ export default function Layout() {
 
       {/* Main Content Layer */}
       <div className="relative z-10 flex-1 flex flex-col min-h-screen">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10 px-4 py-3">
+        {/* Header - Hides on scroll down, shows on scroll up, shrinks logo */}
+        <header
+          className={`fixed top-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10 px-4 transition-all duration-300 transform ${
+            visible ? 'translate-y-0' : '-translate-y-full'
+          } ${isScrolled ? 'py-1.5 bg-surface-950/80 shadow-lg' : 'py-3'}`}
+        >
           <div className="max-w-lg mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <img
                 src="/church_logo.png"
                 alt="Church Logo"
-                className="w-8 h-8 rounded-lg object-cover"
+                className={`rounded-xl object-contain bg-white/5 p-1 transition-all duration-300 ease-out transform origin-left ${
+                  isScrolled ? 'w-12 h-12 shadow-md' : 'w-20 h-20 shadow-xl'
+                }`}
               />
               <h1 className="text-xl font-extrabold tracking-tight">
                 <span className="text-gradient">UNSTPBL</span>
@@ -50,13 +90,17 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 px-4 py-6 max-w-lg mx-auto w-full">
+        {/* Main Content - Padded to compensate for fixed navbars */}
+        <main className="flex-1 px-4 pb-24 pt-28 max-w-lg mx-auto w-full">
           <Outlet />
         </main>
 
-        {/* Bottom Navigation */}
-        <nav className="sticky bottom-0 z-50 bg-white/5 backdrop-blur-lg border-t border-white/10">
+        {/* Bottom Navigation - Hides on scroll down, shows on scroll up */}
+        <nav
+          className={`fixed bottom-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-t border-white/10 transition-all duration-300 transform ${
+            visible ? 'translate-y-0 shadow-[0_-8px_30px_rgba(0,0,0,0.5)]' : 'translate-y-full'
+          }`}
+        >
           <div className="max-w-lg mx-auto flex justify-around py-2">
             <NavLink
               to="/"
