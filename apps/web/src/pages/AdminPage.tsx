@@ -1,314 +1,184 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
-} from 'recharts';
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
-  const [bookId, setBookId] = useState<number | ''>('');
-  const [chapter, setChapter] = useState<number | ''>('');
-  const [verseNumber, setVerseNumber] = useState<number | ''>('');
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // 1. Fetch Admin Stats
+  // 1. Fetch Users List
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: api.getAdminUsersList,
+  });
+
+  // 2. Fetch general stats for summary card
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: api.getAdminStats,
-    refetchInterval: 15000, // Refetch stats every 15 seconds
   });
 
-  // Fetch Trends and Translation Breakdown
-  const { data: trendsData, isLoading: trendsLoading } = useQuery({
-    queryKey: ['admin-stats-trends'],
-    queryFn: api.getAdminStatsTrends,
-    refetchInterval: 60000,
-  });
-
-  const { data: translationsData, isLoading: translationsLoading } = useQuery({
-    queryKey: ['admin-stats-translations'],
-    queryFn: api.getAdminStatsTranslations,
-    refetchInterval: 60000,
-  });
-
-  // 2. Fetch Bible Books for dropdown selection
-  const { data: booksData, isLoading: booksLoading } = useQuery({
-    queryKey: ['admin-books'],
-    queryFn: api.getAdminBooks,
-  });
-
-  // 3. Mutation for scheduling a verse
-  const scheduleMutation = useMutation({
-    mutationFn: api.scheduleVerse,
-    onSuccess: () => {
-      setSuccessMsg('Verse successfully scheduled!');
+  // 3. Mutation for updating user role
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'member' | 'bishop' | 'admin' }) =>
+      api.updateUserRole(userId, role),
+    onSuccess: (data: any, variables) => {
+      setSuccessMsg(`Successfully updated user to role: ${variables.role}`);
       setErrorMsg(null);
-      setBookId('');
-      setChapter('');
-      setVerseNumber('');
-      // Invalidate queries to refresh dashboard data
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['verse-today'] });
-      queryClient.invalidateQueries({ queryKey: ['verse-history'] });
-      // Clear success message after 5 seconds
       setTimeout(() => setSuccessMsg(null), 5000);
     },
     onError: (err: any) => {
-      setErrorMsg(err.message || 'Failed to schedule verse. Please check inputs and try again.');
+      setErrorMsg(err.message || 'Failed to update user role.');
       setSuccessMsg(null);
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bookId || !chapter || !verseNumber || !date) {
-      setErrorMsg('Please fill in all scheduling fields.');
-      return;
-    }
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    scheduleMutation.mutate({
-      date,
-      bookId: Number(bookId),
-      chapter: Number(chapter),
-      verseNumber: Number(verseNumber),
-    });
+  const handleRoleChange = (userId: string, newRole: 'member' | 'bishop' | 'admin') => {
+    updateRoleMutation.mutate({ userId, role: newRole });
   };
+
+  // Filter users based on query
+  const filteredUsers = (usersData?.users || []).filter((user) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      user.email.toLowerCase().includes(query) ||
+      (user.displayName && user.displayName.toLowerCase().includes(query)) ||
+      (user.congregation && user.congregation.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="py-4 animate-fade-in space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Bishop Dashboard</h2>
-        <p className="text-white/40 text-sm">Manage verse schedules and monitor congregation engagement.</p>
+        <h2 className="text-2xl font-bold text-white mb-1">System Administration</h2>
+        <p className="text-white/40 text-sm">Manage user roles, platform permissions, and monitor system metrics.</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Stats Summary Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="glass-card p-5 animate-slide-up relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-3 bg-brand-500/10 rounded-bl-2xl">
-            <svg className="w-5 h-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Total Members</p>
+          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Total Registered Users</p>
           <p className="text-4xl font-bold text-gradient mt-2">
-            {statsLoading ? (
+            {usersLoading ? (
               <span className="inline-block w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
             ) : (
-              stats?.memberCount ?? 0
+              usersData?.users?.length ?? 0
             )}
           </p>
         </div>
 
-        <div
-          className="glass-card p-5 animate-slide-up relative overflow-hidden"
-          style={{ animationDelay: '0.1s' }}
-        >
-          <div className="absolute top-0 right-0 p-3 bg-brand-500/10 rounded-bl-2xl">
-            <svg className="w-5 h-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+        <div className="glass-card p-5 animate-slide-up relative overflow-hidden" style={{ animationDelay: '0.1s' }}>
+          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Sentry Error Monitoring</p>
+          <div className="flex items-center gap-2 mt-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm font-bold text-white">Active & Connected</span>
           </div>
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Today&apos;s Read Rate</p>
-          <p className="text-4xl font-bold text-gradient mt-2">
-            {statsLoading ? (
-              <span className="inline-block w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              `${stats?.readRate ?? 0}%`
-            )}
-          </p>
+          <p className="text-xs text-white/30 mt-1">DSN: ingest.de.sentry.io</p>
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Area Chart: Engagement Trends */}
-        <div className="glass-card p-5 animate-slide-up flex flex-col h-[320px]">
-          <h3 className="text-sm font-bold text-white mb-2">Congregation Engagement (30d)</h3>
-          <div className="flex-1 min-h-0">
-            {trendsLoading ? (
-              <div className="w-full h-full flex items-center justify-center">
-                <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendsData?.trends || []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorReads" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#eab308" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorSignups" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tickFormatter={(tick) => tick.split('-')[2]} stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                  <YAxis stroke="rgba(255,255,255,0.3)" fontSize={10} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0b0f13', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                    labelStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}
-                    itemStyle={{ fontSize: '12px' }}
-                  />
-                  <Area type="monotone" dataKey="reads" name="Reads" stroke="#eab308" fillOpacity={1} fill="url(#colorReads)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="signups" name="Signups" stroke="#06b6d4" fillOpacity={1} fill="url(#colorSignups)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+      {/* Alerts */}
+      {successMsg && (
+        <div className="p-4 bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-xl flex items-center gap-2">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {successMsg}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl flex items-center gap-2">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          {errorMsg}
+        </div>
+      )}
+
+      {/* User Directory Table Card */}
+      <div className="glass-card p-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h3 className="text-lg font-bold text-white">User Directory</h3>
+          
+          {/* Search Box */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search email, name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors w-full sm:w-64"
+            />
+            <svg className="w-4 h-4 text-white/30 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
         </div>
 
-        {/* Pie Chart: Translation breakdown */}
-        <div className="glass-card p-5 animate-slide-up flex flex-col h-[320px]">
-          <h3 className="text-sm font-bold text-white mb-2">Translation Preferences</h3>
-          <div className="flex-1 min-h-0 flex items-center justify-center">
-            {translationsLoading ? (
-              <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={translationsData?.translations || []}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {(translationsData?.translations || []).map((_entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#eab308' : '#06b6d4'} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0b0f13', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                    itemStyle={{ fontSize: '12px' }}
-                  />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
+        {usersLoading ? (
+          <div className="py-12 flex justify-center items-center">
+            <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
           </div>
-        </div>
-      </div>
-
-      {/* Schedule Form */}
-      <div
-        className="glass-card p-6 animate-slide-up"
-        style={{ animationDelay: '0.2s' }}
-      >
-        <h3 className="text-lg font-bold text-white mb-4">Schedule Daily Scripture</h3>
-        
-        {successMsg && (
-          <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-xl flex items-center gap-2">
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {successMsg}
-          </div>
-        )}
-
-        {errorMsg && (
-          <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl flex items-center gap-2">
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Book Selection */}
-            <div>
-              <label htmlFor="book-select" className="block text-white/50 text-xs font-semibold mb-2">BIBLE BOOK</label>
-              <select
-                id="book-select"
-                value={bookId}
-                onChange={(e) => setBookId(e.target.value ? Number(e.target.value) : '')}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors"
-                disabled={booksLoading}
-              >
-                <option value="" className="bg-neutral-900 text-white/50">Select a book...</option>
-                {booksData?.books.map((book) => (
-                  <option key={book.id} value={book.id} className="bg-neutral-900 text-white">
-                    {book.name}
-                  </option>
+        ) : filteredUsers.length === 0 ? (
+          <p className="text-center py-8 text-white/30 text-sm">No users found matching query.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/5 pb-2">
+                  <th className="pb-3 text-xs font-semibold text-white/40 uppercase tracking-wider">Member</th>
+                  <th className="pb-3 text-xs font-semibold text-white/40 uppercase tracking-wider">Role</th>
+                  <th className="pb-3 text-xs font-semibold text-white/40 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-4">
+                      <div className="font-semibold text-white text-sm">
+                        {user.displayName || 'Unnamed Member'}
+                      </div>
+                      <div className="text-xs text-white/40 mt-0.5">{user.email}</div>
+                      {user.congregation && (
+                        <div className="text-[10px] text-brand-400 font-medium uppercase mt-1">
+                          {user.congregation}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-4">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
+                        user.role === 'admin' 
+                          ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
+                          : user.role === 'bishop' 
+                            ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' 
+                            : 'bg-white/5 text-white/60'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="py-4 text-right">
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
+                        disabled={updateRoleMutation.isPending}
+                        className="bg-neutral-900 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"
+                      >
+                        <option value="member">Make Member</option>
+                        <option value="bishop">Make Bishop</option>
+                        <option value="admin">Make Admin</option>
+                      </select>
+                    </td>
+                  </tr>
                 ))}
-              </select>
-            </div>
-
-            {/* Date Selection */}
-            <div>
-              <label htmlFor="schedule-date" className="block text-white/50 text-xs font-semibold mb-2">PUBLISH DATE</label>
-              <input
-                id="schedule-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors"
-              />
-            </div>
+              </tbody>
+            </table>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Chapter */}
-            <div>
-              <label htmlFor="chapter-input" className="block text-white/50 text-xs font-semibold mb-2">CHAPTER</label>
-              <input
-                id="chapter-input"
-                type="number"
-                min="1"
-                placeholder="e.g. 3"
-                value={chapter}
-                onChange={(e) => setChapter(e.target.value ? Number(e.target.value) : '')}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            {/* Verse */}
-            <div>
-              <label htmlFor="verse-input" className="block text-white/50 text-xs font-semibold mb-2">VERSE NUMBER</label>
-              <input
-                id="verse-input"
-                type="number"
-                min="1"
-                placeholder="e.g. 16"
-                value={verseNumber}
-                onChange={(e) => setVerseNumber(e.target.value ? Number(e.target.value) : '')}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={scheduleMutation.isPending}
-            className="w-full mt-4 bg-brand-500 hover:bg-brand-600 active:scale-[0.98] disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg shadow-brand-500/20 flex justify-center items-center gap-2"
-          >
-            {scheduleMutation.isPending ? (
-              <>
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Scheduling & Fetching Verse...
-              </>
-            ) : (
-              'Schedule Verse'
-            )}
-          </button>
-        </form>
+        )}
       </div>
     </div>
   );

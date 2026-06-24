@@ -14,12 +14,61 @@ import {
 import { fetchVerseFromApi } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { bishopMiddleware } from '../middleware/bishop.js';
+import { adminOnlyMiddleware } from '../middleware/admin.js';
 
 export const adminRoutes = new Hono();
 
 // Apply auth and bishop guards to all admin endpoints
 adminRoutes.use('*', authMiddleware);
 adminRoutes.use('*', bishopMiddleware);
+
+/**
+ * GET /admin/users — Get list of all registered users (Admin only).
+ */
+adminRoutes.get('/admin/users', adminOnlyMiddleware, async (c) => {
+  try {
+    const userRecords = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        displayName: users.displayName,
+        congregation: users.congregation,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .orderBy(users.email);
+
+    return c.json({ users: userRecords });
+  } catch (err: any) {
+    console.error('Error fetching admin users list:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * PUT /admin/users/:userId/role — Update a user's role (Admin only).
+ */
+adminRoutes.put('/admin/users/:userId/role', adminOnlyMiddleware, async (c) => {
+  try {
+    const userId = c.req.param('userId');
+    const { role } = await c.req.json();
+
+    if (!role || (role !== 'member' && role !== 'bishop' && role !== 'admin')) {
+      return c.json({ error: 'Invalid or missing role' }, 400);
+    }
+
+    await db
+      .update(users)
+      .set({ role })
+      .where(eq(users.id, userId));
+
+    return c.json({ success: true, message: `User role updated to ${role} successfully.` });
+  } catch (err: any) {
+    console.error('Error updating user role:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
 
 /**
  * GET /admin/stats/trends — Get signups and verse reading completions trend for last 30 days.

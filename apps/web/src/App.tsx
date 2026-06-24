@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
+import BishopPage from './pages/BishopPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -77,6 +78,7 @@ export default function App() {
       >
         <Route index element={<HomePage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="bishop" element={<BishopPage />} />
         <Route path="admin" element={<AdminPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

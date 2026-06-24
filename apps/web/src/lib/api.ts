@@ -260,5 +260,12 @@ export const api = {
       }
     }
   },
+  getAdminUsersList: () =>
+    apiFetch<{ users: Array<{ id: string; email: string; role: string; displayName?: string; congregation?: string; createdAt: string }> }>('/admin/users'),
+  updateUserRole: (userId: string, role: 'member' | 'bishop' | 'admin') =>
+    apiFetch<{ success: boolean }>(`/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
 };
 
