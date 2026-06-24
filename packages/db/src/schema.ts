@@ -51,6 +51,7 @@ export const bibleVerses = pgTable(
     verseNumber: integer('verse_number').notNull(),
     text: text('text').notNull(),
     translation: varchar('translation', { length: 10 }).notNull().default('KJV'),
+    embedding: jsonb('embedding'),
   },
   (table) => ({
     bookChapterVerseIdx: uniqueIndex('bible_verses_book_chapter_verse_idx').on(

@@ -17,6 +17,7 @@ import {
 import { fetchVerseFromApi, fetchVerseFromEsv } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { DEFAULT_FALLBACK_VERSE } from '@unstpbl/shared';
+import { getEmbedding, cosineSimilarity } from '../lib/embeddings.js';
 
 export const verseRoutes = new Hono();
 
@@ -76,7 +77,18 @@ async function resolveVerseInTranslation(
     .limit(1);
 
   if (cached.length > 0) {
-    return cached[0];
+    const row = cached[0];
+    // If it doesn't have an embedding, compute it and save it
+    if (!row.embedding) {
+      try {
+        const embedding = await getEmbedding(row.text);
+        await db.update(bibleVerses).set({ embedding }).where(eq(bibleVerses.id, row.id));
+        row.embedding = embedding;
+      } catch (err) {
+        console.error('Failed to compute missing embedding on cache hit:', err);
+      }
+    }
+    return row as any;
   }
 
   // 2. Fetch from appropriate API
@@ -101,6 +113,13 @@ async function resolveVerseInTranslation(
     }
   }
 
+  let embedding: number[] | null = null;
+  try {
+    embedding = await getEmbedding(text);
+  } catch (err) {
+    console.error('Failed to compute embedding during insert:', err);
+  }
+
   // 3. Cache in database
   const [inserted] = await db
     .insert(bibleVerses)
@@ -110,6 +129,7 @@ async function resolveVerseInTranslation(
       verseNumber,
       text,
       translation,
+      embedding,
     })
     .returning();
 
@@ -411,6 +431,163 @@ verseRoutes.post('/verses/read', authMiddleware, async (c) => {
     return c.json({ success: true });
   } catch (err: any) {
     console.error('Error marking verse as read:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * GET /verses/search?q=... — Semantically search cached verses.
+ */
+verseRoutes.get('/verses/search', async (c) => {
+  try {
+    const query = c.req.query('q');
+    if (!query) {
+      return c.json({ error: 'Search query parameter "q" is required' }, 400);
+    }
+
+    const queryEmbedding = await getEmbedding(query);
+
+    // Fetch all cached verses that have embeddings, or compute them if missing
+    const allVerses = await db
+      .select({
+        id: bibleVerses.id,
+        text: bibleVerses.text,
+        chapter: bibleVerses.chapter,
+        verseNumber: bibleVerses.verseNumber,
+        translation: bibleVerses.translation,
+        embedding: bibleVerses.embedding,
+        bookName: bibleBooks.name,
+        bookAbbreviation: bibleBooks.abbreviation,
+      })
+      .from(bibleVerses)
+      .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id));
+
+    const matches: any[] = [];
+
+    for (const row of allVerses) {
+      let embedding = row.embedding as number[] | null;
+      if (!embedding) {
+        try {
+          embedding = await getEmbedding(row.text);
+          await db.update(bibleVerses).set({ embedding }).where(eq(bibleVerses.id, row.id));
+        } catch (e) {
+          console.error(`Failed to generate missing embedding for search on verse ${row.id}:`, e);
+          continue;
+        }
+      }
+
+      const score = cosineSimilarity(queryEmbedding, embedding);
+      matches.push({
+        verse: {
+          id: row.id,
+          text: row.text,
+          chapter: row.chapter,
+          verseNumber: row.verseNumber,
+          translation: row.translation,
+        },
+        book: {
+          name: row.bookName,
+          abbreviation: row.bookAbbreviation,
+        },
+        score,
+      });
+    }
+
+    // Sort by cosine similarity score descending
+    matches.sort((a, b) => b.score - a.score);
+
+    // Return top 6 matches
+    return c.json({ matches: matches.slice(0, 6) });
+  } catch (err: any) {
+    console.error('Error performing semantic search:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * GET /verses/:id/related — Return top 3 semantically related scriptures.
+ */
+verseRoutes.get('/verses/:id/related', async (c) => {
+  try {
+    const verseId = parseInt(c.req.param('id'), 10);
+    if (isNaN(verseId)) {
+      return c.json({ error: 'Invalid verse ID' }, 400);
+    }
+
+    // 1. Fetch the target verse
+    const targetRows = await db
+      .select({
+        id: bibleVerses.id,
+        text: bibleVerses.text,
+        embedding: bibleVerses.embedding,
+      })
+      .from(bibleVerses)
+      .where(eq(bibleVerses.id, verseId))
+      .limit(1);
+
+    if (targetRows.length === 0) {
+      return c.json({ error: 'Verse not found' }, 404);
+    }
+
+    const target = targetRows[0];
+    let targetEmbedding = target.embedding as number[] | null;
+    if (!targetEmbedding) {
+      targetEmbedding = await getEmbedding(target.text);
+      await db.update(bibleVerses).set({ embedding: targetEmbedding }).where(eq(bibleVerses.id, target.id));
+    }
+
+    // 2. Fetch all other cached verses
+    const otherVerses = await db
+      .select({
+        id: bibleVerses.id,
+        text: bibleVerses.text,
+        chapter: bibleVerses.chapter,
+        verseNumber: bibleVerses.verseNumber,
+        translation: bibleVerses.translation,
+        embedding: bibleVerses.embedding,
+        bookName: bibleBooks.name,
+        bookAbbreviation: bibleBooks.abbreviation,
+      })
+      .from(bibleVerses)
+      .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id));
+
+    const recommendations: any[] = [];
+
+    for (const row of otherVerses) {
+      if (row.id === target.id) continue;
+
+      let embedding = row.embedding as number[] | null;
+      if (!embedding) {
+        try {
+          embedding = await getEmbedding(row.text);
+          await db.update(bibleVerses).set({ embedding }).where(eq(bibleVerses.id, row.id));
+        } catch (e) {
+          continue;
+        }
+      }
+
+      const score = cosineSimilarity(targetEmbedding, embedding);
+      recommendations.push({
+        verse: {
+          id: row.id,
+          text: row.text,
+          chapter: row.chapter,
+          verseNumber: row.verseNumber,
+          translation: row.translation,
+        },
+        book: {
+          name: row.bookName,
+          abbreviation: row.bookAbbreviation,
+        },
+        score,
+      });
+    }
+
+    // Sort and return top 3
+    recommendations.sort((a, b) => b.score - a.score);
+    return c.json({ related: recommendations.slice(0, 3) });
+  } catch (err: any) {
+    console.error('Error fetching related verses:', err);
     return c.json({ error: err.message || 'Internal server error' }, 500);
   }
 });

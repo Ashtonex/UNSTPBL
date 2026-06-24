@@ -28,6 +28,15 @@ export default function HomePage() {
     enabled: showHistory,
   });
 
+  const {
+    data: relatedData,
+    isLoading: relatedLoading,
+  } = useQuery({
+    queryKey: ['related-verses', dailyVerse?.verse?.id],
+    queryFn: () => api.getRelatedVerses(dailyVerse!.verse.id),
+    enabled: !!dailyVerse?.verse?.id && dailyVerse.verse.id !== 0,
+  });
+
   useEffect(() => {
     if (dailyVerse?.schedule?.id) {
       const readKey = `read-verse-${dailyVerse.schedule.id}`;
@@ -79,6 +88,7 @@ export default function HomePage() {
   }
 
   const currentVerse = error ? fallbackVerse : dailyVerse || fallbackVerse;
+  const showRelated = !!dailyVerse?.verse?.id && dailyVerse.verse.id !== 0;
 
   return (
     <div className="py-4 relative min-h-[calc(100vh-8rem)]">
@@ -94,6 +104,86 @@ export default function HomePage() {
         onMarkRead={handleMarkRead}
         isRead={isRead}
       />
+
+      {/* Related Scriptures (NLP Recommendations) */}
+      {showRelated && (
+        <div className="mt-12 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="flex items-center gap-2 mb-6">
+            <svg
+              className="w-5 h-5 text-brand-400 animate-pulse-soft"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              />
+            </svg>
+            <h3 className="text-lg font-bold text-white tracking-wide">Inspired Connections</h3>
+            <span className="text-[10px] bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">
+              AI Recommended
+            </span>
+          </div>
+
+          {relatedLoading ? (
+            <div className="flex items-center justify-center py-10 glass-card">
+              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mr-3" />
+              <p className="text-white/40 text-xs">Finding related scriptures...</p>
+            </div>
+          ) : relatedData?.related && relatedData.related.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {relatedData.related.map((item) => (
+                <div
+                  key={item.verse.id}
+                  className="glass-card-hover p-5 relative overflow-hidden flex flex-col justify-between group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
+                >
+                  {/* Subtle PAOZ Watermark behind each recommendations card */}
+                  <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center p-4">
+                    <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
+                  </div>
+
+                  <div className="relative z-10">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-[10px] font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20">
+                        {Math.round(item.score * 100)}% Match
+                      </span>
+                      <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
+                        {item.verse.translation}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-white/80 leading-relaxed italic mb-4">
+                      &ldquo;{item.verse.text}&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="relative z-10 flex justify-between items-end mt-auto pt-2 border-t border-white/5">
+                    <span className="text-xs font-semibold text-white/60">
+                      {item.book.name} {item.verse.chapter}:{item.verse.verseNumber}
+                    </span>
+                    
+                    {/* Visual similarity meter */}
+                    <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-brand-500 to-brand-400" 
+                        style={{ width: `${Math.round(item.score * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card p-6 text-center">
+              <p className="text-white/30 text-sm">No related scriptures found in cache yet.</p>
+              <p className="text-white/20 text-xs mt-1">Read more scriptures to populate AI connections!</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* History Teaser */}
       <div

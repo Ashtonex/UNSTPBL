@@ -267,5 +267,9 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ role }),
     }),
+  searchVerses: (query: string) =>
+    apiFetch<{ matches: Array<{ verse: any; book: any; score: number }> }>(`/verses/search?q=${encodeURIComponent(query)}`),
+  getRelatedVerses: (verseId: number) =>
+    apiFetch<{ related: Array<{ verse: any; book: any; score: number }> }>(`/verses/${verseId}/related`),
 };
 
