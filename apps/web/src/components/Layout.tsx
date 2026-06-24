@@ -114,8 +114,8 @@ export default function Layout() {
               <img
                 src="/church_logo.png"
                 alt="Church Logo"
-                className={`rounded-xl object-contain bg-white/5 p-1 transition-all duration-300 ease-out transform origin-left ${
-                  isScrolled ? 'w-12 h-12 shadow-md' : 'w-20 h-20 shadow-xl'
+                className={`object-contain transition-all duration-300 ease-out transform origin-left ${
+                  isScrolled ? 'w-12 h-12' : 'w-20 h-20'
                 }`}
               />
               <h1 className="text-xl font-extrabold tracking-tight">
