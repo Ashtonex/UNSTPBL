@@ -17,7 +17,17 @@ app.use('*', logger());
 app.use(
   '*',
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: (origin) => {
+      if (
+        !origin ||
+        origin.startsWith('http://localhost:') ||
+        origin.endsWith('.vercel.app') ||
+        origin === 'https://unstpbl-seven.vercel.app'
+      ) {
+        return origin;
+      }
+      return process.env.CORS_ORIGIN || 'http://localhost:5173';
+    },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

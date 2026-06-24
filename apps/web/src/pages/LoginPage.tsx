@@ -41,7 +41,7 @@ export default function LoginPage() {
             <img
               src="/church_logo.png"
               alt="Church Logo"
-              className="relative z-10 w-24 h-24 rounded-2xl border border-white/10 shadow-2xl object-cover"
+              className="relative z-10 w-36 h-36 rounded-2xl border border-white/10 shadow-2xl object-cover"
             />
           </div>
           <h1 className="text-4xl font-black tracking-tight mb-1">
