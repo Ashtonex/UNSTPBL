@@ -86,3 +86,41 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-brand-300;
   }
 }
+
+/* Custom background animation settings for premium feel */
+@keyframes bg-wake {
+  0% {
+    opacity: 0;
+    filter: blur(25px) grayscale(100%) brightness(0.3);
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0.22;
+    filter: blur(0px) grayscale(15%) brightness(0.85);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bg-kenburns {
+  0% {
+    transform: scale(1.05) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.15) translate(-1.5%, -1%);
+  }
+  100% {
+    transform: scale(1.05) translate(0, 0);
+  }
+}
+
+.animate-bg-alive {
+  animation: bg-wake 5s cubic-bezier(0.16, 1, 0.3, 1) forwards, bg-kenburns 80s ease-in-out infinite 5s;
+}
+
+.bg-radial-vignette {
+  background: radial-gradient(circle at center, rgba(15, 10, 42, 0.35) 0%, rgba(15, 10, 42, 0.85) 60%, rgba(15, 10, 42, 0.98) 100%);
+}
+
+.bg-radial-vignette-login {
+  background: radial-gradient(circle at center, rgba(15, 10, 42, 0.45) 0%, rgba(15, 10, 42, 0.85) 70%, rgba(15, 10, 42, 0.99) 100%);
+}

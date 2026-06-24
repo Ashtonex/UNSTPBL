@@ -31,10 +31,9 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
       if (session) {
-        syncProfile(session).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
+        syncProfile(session);
       }
     });
 
