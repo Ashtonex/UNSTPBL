@@ -15,7 +15,7 @@
 
   body {
     @apply bg-surface text-white font-sans min-h-screen;
-    background: linear-gradient(135deg, #0f0a2a 0%, #1a1145 50%, #0f0a2a 100%);
+    background: linear-gradient(135deg, #070a0d 0%, #111822 50%, #070a0d 100%);
     background-attachment: fixed;
   }
 
@@ -114,13 +114,17 @@
 }
 
 .animate-bg-alive {
+  opacity: 0.22;
+  filter: blur(0px) grayscale(15%) brightness(0.85);
+  transform: scale(1.05);
   animation: bg-wake 5s cubic-bezier(0.16, 1, 0.3, 1) forwards, bg-kenburns 80s ease-in-out infinite 5s;
+  will-change: transform, opacity, filter;
 }
 
 .bg-radial-vignette {
-  background: radial-gradient(circle at center, rgba(15, 10, 42, 0.35) 0%, rgba(15, 10, 42, 0.85) 60%, rgba(15, 10, 42, 0.98) 100%);
+  background: radial-gradient(circle at center, rgba(7, 10, 13, 0.35) 0%, rgba(7, 10, 13, 0.85) 60%, rgba(7, 10, 13, 0.98) 100%);
 }
 
 .bg-radial-vignette-login {
-  background: radial-gradient(circle at center, rgba(15, 10, 42, 0.45) 0%, rgba(15, 10, 42, 0.85) 70%, rgba(15, 10, 42, 0.99) 100%);
+  background: radial-gradient(circle at center, rgba(7, 10, 13, 0.45) 0%, rgba(7, 10, 13, 0.85) 70%, rgba(7, 10, 13, 0.99) 100%);
 }
