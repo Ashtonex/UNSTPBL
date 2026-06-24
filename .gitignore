@@ -10,4 +10,6 @@ npm-debug.log*
 coverage
 .vite
 *.tsbuildinfo
+node.cmd
+pnpm.cmd
 

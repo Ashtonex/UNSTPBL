@@ -16,6 +16,7 @@
     "@unstpbl/db": "workspace:*",
     "@unstpbl/shared": "workspace:*",
     "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.31.0",
     "hono": "^4.6.9"
   },
   "devDependencies": {

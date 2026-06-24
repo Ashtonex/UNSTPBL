@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { DailyVerse } from '@unstpbl/shared';
+import type { DailyVerse, BibleBook } from '@unstpbl/shared';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -25,6 +25,11 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export interface AdminStats {
+  memberCount: number;
+  readRate: number;
+}
+
 export const api = {
   getVerseToday: () => apiFetch<DailyVerse>('/verses/today'),
   getVerseHistory: (days = 7) =>
@@ -34,4 +39,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ verseScheduleId }),
     }),
+  getAdminBooks: () =>
+    apiFetch<{ books: BibleBook[] }>('/admin/books'),
+  getAdminStats: () =>
+    apiFetch<AdminStats>('/admin/stats'),
+  scheduleVerse: (data: { date: string; bookId: number; chapter: number; verseNumber: number }) =>
+    apiFetch<{ success: boolean }>('/admin/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
+
