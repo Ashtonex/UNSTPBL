@@ -28,6 +28,7 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull().default('member'),
   displayName: varchar('display_name', { length: 255 }),
   congregation: varchar('congregation', { length: 255 }),
+  translation: varchar('translation', { length: 10 }).notNull().default('KJV'),
   pushSubscription: jsonb('push_subscription'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

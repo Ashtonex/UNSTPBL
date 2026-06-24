@@ -1,12 +1,109 @@
 import { Hono } from 'hono';
 import { eq, desc, and, lte } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
 import { db } from '../lib/db.js';
-import { verseSchedule, bibleVerses, bibleBooks, verseReadings } from '@unstpbl/db';
-import { fetchVerseFromApi } from '../lib/bibleApi.js';
+import { verseSchedule, bibleVerses, bibleBooks, verseReadings, users } from '@unstpbl/db';
+import { fetchVerseFromApi, fetchVerseFromEsv } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { DEFAULT_FALLBACK_VERSE } from '@unstpbl/shared';
 
 export const verseRoutes = new Hono();
+
+/**
+ * Resolves the user's preferred Bible translation from the authorization token.
+ */
+async function getPreferredTranslation(c: any): Promise<string> {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return 'KJV';
+  }
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return 'KJV';
+  }
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return 'KJV';
+
+    const dbUsers = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+    if (dbUsers.length > 0) {
+      return dbUsers[0].translation || 'KJV';
+    }
+    return 'KJV';
+  } catch (e) {
+    return 'KJV';
+  }
+}
+
+/**
+ * Resolves a scripture passage in the desired translation.
+ * Uses database cache first, then API fallback, then caches it.
+ */
+async function resolveVerseInTranslation(
+  bookId: number,
+  bookName: string,
+  abbreviation: string,
+  chapter: number,
+  verseNumber: number,
+  translation: string
+): Promise<{ id: number; bookId: number; chapter: number; verseNumber: number; text: string; translation: string }> {
+  // 1. Check database cache
+  const cached = await db
+    .select()
+    .from(bibleVerses)
+    .where(
+      and(
+        eq(bibleVerses.bookId, bookId),
+        eq(bibleVerses.chapter, chapter),
+        eq(bibleVerses.verseNumber, verseNumber),
+        eq(bibleVerses.translation, translation)
+      )
+    )
+    .limit(1);
+
+  if (cached.length > 0) {
+    return cached[0];
+  }
+
+  // 2. Fetch from appropriate API
+  console.log(`Cache miss for ${bookName} ${chapter}:${verseNumber} in ${translation}. Fetching...`);
+  let text = '';
+  if (translation === 'ESV') {
+    try {
+      text = await fetchVerseFromEsv(bookName, chapter, verseNumber);
+    } catch (err) {
+      console.error(`Failed to fetch from ESV API, falling back to KJV text:`, err);
+      // Fallback to KJV text if ESV fetch fails
+      const kjvVerse = await resolveVerseInTranslation(bookId, bookName, abbreviation, chapter, verseNumber, 'KJV');
+      text = kjvVerse.text;
+    }
+  } else {
+    // KJV
+    try {
+      text = await fetchVerseFromApi(abbreviation, chapter, verseNumber);
+    } catch (err) {
+      console.error(`Failed to fetch from Bible API:`, err);
+      text = DEFAULT_FALLBACK_VERSE.text;
+    }
+  }
+
+  // 3. Cache in database
+  const [inserted] = await db
+    .insert(bibleVerses)
+    .values({
+      bookId,
+      chapter,
+      verseNumber,
+      text,
+      translation,
+    })
+    .returning();
+
+  return inserted;
+}
 
 async function getOrCreateTodayVerse(todayDate: string): Promise<any> {
   // 1. Try to fetch today's verse
@@ -71,7 +168,7 @@ async function getOrCreateTodayVerse(todayDate: string): Promise<any> {
   }
   const psaBook = books[0];
 
-  // Check if verse is cached
+  // Check if verse is cached in KJV
   const verse = await db
     .select()
     .from(bibleVerses)
@@ -79,7 +176,8 @@ async function getOrCreateTodayVerse(todayDate: string): Promise<any> {
       and(
         eq(bibleVerses.bookId, psaBook.id),
         eq(bibleVerses.chapter, 119),
-        eq(bibleVerses.verseNumber, 105)
+        eq(bibleVerses.verseNumber, 105),
+        eq(bibleVerses.translation, 'KJV')
       )
     )
     .limit(1);
@@ -152,21 +250,31 @@ verseRoutes.get('/verses/today', async (c) => {
     }).format(new Date());
 
     const result = await getOrCreateTodayVerse(today);
+    const translation = await getPreferredTranslation(c);
+
+    const resolvedVerse = await resolveVerseInTranslation(
+      result.bible_books.id,
+      result.bible_books.name,
+      result.bible_books.abbreviation,
+      result.bible_verses.chapter,
+      result.bible_verses.verseNumber,
+      translation
+    );
 
     return c.json({
       schedule: {
         id: result.verse_schedule.id,
         date: result.verse_schedule.date,
-        verseId: result.verse_schedule.verseId,
+        verseId: resolvedVerse.id,
         mode: result.verse_schedule.mode,
       },
       verse: {
-        id: result.bible_verses.id,
-        bookId: result.bible_verses.bookId,
-        chapter: result.bible_verses.chapter,
-        verseNumber: result.bible_verses.verseNumber,
-        text: result.bible_verses.text,
-        translation: result.bible_verses.translation,
+        id: resolvedVerse.id,
+        bookId: resolvedVerse.bookId,
+        chapter: resolvedVerse.chapter,
+        verseNumber: resolvedVerse.verseNumber,
+        text: resolvedVerse.text,
+        translation: resolvedVerse.translation,
       },
       book: {
         id: result.bible_books.id,
@@ -204,27 +312,40 @@ verseRoutes.get('/verses/history', async (c) => {
       .orderBy(desc(verseSchedule.date))
       .limit(days);
 
-    const formatted = history.map((row) => ({
-      schedule: {
-        id: row.verse_schedule.id,
-        date: row.verse_schedule.date,
-        verseId: row.verse_schedule.verseId,
-        mode: row.verse_schedule.mode,
-      },
-      verse: {
-        id: row.bible_verses.id,
-        bookId: row.bible_verses.bookId,
-        chapter: row.bible_verses.chapter,
-        verseNumber: row.bible_verses.verseNumber,
-        text: row.bible_verses.text,
-        translation: row.bible_verses.translation,
-      },
-      book: {
-        id: row.bible_books.id,
-        name: row.bible_books.name,
-        abbreviation: row.bible_books.abbreviation,
-        testament: row.bible_books.testament,
-      },
+    const translation = await getPreferredTranslation(c);
+
+    const formatted = await Promise.all(history.map(async (row) => {
+      const resolvedVerse = await resolveVerseInTranslation(
+        row.bible_books.id,
+        row.bible_books.name,
+        row.bible_books.abbreviation,
+        row.bible_verses.chapter,
+        row.bible_verses.verseNumber,
+        translation
+      );
+
+      return {
+        schedule: {
+          id: row.verse_schedule.id,
+          date: row.verse_schedule.date,
+          verseId: resolvedVerse.id,
+          mode: row.verse_schedule.mode,
+        },
+        verse: {
+          id: resolvedVerse.id,
+          bookId: resolvedVerse.bookId,
+          chapter: resolvedVerse.chapter,
+          verseNumber: resolvedVerse.verseNumber,
+          text: resolvedVerse.text,
+          translation: resolvedVerse.translation,
+        },
+        book: {
+          id: row.bible_books.id,
+          name: row.bible_books.name,
+          abbreviation: row.bible_books.abbreviation,
+          testament: row.bible_books.testament,
+        },
+      };
     }));
 
     return c.json({ verses: formatted, days });

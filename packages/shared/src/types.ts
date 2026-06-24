@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   displayName?: string;
   congregation?: string;
+  translation?: string;
   pushSubscription?: PushSubscriptionData | null;
   createdAt: string;
 }

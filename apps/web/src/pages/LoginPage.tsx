@@ -14,27 +14,44 @@ export default function LoginPage() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8">
-      {/* Ambient glow effects */}
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden bg-radial">
+      {/* Ambient glowing background bubbles */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-surface-300/10 rounded-full blur-3xl" />
+        <div className="absolute top-[-10%] left-[50%] -translate-x-1/2 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[300px] h-[300px] bg-amber-600/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-sm">
-        {/* Logo & Tagline */}
-        <div className="text-center mb-10 animate-fade-in">
-          <h1 className="text-5xl font-extrabold tracking-tight mb-3">
+      {/* Content Container */}
+      <div className="relative z-10 w-full max-w-md animate-fade-in">
+        
+        {/* Branding Area */}
+        <div className="text-center mb-8">
+          <div className="inline-block relative mb-4">
+            {/* Logo Glow Ring */}
+            <div className="absolute inset-0 bg-brand-500/20 rounded-2xl blur-md scale-105" />
+            <img
+              src="/church_logo.png"
+              alt="Church Logo"
+              className="relative z-10 w-20 h-20 rounded-2xl border border-white/10 shadow-2xl object-cover"
+            />
+          </div>
+          <h1 className="text-4xl font-black tracking-tight mb-2">
             <span className="text-gradient">UNSTPBL</span>
           </h1>
-          <p className="text-white/40 text-sm font-medium tracking-wide">
-            Your daily verse, delivered with purpose.
+          <p className="text-white/40 text-xs font-semibold uppercase tracking-widest">
+            Victory Tabernacle Harare
+          </p>
+          <p className="text-white/30 text-sm mt-1">
+            Your daily scripture, delivered with purpose.
           </p>
         </div>
 
-        {/* Auth Card */}
-        <div className="glass-card p-6 animate-slide-up">
+        {/* Glassmorphic Auth Card */}
+        <div className="glass-card p-8 border border-white/5 shadow-2xl relative">
+          <div className="absolute -top-10 -left-10 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+          
+          <h2 className="text-xl font-bold text-white mb-6 text-center">Sign In / Register</h2>
+
           <Auth
             supabaseClient={supabase}
             appearance={{
@@ -44,13 +61,13 @@ export default function LoginPage() {
                   colors: {
                     brand: '#f59e0b',
                     brandAccent: '#d97706',
-                    inputBackground: 'rgba(255, 255, 255, 0.05)',
-                    inputBorder: 'rgba(255, 255, 255, 0.1)',
+                    inputBackground: 'rgba(255, 255, 255, 0.03)',
+                    inputBorder: 'rgba(255, 255, 255, 0.08)',
                     inputText: '#ffffff',
-                    inputPlaceholder: 'rgba(255, 255, 255, 0.3)',
+                    inputPlaceholder: 'rgba(255, 255, 255, 0.25)',
                     inputLabelText: 'rgba(255, 255, 255, 0.6)',
                     anchorTextColor: '#fbbf24',
-                    dividerBackground: 'rgba(255, 255, 255, 0.1)',
+                    dividerBackground: 'rgba(255, 255, 255, 0.08)',
                   },
                   borderWidths: {
                     buttonBorderWidth: '0px',
@@ -64,7 +81,7 @@ export default function LoginPage() {
                   fontSizes: {
                     baseBodySize: '14px',
                     baseInputSize: '14px',
-                    baseLabelSize: '13px',
+                    baseLabelSize: '12px',
                     baseButtonSize: '15px',
                   },
                 },
@@ -76,8 +93,8 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-white/20 text-xs mt-8 animate-fade-in">
-          &copy; {new Date().getFullYear()} UNSTPBL &middot; Powered by faith
+        <p className="text-center text-white/20 text-xs mt-8">
+          &copy; {new Date().getFullYear()} UNSTPBL &middot; Victory Tabernacle
         </p>
       </div>
     </div>

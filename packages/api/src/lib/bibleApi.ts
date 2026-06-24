@@ -53,3 +53,37 @@ export async function fetchVerseFromApi(
 
   return text;
 }
+
+export async function fetchVerseFromEsv(
+  bookName: string,
+  chapter: number,
+  verseNumber: number
+): Promise<string> {
+  const ESV_API_KEY = process.env.ESV_API_KEY;
+  if (!ESV_API_KEY) {
+    throw new Error('ESV_API_KEY is not defined in environment variables.');
+  }
+
+  const query = encodeURIComponent(`${bookName} ${chapter}:${verseNumber}`);
+  const url = `https://api.esv.org/v3/passage/text/?q=${query}&include-verse-numbers=false&include-headings=false&include-footnotes=false&include-passage-references=false&include-short-copyright=false&include-first-verse-numbers=false`;
+
+  console.log(`Fetching verse ${bookName} ${chapter}:${verseNumber} from ESV API...`);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Token ${ESV_API_KEY}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch verse from ESV API: ${response.status} ${response.statusText}`);
+  }
+
+  const result = (await response.json()) as { passages: string[] };
+
+  if (!result.passages || result.passages.length === 0) {
+    throw new Error(`No passages returned from ESV API for ${bookName} ${chapter}:${verseNumber}`);
+  }
+
+  return result.passages[0].trim();
+}

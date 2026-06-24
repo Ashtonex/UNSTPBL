@@ -7,6 +7,7 @@ import 'dotenv/config';
 import { healthRoutes } from './routes/health.js';
 import { verseRoutes } from './routes/verses.js';
 import { adminRoutes } from './routes/admin.js';
+import { profileRoutes } from './routes/profile.js';
 
 const app = new Hono();
 
@@ -28,6 +29,7 @@ app.use(
 app.route('/', healthRoutes);
 app.route('/', verseRoutes);
 app.route('/', adminRoutes);
+app.route('/', profileRoutes);
 
 // ── Error Handling ──────────────────────────────────────────────────────────
 
