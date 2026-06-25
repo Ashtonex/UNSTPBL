@@ -39,7 +39,7 @@ export default function LoginPage() {
             <img
               src="/church_logo.png"
               alt="Church Logo"
-              className="w-28 h-28 mx-auto object-contain"
+              className="w-16 h-16 mx-auto object-contain"
             />
           </div>
           <h1 className="text-4xl font-black tracking-tight mb-1">
