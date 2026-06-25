@@ -13,6 +13,7 @@
     "test": "pnpm -r test",
     "db:migrate": "pnpm --filter @unstpbl/db migrate",
     "db:seed": "pnpm --filter @unstpbl/db seed",
+    "db:seed:full": "pnpm --filter @unstpbl/db seed:full",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

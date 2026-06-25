@@ -14,6 +14,75 @@ import {
   Legend
 } from 'recharts';
 
+const LOCAL_BIBLE_BOOKS = [
+  { id: 1, name: 'Genesis', abbreviation: 'GEN' },
+  { id: 2, name: 'Exodus', abbreviation: 'EXO' },
+  { id: 3, name: 'Leviticus', abbreviation: 'LEV' },
+  { id: 4, name: 'Numbers', abbreviation: 'NUM' },
+  { id: 5, name: 'Deuteronomy', abbreviation: 'DEU' },
+  { id: 6, name: 'Joshua', abbreviation: 'JOS' },
+  { id: 7, name: 'Judges', abbreviation: 'JDG' },
+  { id: 8, name: 'Ruth', abbreviation: 'RUT' },
+  { id: 9, name: '1 Samuel', abbreviation: '1SA' },
+  { id: 10, name: '2 Samuel', abbreviation: '2SA' },
+  { id: 11, name: '1 Kings', abbreviation: '1KI' },
+  { id: 12, name: '2 Kings', abbreviation: '2KI' },
+  { id: 13, name: '1 Chronicles', abbreviation: '1CH' },
+  { id: 14, name: '2 Chronicles', abbreviation: '2CH' },
+  { id: 15, name: 'Ezra', abbreviation: 'EZR' },
+  { id: 16, name: 'Nehemiah', abbreviation: 'NEH' },
+  { id: 17, name: 'Esther', abbreviation: 'EST' },
+  { id: 18, name: 'Job', abbreviation: 'JOB' },
+  { id: 19, name: 'Psalms', abbreviation: 'PSA' },
+  { id: 20, name: 'Proverbs', abbreviation: 'PRO' },
+  { id: 21, name: 'Ecclesiastes', abbreviation: 'ECC' },
+  { id: 22, name: 'Song of Solomon', abbreviation: 'SNG' },
+  { id: 23, name: 'Isaiah', abbreviation: 'ISA' },
+  { id: 24, name: 'Jeremiah', abbreviation: 'JER' },
+  { id: 25, name: 'Lamentations', abbreviation: 'LAM' },
+  { id: 26, name: 'Ezekiel', abbreviation: 'EZK' },
+  { id: 27, name: 'Daniel', abbreviation: 'DAN' },
+  { id: 28, name: 'Hosea', abbreviation: 'HOS' },
+  { id: 29, name: 'Joel', abbreviation: 'JOL' },
+  { id: 30, name: 'Amos', abbreviation: 'AMO' },
+  { id: 31, name: 'Obadiah', abbreviation: 'OBD' },
+  { id: 32, name: 'Jonah', abbreviation: 'JON' },
+  { id: 33, name: 'Micah', abbreviation: 'MIC' },
+  { id: 34, name: 'Nahum', abbreviation: 'NAM' },
+  { id: 35, name: 'Habakkuk', abbreviation: 'HAB' },
+  { id: 36, name: 'Zephaniah', abbreviation: 'ZEP' },
+  { id: 37, name: 'Haggai', abbreviation: 'HAG' },
+  { id: 38, name: 'Zechariah', abbreviation: 'ZEC' },
+  { id: 39, name: 'Malachi', abbreviation: 'MAL' },
+  { id: 40, name: 'Matthew', abbreviation: 'MAT' },
+  { id: 41, name: 'Mark', abbreviation: 'MRK' },
+  { id: 42, name: 'Luke', abbreviation: 'LUK' },
+  { id: 43, name: 'John', abbreviation: 'JHN' },
+  { id: 44, name: 'Acts', abbreviation: 'ACT' },
+  { id: 45, name: 'Romans', abbreviation: 'ROM' },
+  { id: 46, name: '1 Corinthians', abbreviation: '1CO' },
+  { id: 47, name: '2 Corinthians', abbreviation: '2CO' },
+  { id: 48, name: 'Galatians', abbreviation: 'GAL' },
+  { id: 49, name: 'Ephesians', abbreviation: 'EPH' },
+  { id: 50, name: 'Philippians', abbreviation: 'PHP' },
+  { id: 51, name: 'Colossians', abbreviation: 'COL' },
+  { id: 52, name: '1 Thessalonians', abbreviation: '1TH' },
+  { id: 53, name: '2 Thessalonians', abbreviation: '2TH' },
+  { id: 54, name: '1 Timothy', abbreviation: '1TI' },
+  { id: 55, name: '2 Timothy', abbreviation: '2TI' },
+  { id: 56, name: 'Titus', abbreviation: 'TIT' },
+  { id: 57, name: 'Philemon', abbreviation: 'PHM' },
+  { id: 58, name: 'Hebrews', abbreviation: 'HEB' },
+  { id: 59, name: 'James', abbreviation: 'JAS' },
+  { id: 60, name: '1 Peter', abbreviation: '1PE' },
+  { id: 61, name: '2 Peter', abbreviation: '2PE' },
+  { id: 62, name: '1 John', abbreviation: '1JN' },
+  { id: 63, name: '2 John', abbreviation: '2JN' },
+  { id: 64, name: '3 John', abbreviation: '3JN' },
+  { id: 65, name: 'Jude', abbreviation: 'JUD' },
+  { id: 66, name: 'Revelation', abbreviation: 'REV' }
+];
+
 export default function BishopPage() {
   const queryClient = useQueryClient();
   const [bookId, setBookId] = useState<number | ''>('');
@@ -44,10 +113,13 @@ export default function BishopPage() {
   });
 
   // 2. Fetch Bible Books for dropdown selection
-  const { data: booksData, isLoading: booksLoading } = useQuery({
+  const { data: booksData } = useQuery({
     queryKey: ['admin-books'],
     queryFn: api.getAdminBooks,
   });
+
+  const books = (booksData?.books && booksData.books.length > 0) ? booksData.books : LOCAL_BIBLE_BOOKS;
+
 
   // 3. Mutation for scheduling a verse
   const scheduleMutation = useMutation({
@@ -237,11 +309,10 @@ export default function BishopPage() {
                 id="book-select"
                 value={bookId}
                 onChange={(e) => setBookId(e.target.value ? Number(e.target.value) : '')}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors"
-                disabled={booksLoading}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"
               >
                 <option value="" className="bg-neutral-900 text-white/50">Select a book...</option>
-                {booksData?.books.map((book) => (
+                {books.map((book) => (
                   <option key={book.id} value={book.id} className="bg-neutral-900 text-white">
                     {book.name}
                   </option>

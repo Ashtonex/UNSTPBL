@@ -15,6 +15,7 @@
     "migrate": "drizzle-kit migrate",
     "generate": "drizzle-kit generate",
     "seed": "tsx scripts/seed-bible.ts",
+    "seed:full": "tsx scripts/seed-full-bible.ts",
     "lint": "eslint src",
     "test": "echo \"No tests yet\""
   },
