@@ -199,7 +199,7 @@ export default function Layout() {
         <header
           className={`fixed top-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10 px-4 transition-all duration-300 transform ${
             visible ? 'translate-y-0' : '-translate-y-full'
-          } ${isScrolled ? 'py-1.5 bg-surface-950/80 shadow-lg' : 'py-3'}`}
+          } ${isScrolled ? 'py-1 bg-surface-950/80 shadow-lg' : 'py-2'}`}
           style={{ marginTop: isOffline && visible ? '32px' : '0px' }}
         >
           <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -208,7 +208,7 @@ export default function Layout() {
                 src="/church_logo.png"
                 alt="Church Logo"
                 className={`object-contain transition-all duration-300 ease-out transform origin-left ${
-                  isScrolled ? 'w-12 h-12' : 'w-20 h-20'
+                  isScrolled ? 'w-8 h-8' : 'w-12 h-12'
                 }`}
               />
               <h1 className="text-xl font-extrabold tracking-tight">
