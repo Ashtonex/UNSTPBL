@@ -94,7 +94,7 @@ export default function VerseCard({ dailyVerse, onMarkRead, isRead }: VerseCardP
               {book.name} {verse.chapter}:{verse.verseNumber}
             </p>
             <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider mt-1">
-              Victory Tabernacle Harare
+              Victory Tabernacle City Mutare
             </p>
           </div>
           <span className="text-white/20 text-xs font-medium px-2 py-1 rounded-full bg-white/5">

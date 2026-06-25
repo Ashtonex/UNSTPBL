@@ -46,7 +46,7 @@ export default function LoginPage() {
             <span className="text-gradient">UNSTPBL</span>
           </h1>
           <p className="text-white/40 text-xs font-semibold uppercase tracking-widest">
-            Victory Tabernacle Harare
+            Victory Tabernacle City Mutare
           </p>
           <p className="text-white/30 text-sm mt-1">
             Your daily scripture, delivered with purpose.

@@ -138,7 +138,7 @@ export default function ProfilePage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Victory Tabernacle Harare"
+                placeholder="e.g. Victory Tabernacle City Mutare"
                 value={congregation}
                 onChange={(e) => setCongregation(e.target.value)}
                 className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 focus:bg-white/10 border border-white/10 focus:border-brand-500/50 rounded-xl text-sm text-white outline-none transition-all"

@@ -445,9 +445,14 @@ verseRoutes.get('/verses/search', async (c) => {
       return c.json({ error: 'Search query parameter "q" is required' }, 400);
     }
 
-    const queryEmbedding = await getEmbedding(query);
+    let queryEmbedding: number[] | null = null;
+    try {
+      queryEmbedding = await getEmbedding(query);
+    } catch (err) {
+      console.warn('⚠️ Embedding calculation failed, falling back to local database text search:', err);
+    }
 
-    // Fetch all cached verses that have embeddings, or compute them if missing
+    // Fetch all cached verses
     const allVerses = await db
       .select({
         id: bibleVerses.id,
@@ -461,6 +466,41 @@ verseRoutes.get('/verses/search', async (c) => {
       })
       .from(bibleVerses)
       .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id));
+
+    if (!queryEmbedding) {
+      // Fallback: keyword matching case-insensitive search
+      const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const matches = allVerses
+        .map((row) => {
+          const textLower = row.text.toLowerCase();
+          let matchCount = 0;
+          queryWords.forEach((word) => {
+            if (textLower.includes(word)) {
+              matchCount++;
+            }
+          });
+          const score = queryWords.length > 0 ? matchCount / queryWords.length : 0;
+          return {
+            verse: {
+              id: row.id,
+              text: row.text,
+              chapter: row.chapter,
+              verseNumber: row.verseNumber,
+              translation: row.translation,
+            },
+            book: {
+              name: row.bookName,
+              abbreviation: row.bookAbbreviation,
+            },
+            score,
+          };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6);
+
+      return c.json({ matches });
+    }
 
     const matches: any[] = [];
 
@@ -531,9 +571,16 @@ verseRoutes.get('/verses/:id/related', async (c) => {
 
     const target = targetRows[0];
     let targetEmbedding = target.embedding as number[] | null;
+    let fallbackToTextSearch = false;
+
     if (!targetEmbedding) {
-      targetEmbedding = await getEmbedding(target.text);
-      await db.update(bibleVerses).set({ embedding: targetEmbedding }).where(eq(bibleVerses.id, target.id));
+      try {
+        targetEmbedding = await getEmbedding(target.text);
+        await db.update(bibleVerses).set({ embedding: targetEmbedding }).where(eq(bibleVerses.id, target.id));
+      } catch (e) {
+        console.warn(`⚠️ Target embedding generation failed for related verses on ${target.id}:`, e);
+        fallbackToTextSearch = true;
+      }
     }
 
     // 2. Fetch all other cached verses
@@ -550,6 +597,39 @@ verseRoutes.get('/verses/:id/related', async (c) => {
       })
       .from(bibleVerses)
       .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id));
+
+    if (fallbackToTextSearch || !targetEmbedding) {
+      // Fallback: recommend verses from the same book or sharing common words
+      const targetWords = target.text.toLowerCase().split(/\s+/).filter(Boolean);
+      const recommendations = otherVerses
+        .filter((row) => row.id !== target.id)
+        .map((row) => {
+          const textLower = row.text.toLowerCase();
+          let matchCount = 0;
+          targetWords.forEach((word) => {
+            if (textLower.includes(word)) matchCount++;
+          });
+          const score = targetWords.length > 0 ? matchCount / targetWords.length : 0;
+          return {
+            verse: {
+              id: row.id,
+              text: row.text,
+              chapter: row.chapter,
+              verseNumber: row.verseNumber,
+              translation: row.translation,
+            },
+            book: {
+              name: row.bookName,
+              abbreviation: row.bookAbbreviation,
+            },
+            score,
+          };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      return c.json({ related: recommendations });
+    }
 
     const recommendations: any[] = [];
 
