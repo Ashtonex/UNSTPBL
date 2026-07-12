@@ -134,11 +134,11 @@ export default function HomePage() {
               <p className="text-white/40 text-xs">Finding related scriptures...</p>
             </div>
           ) : relatedData?.related && relatedData.related.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 hide-scrollbar">
               {relatedData.related.map((item) => (
                 <div
                   key={item.verse.id}
-                  className="glass-card-hover p-5 relative overflow-hidden flex flex-col justify-between group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
+                  className="min-w-[280px] md:min-w-[320px] snap-center shrink-0 glass-card-hover p-5 relative overflow-hidden flex flex-col justify-between group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
                 >
                   {/* Subtle PAOZ Watermark behind each recommendations card */}
                   <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center p-4">
