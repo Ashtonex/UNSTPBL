@@ -13,6 +13,8 @@ RUN pnpm install
 
 COPY . .
 
+RUN pnpm run build
+
 EXPOSE 3001
 
 CMD ["pnpm", "--filter", "@unstpbl/api", "start"]
