@@ -31,7 +31,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
       extractor = await withTimeout(modelLoading, EMBEDDING_TIMEOUT_MS);
     }
 
-    const output = await withTimeout(
+    const output: any = await withTimeout(
       extractor(text, { pooling: 'mean', normalize: true }),
       EMBEDDING_TIMEOUT_MS
     );
