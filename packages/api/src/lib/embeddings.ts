@@ -1,24 +1,41 @@
 import { pipeline } from '@xenova/transformers';
 
 let extractor: any = null;
+let modelLoading: Promise<any> | null = null;
+
+const EMBEDDING_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Embedding timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
 
 /**
  * Computes semantic vector embedding for a given text query.
  * Uses the lightweight 'all-MiniLM-L6-v2' sentence transformer.
+ * Falls back gracefully if model download or inference times out.
  */
 export async function getEmbedding(text: string): Promise<number[]> {
   try {
     if (!extractor) {
-      console.log('🌱 Loading Hugging Face sentence-transformer model (all-MiniLM-L6-v2)...');
-      extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-      console.log('✅ Model loaded successfully.');
+      if (!modelLoading) {
+        console.log('🌱 Loading Hugging Face sentence-transformer model (all-MiniLM-L6-v2)...');
+        modelLoading = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+          .then((p) => { extractor = p; modelLoading = null; console.log('✅ Model loaded.'); return p; })
+          .catch((err) => { modelLoading = null; throw err; });
+      }
+      extractor = await withTimeout(modelLoading, EMBEDDING_TIMEOUT_MS);
     }
-    
-    const output = await extractor(text, {
-      pooling: 'mean',
-      normalize: true,
-    });
-    
+
+    const output = await withTimeout(
+      extractor(text, { pooling: 'mean', normalize: true }),
+      EMBEDDING_TIMEOUT_MS
+    );
+
     return Array.from(output.data);
   } catch (err) {
     console.error('❌ Failed to calculate embedding:', err);
