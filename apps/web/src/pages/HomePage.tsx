@@ -145,8 +145,8 @@ export default function HomePage() {
                     <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
                   </div>
 
-                  <div className="relative z-10 flex-1">
-                    <p className="text-sm text-white/80 leading-relaxed italic">
+                  <div className="relative z-10 flex-1 min-w-0 pr-2">
+                    <p className="text-sm text-white/80 leading-relaxed italic break-words">
                       &ldquo;{item.verse.text}&rdquo;
                     </p>
                   </div>
