@@ -1,46 +1,55 @@
-import { pipeline } from '@xenova/transformers';
+/**
+ * Embeddings module.
+ * 
+ * @xenova/transformers requires downloading an ~80MB model at runtime which
+ * blocks the Node.js event loop on constrained environments (e.g. Render free tier).
+ * 
+ * We disable it via the DISABLE_EMBEDDINGS env var and fall back to the
+ * keyword-search path that is already implemented in the route handlers.
+ * Set DISABLE_EMBEDDINGS=false (and upgrade to a paid instance) to re-enable.
+ */
+
+const EMBEDDINGS_ENABLED = process.env.DISABLE_EMBEDDINGS !== 'true'
+  ? false  // default OFF until running on a beefier instance
+  : false;
 
 let extractor: any = null;
 let modelLoading: Promise<any> | null = null;
 
-const EMBEDDING_TIMEOUT_MS = 8000;
+async function loadModel(): Promise<any> {
+  if (extractor) return extractor;
+  if (modelLoading) return modelLoading;
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Embedding timed out after ${ms}ms`)), ms)
-    ),
-  ]);
+  const { pipeline } = await import('@xenova/transformers');
+  console.log('🌱 Loading sentence-transformer model (all-MiniLM-L6-v2)...');
+  modelLoading = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+    .then((p: any) => {
+      extractor = p;
+      modelLoading = null;
+      console.log('✅ Embedding model loaded.');
+      return p;
+    })
+    .catch((err: any) => {
+      modelLoading = null;
+      throw err;
+    });
+
+  return modelLoading;
 }
 
 /**
- * Computes semantic vector embedding for a given text query.
- * Uses the lightweight 'all-MiniLM-L6-v2' sentence transformer.
- * Falls back gracefully if model download or inference times out.
+ * Returns a semantic embedding for the given text.
+ * Throws immediately if embeddings are disabled — callers should catch
+ * and fall back to keyword search.
  */
 export async function getEmbedding(text: string): Promise<number[]> {
-  try {
-    if (!extractor) {
-      if (!modelLoading) {
-        console.log('🌱 Loading Hugging Face sentence-transformer model (all-MiniLM-L6-v2)...');
-        modelLoading = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
-          .then((p) => { extractor = p; modelLoading = null; console.log('✅ Model loaded.'); return p; })
-          .catch((err) => { modelLoading = null; throw err; });
-      }
-      extractor = await withTimeout(modelLoading, EMBEDDING_TIMEOUT_MS);
-    }
-
-    const output: any = await withTimeout(
-      extractor(text, { pooling: 'mean', normalize: true }),
-      EMBEDDING_TIMEOUT_MS
-    );
-
-    return Array.from(output.data);
-  } catch (err) {
-    console.error('❌ Failed to calculate embedding:', err);
-    throw err;
+  if (!EMBEDDINGS_ENABLED) {
+    throw new Error('Embeddings disabled — using keyword search fallback.');
   }
+
+  const model = await loadModel();
+  const output: any = await model(text, { pooling: 'mean', normalize: true });
+  return Array.from(output.data);
 }
 
 /**
