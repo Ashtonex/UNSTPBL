@@ -134,44 +134,35 @@ export default function HomePage() {
               <p className="text-white/40 text-xs">Finding related scriptures...</p>
             </div>
           ) : relatedData?.related && relatedData.related.length > 0 ? (
-            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 hide-scrollbar">
+            <div className="flex flex-col gap-3">
               {relatedData.related.map((item) => (
                 <div
                   key={item.verse.id}
-                  className="min-w-[280px] md:min-w-[320px] snap-center shrink-0 glass-card-hover p-5 relative overflow-hidden flex flex-col justify-between group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
+                  className="glass-card-hover p-4 relative overflow-hidden flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between sm:items-center group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
                 >
                   {/* Subtle PAOZ Watermark behind each recommendations card */}
                   <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center p-4">
                     <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
                   </div>
 
-                  <div className="relative z-10">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-[10px] font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20">
-                        {Math.round(item.score * 100)}% Match
-                      </span>
-                      <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">
-                        {item.verse.translation}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-white/80 leading-relaxed italic mb-4">
+                  <div className="relative z-10 flex-1">
+                    <p className="text-sm text-white/80 leading-relaxed italic">
                       &ldquo;{item.verse.text}&rdquo;
                     </p>
                   </div>
 
-                  <div className="relative z-10 flex justify-between items-end mt-auto pt-2 border-t border-white/5">
-                    <span className="text-xs font-semibold text-white/60">
+                  <div className="relative z-10 flex items-center gap-3 sm:flex-col sm:items-end shrink-0 sm:border-l sm:border-white/10 sm:pl-4 pt-2 sm:pt-0 border-t border-white/5 sm:border-t-0 mt-2 sm:mt-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 whitespace-nowrap">
+                        {Math.round(item.score * 100)}% Match
+                      </span>
+                      <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest sm:hidden">
+                        {item.verse.translation}
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold text-white/60 whitespace-nowrap">
                       {item.book.name} {item.verse.chapter}:{item.verse.verseNumber}
                     </span>
-                    
-                    {/* Visual similarity meter */}
-                    <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-brand-500 to-brand-400" 
-                        style={{ width: `${Math.round(item.score * 100)}%` }}
-                      />
-                    </div>
                   </div>
                 </div>
               ))}
