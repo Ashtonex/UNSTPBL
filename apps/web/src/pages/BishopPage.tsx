@@ -88,9 +88,35 @@ export default function BishopPage() {
   const [bookId, setBookId] = useState<number | ''>('');
   const [chapter, setChapter] = useState<number | ''>('');
   const [verseNumber, setVerseNumber] = useState<number | ''>('');
+  const [pastoralNote, setPastoralNote] = useState('');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushBody, setPushBody] = useState('');
+  const [pushScheduledFor, setPushScheduledFor] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Sermon outline publisher states
+  const [sermonTitle, setSermonTitle] = useState('');
+  const [sermonPreacher, setSermonPreacher] = useState('');
+  const [sermonDate, setSermonDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sermonOutline, setSermonOutline] = useState('');
+
+  // Trivia states
+  const [triviaQuestion, setTriviaQuestion] = useState('');
+  const [triviaOptions, setTriviaOptions] = useState('');
+  const [correctOptionIdx, setCorrectOptionIdx] = useState<number | ''>('');
+  const [triviaExplanation, setTriviaExplanation] = useState('');
+  const [triviaWeekDate, setTriviaWeekDate] = useState(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(now.setDate(diff)).toISOString().split('T')[0];
+  });
+
+  // Circle Creator states
+  const [circleName, setCircleName] = useState('');
+  const [circleDesc, setCircleDesc] = useState('');
 
   // 1. Fetch Admin Stats (Read rates and total members count)
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -112,6 +138,18 @@ export default function BishopPage() {
     refetchInterval: 60000,
   });
 
+  const { data: congregationData, isLoading: congregationLoading } = useQuery({
+    queryKey: ['admin-stats-congregations'],
+    queryFn: api.getAdminStatsCongregations,
+    refetchInterval: 60000,
+  });
+
+  const { data: scheduledPushData } = useQuery({
+    queryKey: ['scheduled-push-notifications'],
+    queryFn: api.getScheduledPushNotifications,
+    refetchInterval: 60000,
+  });
+
   // 2. Fetch Bible Books for dropdown selection
   const { data: booksData } = useQuery({
     queryKey: ['admin-books'],
@@ -130,6 +168,7 @@ export default function BishopPage() {
       setBookId('');
       setChapter('');
       setVerseNumber('');
+      setPastoralNote('');
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       queryClient.invalidateQueries({ queryKey: ['verse-today'] });
       queryClient.invalidateQueries({ queryKey: ['verse-history'] });
@@ -137,6 +176,88 @@ export default function BishopPage() {
     },
     onError: (err: any) => {
       setErrorMsg(err.message || 'Failed to schedule verse. Please check inputs and try again.');
+      setSuccessMsg(null);
+    },
+  });
+
+  const schedulePushMutation = useMutation({
+    mutationFn: api.schedulePushNotification,
+    onSuccess: () => {
+      setSuccessMsg('Notification successfully scheduled!');
+      setErrorMsg(null);
+      setPushTitle('');
+      setPushBody('');
+      setPushScheduledFor('');
+      queryClient.invalidateQueries({ queryKey: ['scheduled-push-notifications'] });
+      setTimeout(() => setSuccessMsg(null), 5000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Failed to schedule notification.');
+      setSuccessMsg(null);
+    },
+  });
+
+  const dispatchDuePushMutation = useMutation({
+    mutationFn: api.dispatchDuePushNotifications,
+    onSuccess: (result) => {
+      setSuccessMsg(`Dispatched ${result.processed} scheduled notifications (${result.sent} sent, ${result.failed} failed).`);
+      setErrorMsg(null);
+      queryClient.invalidateQueries({ queryKey: ['scheduled-push-notifications'] });
+      setTimeout(() => setSuccessMsg(null), 5000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Failed to dispatch scheduled notifications.');
+      setSuccessMsg(null);
+    },
+  });
+
+  const createSermonMutation = useMutation({
+    mutationFn: api.createSermon,
+    onSuccess: () => {
+      setSuccessMsg('Sermon outline published!');
+      setErrorMsg(null);
+      setSermonTitle('');
+      setSermonPreacher('');
+      setSermonOutline('');
+      queryClient.invalidateQueries({ queryKey: ['sermons'] });
+      setTimeout(() => setSuccessMsg(null), 5000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Failed to publish sermon.');
+      setSuccessMsg(null);
+    },
+  });
+
+  const createTriviaMutation = useMutation({
+    mutationFn: api.createTriviaQuestion,
+    onSuccess: () => {
+      setSuccessMsg('Trivia question added!');
+      setErrorMsg(null);
+      setTriviaQuestion('');
+      setTriviaOptions('');
+      setCorrectOptionIdx('');
+      setTriviaExplanation('');
+      queryClient.invalidateQueries({ queryKey: ['weekly-trivia'] });
+      setTimeout(() => setSuccessMsg(null), 5000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Failed to add trivia question.');
+      setSuccessMsg(null);
+    },
+  });
+
+  const createCircleMutation = useMutation({
+    mutationFn: api.createCircle,
+    onSuccess: () => {
+      setSuccessMsg('Family circle created!');
+      setErrorMsg(null);
+      setCircleName('');
+      setCircleDesc('');
+      queryClient.invalidateQueries({ queryKey: ['circles'] });
+      setTimeout(() => setSuccessMsg(null), 5000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Failed to create circle.');
       setSuccessMsg(null);
     },
   });
@@ -155,6 +276,63 @@ export default function BishopPage() {
       bookId: Number(bookId),
       chapter: Number(chapter),
       verseNumber: Number(verseNumber),
+      pastoralNote: pastoralNote.trim() || undefined,
+    });
+  };
+
+  const handleSchedulePush = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pushTitle.trim() || !pushBody.trim() || !pushScheduledFor) {
+      setErrorMsg('Please fill in all notification scheduling fields.');
+      return;
+    }
+    schedulePushMutation.mutate({
+      title: pushTitle,
+      body: pushBody,
+      scheduledFor: new Date(pushScheduledFor).toISOString(),
+      url: '/',
+    });
+  };
+
+  const handleCreateSermon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sermonTitle.trim() || !sermonPreacher.trim() || !sermonOutline.trim() || !sermonDate) {
+      setErrorMsg('Please fill in all sermon fields.');
+      return;
+    }
+    createSermonMutation.mutate({
+      title: sermonTitle.trim(),
+      preacher: sermonPreacher.trim(),
+      date: sermonDate,
+      outline: sermonOutline.trim(),
+    });
+  };
+
+  const handleCreateTrivia = (e: React.FormEvent) => {
+    e.preventDefault();
+    const opts = triviaOptions.split('\n').map(o => o.trim()).filter(Boolean);
+    if (!triviaQuestion.trim() || opts.length < 2 || correctOptionIdx === '' || !triviaWeekDate) {
+      setErrorMsg('Please fill in all trivia fields. Include at least 2 options.');
+      return;
+    }
+    createTriviaMutation.mutate({
+      question: triviaQuestion.trim(),
+      options: opts,
+      correctOptionIndex: Number(correctOptionIdx),
+      explanation: triviaExplanation.trim() || undefined,
+      weekDate: triviaWeekDate,
+    });
+  };
+
+  const handleCreateCircle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!circleName.trim()) {
+      setErrorMsg('Please enter a circle name.');
+      return;
+    }
+    createCircleMutation.mutate({
+      name: circleName.trim(),
+      description: circleDesc.trim() || undefined,
     });
   };
 
@@ -201,6 +379,38 @@ export default function BishopPage() {
             )}
           </p>
         </div>
+      </div>
+
+      <div className="glass-card p-5 animate-slide-up">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-white">Congregation Read Rates</h3>
+          <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Today</span>
+        </div>
+        {congregationLoading ? (
+          <div className="py-8 flex justify-center">
+            <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {(congregationData?.congregations || []).slice(0, 6).map((group) => (
+              <div key={group.congregation}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-white/70 font-semibold">{group.congregation}</span>
+                  <span className="text-white/40">{group.readsToday}/{group.members} · {group.readRate}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-brand-500 rounded-full"
+                    style={{ width: `${Math.min(group.readRate, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            {(!congregationData?.congregations || congregationData.congregations.length === 0) && (
+              <p className="text-white/30 text-sm text-center py-6">No congregation data yet.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Charts Section */}
@@ -275,13 +485,64 @@ export default function BishopPage() {
         </div>
       </div>
 
+      <div className="glass-card p-6 animate-slide-up">
+        <h3 className="text-lg font-bold text-white mb-4">Schedule Notification</h3>
+        <form onSubmit={handleSchedulePush} className="space-y-3">
+          <input
+            value={pushTitle}
+            onChange={(event) => setPushTitle(event.target.value)}
+            maxLength={80}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none"
+            placeholder="Notification title"
+          />
+          <textarea
+            value={pushBody}
+            onChange={(event) => setPushBody(event.target.value)}
+            maxLength={240}
+            rows={3}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none resize-none"
+            placeholder="Notification message"
+          />
+          <input
+            type="datetime-local"
+            value={pushScheduledFor}
+            onChange={(event) => setPushScheduledFor(event.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={schedulePushMutation.isPending}
+            className="btn-secondary w-full text-sm disabled:opacity-50"
+          >
+            Queue Notification
+          </button>
+        </form>
+        <button
+          type="button"
+          onClick={() => dispatchDuePushMutation.mutate()}
+          disabled={dispatchDuePushMutation.isPending}
+          className="mt-3 w-full bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/25 text-brand-300 font-semibold py-3 px-4 rounded-xl transition-all text-sm disabled:opacity-50"
+        >
+          Dispatch Due Notifications
+        </button>
+        {scheduledPushData?.notifications?.[0] && (
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p className="text-xs text-white/30 uppercase font-bold tracking-widest mb-2">Next Scheduled</p>
+            <p className="text-sm text-white/80 font-semibold">{scheduledPushData.notifications[0].title}</p>
+            <p className="text-xs text-white/40 mt-1">
+              {new Date(scheduledPushData.notifications[0].scheduledFor).toLocaleString()}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Schedule Form */}
       <div
         className="glass-card p-6 animate-slide-up"
         style={{ animationDelay: '0.2s' }}
       >
         <h3 className="text-lg font-bold text-white mb-4">Schedule Daily Scripture</h3>
-        
+
         {successMsg && (
           <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-xl flex items-center gap-2">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -363,6 +624,19 @@ export default function BishopPage() {
             </div>
           </div>
 
+          {/* Pastoral Note */}
+          <div>
+            <label htmlFor="pastoral-note" className="block text-white/50 text-xs font-semibold mb-2">BISHOP'S PASTORAL NOTE / DEVOTIONAL</label>
+            <textarea
+              id="pastoral-note"
+              rows={4}
+              placeholder="Write a pastoral reflection or message to accompany this verse for the family..."
+              value={pastoralNote}
+              onChange={(e) => setPastoralNote(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none resize-none transition-all"
+            />
+          </div>
+
           <button
             type="submit"
             disabled={scheduleMutation.isPending}
@@ -378,6 +652,145 @@ export default function BishopPage() {
             )}
           </button>
         </form>
+      </div>
+
+      {/* ── Bishop's Pastoral Community Tools ── */}
+      <div className="border-t border-white/5 pt-8 mt-8 space-y-6 animate-slide-up">
+        <h3 className="text-xl font-bold text-white tracking-wide">Pastoral Community Management</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Sunday Sermon Outline Publisher */}
+          <div className="glass-card p-6 space-y-4">
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Publish Sunday Sermon Outline</h4>
+            <form onSubmit={handleCreateSermon} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Sermon Title (e.g. Walking in Grace)"
+                value={sermonTitle}
+                onChange={(e) => setSermonTitle(e.target.value)}
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="Preacher"
+                  value={sermonPreacher}
+                  onChange={(e) => setSermonPreacher(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+                <input
+                  type="date"
+                  value={sermonDate}
+                  onChange={(e) => setSermonDate(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+              <textarea
+                placeholder="Outline (Markdown outline or key messages)..."
+                value={sermonOutline}
+                onChange={(e) => setSermonOutline(e.target.value)}
+                rows={5}
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none resize-none"
+              />
+              <button
+                type="submit"
+                disabled={createSermonMutation.isPending}
+                className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs active:scale-[0.98] transition-all"
+              >
+                {createSermonMutation.isPending ? 'Publishing...' : 'Publish Sermon'}
+              </button>
+            </form>
+          </div>
+
+          {/* Add Weekly Bible Trivia */}
+          <div className="glass-card p-6 space-y-4">
+            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Add Weekly Bible Trivia</h4>
+            <form onSubmit={handleCreateTrivia} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Question (e.g. Who was chosen to replace Judas?)"
+                value={triviaQuestion}
+                onChange={(e) => setTriviaQuestion(e.target.value)}
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+              />
+              <textarea
+                placeholder="Options (one per line, e.g.&#10;Barnabas&#10;Matthias&#10;Paul)"
+                value={triviaOptions}
+                onChange={(e) => setTriviaOptions(e.target.value)}
+                rows={3}
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none resize-none"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  placeholder="Correct Option Index (0-based)"
+                  value={correctOptionIdx}
+                  onChange={(e) => setCorrectOptionIdx(e.target.value !== '' ? Number(e.target.value) : '')}
+                  required
+                  min={0}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+                <input
+                  type="date"
+                  placeholder="Week Date (Monday)"
+                  value={triviaWeekDate}
+                  onChange={(e) => setTriviaWeekDate(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Explanation (Optional)"
+                value={triviaExplanation}
+                onChange={(e) => setTriviaExplanation(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={createTriviaMutation.isPending}
+                className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs active:scale-[0.98] transition-all"
+              >
+                {createTriviaMutation.isPending ? 'Adding...' : 'Add Trivia Question'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Create Home Circle */}
+        <div className="glass-card p-6 space-y-4 max-w-md">
+          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Create Home / Fellowship Circle</h4>
+          <form onSubmit={handleCreateCircle} className="space-y-3">
+            <input
+              type="text"
+              placeholder="Circle Name (e.g. Youth Fellowship, Married Couples)"
+              value={circleName}
+              onChange={(e) => setCircleName(e.target.value)}
+              required
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none"
+            />
+            <textarea
+              placeholder="Description (Optional)..."
+              value={circleDesc}
+              onChange={(e) => setCircleDesc(e.target.value)}
+              rows={2}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-brand-500 focus:outline-none resize-none"
+            />
+            <button
+              type="submit"
+              disabled={createCircleMutation.isPending}
+              className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs active:scale-[0.98] transition-all"
+            >
+              {createCircleMutation.isPending ? 'Creating...' : 'Create Circle'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

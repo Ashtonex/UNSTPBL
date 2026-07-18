@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { DailyVerse, BibleBook, User } from '@unstpbl/shared';
+import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User } from '@unstpbl/shared';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -33,6 +33,62 @@ export interface AdminStats {
   readRate: number;
 }
 
+export interface AdminAuditLog {
+  id: string;
+  actorUserId: string;
+  action: string;
+  targetType: string;
+  targetId?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  actorEmail: string;
+  actorDisplayName?: string;
+}
+
+export interface UserProgress {
+  totalReads: number;
+  currentStreak: number;
+  favoriteCount: number;
+  openPrayerCount: number;
+  recentReadDates: string[];
+}
+
+export interface FavoriteVerse {
+  id: string;
+  createdAt: string;
+  verseId: number;
+  text: string;
+  chapter: number;
+  verseNumber: number;
+  translation: string;
+  bookName: string;
+  bookAbbreviation: string;
+}
+
+export interface VerseReflection {
+  id: string;
+  userId: string;
+  verseId: number;
+  verseScheduleId?: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrayerRequest {
+  id: string;
+  title: string;
+  content: string;
+  status: 'open' | 'answered';
+  createdAt: string;
+  answeredAt?: string;
+}
+
+export interface BirthdayFeed {
+  wall: BirthdayWallPost[];
+  upcoming: UpcomingBirthday[];
+}
+
 export const api = {
   getVerseToday: () => apiFetch<DailyVerse>('/verses/today'),
   getVerseHistory: (days = 7) =>
@@ -64,6 +120,10 @@ export const api = {
     apiFetch<{ trends: Array<{ date: string; signups: number; reads: number }> }>('/admin/stats/trends'),
   getAdminStatsTranslations: () =>
     apiFetch<{ translations: Array<{ name: string; value: number }> }>('/admin/stats/translations'),
+  getAdminStatsCongregations: () =>
+    apiFetch<{ congregations: Array<{ congregation: string; members: number; readsToday: number; readRate: number }> }>('/admin/stats/congregations'),
+  getAdminAuditLogs: (limit = 10) =>
+    apiFetch<{ logs: AdminAuditLog[] }>(`/admin/audit?limit=${limit}`),
   subscribePush: (subscription: any) =>
     apiFetch<{ success: boolean }>('/push/subscribe', {
       method: 'POST',
@@ -73,10 +133,72 @@ export const api = {
     apiFetch<{ success: boolean }>('/push/unsubscribe', {
       method: 'POST',
     }),
-  scheduleVerse: (data: { date: string; bookId: number; chapter: number; verseNumber: number }) =>
+  scheduleVerse: (data: { date: string; bookId: number; chapter: number; verseNumber: number; pastoralNote?: string }) =>
     apiFetch<{ success: boolean }>('/admin/schedule', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  getUserProgress: () =>
+    apiFetch<UserProgress>('/me/progress'),
+  getFavoriteVerses: () =>
+    apiFetch<{ favorites: FavoriteVerse[] }>('/verses/favorites'),
+  addFavoriteVerse: (verseId: number) =>
+    apiFetch<{ success: boolean }>('/verses/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ verseId }),
+    }),
+  removeFavoriteVerse: (verseId: number) =>
+    apiFetch<{ success: boolean }>(`/verses/favorites/${verseId}`, {
+      method: 'DELETE',
+    }),
+  getVerseReflections: (verseId?: number, verseScheduleId?: string) => {
+    let url = '/verses/reflections';
+    const params: string[] = [];
+    if (verseId) params.push(`verseId=${verseId}`);
+    if (verseScheduleId) params.push(`verseScheduleId=${verseScheduleId}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return apiFetch<{ reflections: any[] }>(url);
+  },
+  createVerseReflection: (data: { verseId: number; verseScheduleId?: string; content: string }) =>
+    apiFetch<{ reflection: any }>('/verses/reflections', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getPrayerRequests: () =>
+    apiFetch<{ prayers: any[] }>('/prayers'),
+  getBirthdays: () =>
+    apiFetch<BirthdayFeed>('/birthdays'),
+  dispatchTodaysBirthdays: () =>
+    apiFetch<{ success: boolean; processed: number; created: number; sent: number; failed: number }>('/birthdays/dispatch-today', {
+      method: 'POST',
+    }),
+  createPrayerRequest: (data: { title: string; content: string; type?: string; isAnonymous?: boolean }) =>
+    apiFetch<{ prayer: any }>('/prayers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  joinPrayer: (id: string) =>
+    apiFetch<{ success: boolean }>(`/prayers/${id}/join`, {
+      method: 'POST',
+    }),
+  leavePrayer: (id: string) =>
+    apiFetch<{ success: boolean }>(`/prayers/${id}/join`, {
+      method: 'DELETE',
+    }),
+  markPrayerAnswered: (id: string) =>
+    apiFetch<{ prayer: any }>(`/prayers/${id}/answered`, {
+      method: 'PUT',
+    }),
+  schedulePushNotification: (data: { title: string; body: string; url?: string; scheduledFor: string }) =>
+    apiFetch<{ notification: any }>('/admin/push/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getScheduledPushNotifications: () =>
+    apiFetch<{ notifications: any[] }>('/admin/push/scheduled'),
+  dispatchDuePushNotifications: () =>
+    apiFetch<{ success: boolean; processed: number; sent: number; failed: number }>('/admin/push/dispatch-due', {
+      method: 'POST',
     }),
   syncPendingQueue: async () => {
     if (!navigator.onLine) return;
@@ -148,6 +270,12 @@ export const api = {
               displayName: dbUser.display_name || undefined,
               congregation: dbUser.congregation || undefined,
               translation: dbUser.translation || 'KJV',
+              bio: dbUser.bio || undefined,
+              phone: dbUser.phone || undefined,
+              location: dbUser.location || undefined,
+              birthday: dbUser.birthday || undefined,
+              birthdayVisibility: dbUser.birthday_visibility || 'members',
+              avatarUrl: dbUser.avatar_url || undefined,
               createdAt: dbUser.created_at,
             }
           };
@@ -181,6 +309,12 @@ export const api = {
             displayName: newProfile.display_name || undefined,
             congregation: newProfile.congregation || undefined,
             translation: newProfile.translation || 'KJV',
+            bio: newProfile.bio || undefined,
+            phone: newProfile.phone || undefined,
+            location: newProfile.location || undefined,
+            birthday: newProfile.birthday || undefined,
+            birthdayVisibility: newProfile.birthday_visibility || 'members',
+            avatarUrl: newProfile.avatar_url || undefined,
             createdAt: newProfile.created_at,
           }
         };
@@ -190,7 +324,17 @@ export const api = {
       }
     }
   },
-  updateProfile: async (data: { displayName?: string; congregation?: string; translation?: string }) => {
+  updateProfile: async (data: {
+    displayName?: string;
+    congregation?: string;
+    translation?: string;
+    bio?: string;
+    phone?: string;
+    location?: string;
+    birthday?: string | null;
+    birthdayVisibility?: 'members' | 'private';
+    avatarUrl?: string;
+  }) => {
     try {
       return await apiFetch<{ profile: User }>('/profile', {
         method: 'PUT',
@@ -224,6 +368,12 @@ export const api = {
         if (data.displayName !== undefined) updateData.display_name = data.displayName;
         if (data.congregation !== undefined) updateData.congregation = data.congregation;
         if (data.translation !== undefined) updateData.translation = data.translation;
+        if (data.bio !== undefined) updateData.bio = data.bio;
+        if (data.phone !== undefined) updateData.phone = data.phone;
+        if (data.location !== undefined) updateData.location = data.location;
+        if (data.birthday !== undefined) updateData.birthday = data.birthday;
+        if (data.birthdayVisibility !== undefined) updateData.birthday_visibility = data.birthdayVisibility;
+        if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
 
         const { data: updatedProfile, error } = await supabase
           .from('users')
@@ -251,6 +401,12 @@ export const api = {
             displayName: updatedProfile.display_name || undefined,
             congregation: updatedProfile.congregation || undefined,
             translation: updatedProfile.translation || 'KJV',
+            bio: updatedProfile.bio || undefined,
+            phone: updatedProfile.phone || undefined,
+            location: updatedProfile.location || undefined,
+            birthday: updatedProfile.birthday || undefined,
+            birthdayVisibility: updatedProfile.birthday_visibility || 'members',
+            avatarUrl: updatedProfile.avatar_url || undefined,
             createdAt: updatedProfile.created_at,
           }
         };
@@ -271,5 +427,47 @@ export const api = {
     apiFetch<{ matches: Array<{ verse: any; book: any; score: number }> }>(`/verses/search?q=${encodeURIComponent(query)}`),
   getRelatedVerses: (verseId: number) =>
     apiFetch<{ related: Array<{ verse: any; book: any; score: number }> }>(`/verses/${verseId}/related`),
+  getCircles: () =>
+    apiFetch<{ circles: any[] }>('/circles'),
+  createCircle: (data: { name: string; description?: string }) =>
+    apiFetch<{ circle: any }>('/circles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  joinCircle: (id: string) =>
+    apiFetch<{ success: boolean }>(`/circles/${id}/join`, {
+      method: 'POST',
+    }),
+  leaveCircle: (id: string) =>
+    apiFetch<{ success: boolean }>(`/circles/${id}/join`, {
+      method: 'DELETE',
+    }),
+  getSermons: () =>
+    apiFetch<{ sermons: any[] }>('/sermons'),
+  createSermon: (data: { title: string; preacher: string; date: string; outline: string }) =>
+    apiFetch<{ sermon: any }>('/sermons', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getSermonNotes: (id: string) =>
+    apiFetch<{ notes: string }>(`/sermons/${id}/notes`),
+  saveSermonNotes: (id: string, notes: string) =>
+    apiFetch<{ success: boolean }>(`/sermons/${id}/notes`, {
+      method: 'PUT',
+      body: JSON.stringify({ notes }),
+    }),
+  getWeeklyTrivia: () =>
+    apiFetch<{ trivia: any[] }>('/trivia/weekly'),
+  submitTriviaAnswer: (questionId: string, selectedOptionIndex: number) =>
+    apiFetch<{ success: boolean; isCorrect: boolean; correctOptionIndex: number; explanation?: string }>('/trivia/submit', {
+      method: 'POST',
+      body: JSON.stringify({ questionId, selectedOptionIndex }),
+    }),
+  createTriviaQuestion: (data: { question: string; options: string[]; correctOptionIndex: number; explanation?: string; weekDate: string }) =>
+    apiFetch<{ trivia: any }>('/admin/trivia', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getMilestones: () =>
+    apiFetch<{ totalReads: number; milestones: any[] }>('/stats/milestones'),
 };
-

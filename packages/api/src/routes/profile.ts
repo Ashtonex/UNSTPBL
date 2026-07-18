@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../lib/db.js';
 import { users, eq } from '@unstpbl/db';
 import { authMiddleware } from '../middleware/auth.js';
+import { validateProfileUpdateBody } from '../lib/validation.js';
 
 export const profileRoutes = new Hono();
 
@@ -53,18 +54,31 @@ profileRoutes.get('/profile', async (c) => {
 profileRoutes.put('/profile', async (c) => {
   try {
     const authUser = c.get('user');
-    const { displayName, congregation, translation } = await c.req.json();
-
-    // Validate translation preference if provided
-    if (translation && !['KJV', 'ESV'].includes(translation)) {
-      return c.json({ error: 'Invalid translation. Supported: KJV, ESV.' }, 400);
-    }
+    const validation = validateProfileUpdateBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const {
+      displayName,
+      congregation,
+      translation,
+      bio,
+      phone,
+      location,
+      birthday,
+      birthdayVisibility,
+      avatarUrl,
+    } = validation.data;
 
     // Update DB
     const updateData: Partial<typeof users.$inferInsert> = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (congregation !== undefined) updateData.congregation = congregation;
     if (translation !== undefined) updateData.translation = translation;
+    if (bio !== undefined) updateData.bio = bio;
+    if (phone !== undefined) updateData.phone = phone;
+    if (location !== undefined) updateData.location = location;
+    if (birthday !== undefined) updateData.birthday = birthday;
+    if (birthdayVisibility !== undefined) updateData.birthdayVisibility = birthdayVisibility;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
     const [updatedProfile] = await db
       .update(users)

@@ -9,6 +9,7 @@ export const DEFAULT_FALLBACK_VERSE = {
 export const ROLES = {
   MEMBER: 'member' as const,
   BISHOP: 'bishop' as const,
+  ADMIN: 'admin' as const,
 };
 
 export const API_PATHS = {

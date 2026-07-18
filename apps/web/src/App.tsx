@@ -1,16 +1,29 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useAuthStore } from './stores/auth';
 import { supabase } from './lib/supabase';
 import { api } from './lib/api';
-import LoginPage from './pages/LoginPage';
-import HomePage from './pages/HomePage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
-import BishopPage from './pages/BishopPage';
-import SearchPage from './pages/SearchPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const BishopPage = lazy(() => import('./pages/BishopPage'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const PrayersPage = lazy(() => import('./pages/PrayersPage'));
+const FamilyHubPage = lazy(() => import('./pages/FamilyHubPage'));
+const BirthdaysPage = lazy(() => import('./pages/BirthdaysPage'));
+
+function RouteLoading() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
+      <p className="text-white/40 text-sm">Loading...</p>
+    </div>
+  );
+}
 
 export default function App() {
   const { setUser, setSession, setProfile, setLoading } = useAuthStore();
@@ -67,23 +80,28 @@ export default function App() {
   }, [setUser, setSession, setProfile, setLoading]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<HomePage />} />
-        <Route path="profile" element={<ProfilePage />} />
-        <Route path="search" element={<SearchPage />} />
-        <Route path="bishop" element={<BishopPage />} />
-        <Route path="admin" element={<AdminPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<RouteLoading />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<HomePage />} />
+          <Route path="prayers" element={<PrayersPage />} />
+          <Route path="family" element={<FamilyHubPage />} />
+          <Route path="birthdays" element={<BirthdaysPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="bishop" element={<BishopPage />} />
+          <Route path="admin" element={<AdminPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

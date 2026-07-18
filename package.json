@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20"
   },
@@ -11,6 +12,8 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "ci": "pnpm build && pnpm test && pnpm lint && pnpm typecheck",
     "db:migrate": "pnpm --filter @unstpbl/db migrate",
     "db:seed": "pnpm --filter @unstpbl/db seed",
     "db:seed:full": "pnpm --filter @unstpbl/db seed:full",

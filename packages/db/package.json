@@ -17,7 +17,8 @@
     "seed": "tsx scripts/seed-bible.ts",
     "seed:full": "tsx scripts/seed-full-bible.ts",
     "lint": "eslint src",
-    "test": "echo \"No tests yet\""
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit"
   },
   "dependencies": {
     "drizzle-orm": "^0.31.0",

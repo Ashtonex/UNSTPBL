@@ -1,24 +1,20 @@
 import { Hono } from 'hono';
-import webpush from 'web-push';
 import { db } from '../lib/db.js';
-import { users, eq, isNotNull } from '@unstpbl/db';
+import { users, scheduledPushNotifications, eq, desc } from '@unstpbl/db';
 import { authMiddleware } from '../middleware/auth.js';
+import {
+  validatePushMessageBody,
+  validatePushSubscriptionBody,
+  validateScheduledPushBody,
+} from '../lib/validation.js';
+import { createRateLimit } from '../middleware/rateLimit.js';
+import { recordAuditLog } from '../lib/audit.js';
+import { dispatchDueScheduledPushNotifications, sendPushToSubscribers } from '../lib/pushDispatcher.js';
 
 export const pushRoutes = new Hono();
 
 // Apply auth middleware to all push routes
 pushRoutes.use('*', authMiddleware);
-
-// Initialize VAPID details
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@yourchurch.com';
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-} else {
-  console.warn("⚠️ VAPID keys are missing! Web Push notifications will not work.");
-}
 
 /**
  * POST /push/subscribe — Save subscription payload for authenticated user.
@@ -26,11 +22,9 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 pushRoutes.post('/push/subscribe', async (c) => {
   try {
     const authUser = c.get('user');
-    const subscription = await c.req.json();
-
-    if (!subscription || !subscription.endpoint) {
-      return c.json({ error: 'Invalid subscription payload' }, 400);
-    }
+    const validation = validatePushSubscriptionBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const subscription = validation.data;
 
     await db
       .update(users)
@@ -67,7 +61,10 @@ pushRoutes.post('/push/unsubscribe', async (c) => {
  * POST /admin/push/send — Send push notification to all subscribed users.
  * Admin/Bishop only.
  */
-pushRoutes.post('/admin/push/send', async (c) => {
+pushRoutes.post(
+  '/admin/push/send',
+  createRateLimit({ windowMs: 60_000, max: 3, keyPrefix: 'admin-push-send' }),
+  async (c) => {
   try {
     const authUser = c.get('user');
 
@@ -76,61 +73,109 @@ pushRoutes.post('/admin/push/send', async (c) => {
       return c.json({ error: 'Forbidden' }, 403);
     }
 
-    const { title, body, url } = await c.req.json();
+    const validation = validatePushMessageBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const { title, body, url } = validation.data;
 
-    if (!title || !body) {
-      return c.json({ error: 'Title and body are required' }, 400);
-    }
+    const result = await sendPushToSubscribers({ title, body, url });
 
-    // Fetch all users with a registered subscription
-    const subscribedUsers = await db
-      .select({ id: users.id, pushSubscription: users.pushSubscription })
-      .from(users)
-      .where(isNotNull(users.pushSubscription));
-
-    const payload = JSON.stringify({
-      notification: {
-        title,
-        body,
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
-        data: {
-          url: url || '/',
-        },
-      },
+    await recordAuditLog({
+      actor: authUser,
+      action: 'push.sent',
+      targetType: 'push_notification',
+      metadata: { title, sent: result.sent, failed: result.failed },
     });
-
-    let successCount = 0;
-    let failCount = 0;
-
-    const promises = subscribedUsers.map(async (userObj) => {
-      const sub = userObj.pushSubscription as any;
-      try {
-        await webpush.sendNotification(sub, payload);
-        successCount++;
-      } catch (err: any) {
-        console.error(`Failed to send push notification to user ${userObj.id}:`, err.message);
-        failCount++;
-        // Prune dead subscriptions (Gone 410 or Not Found 404)
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          console.log(`Pruning dead push subscription for user ${userObj.id}`);
-          await db
-            .update(users)
-            .set({ pushSubscription: null })
-            .where(eq(users.id, userObj.id));
-        }
-      }
-    });
-
-    await Promise.all(promises);
 
     return c.json({
       success: true,
-      sent: successCount,
-      failed: failCount,
+      sent: result.sent,
+      failed: result.failed,
     });
   } catch (err: any) {
     console.error('Error sending push notifications:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+pushRoutes.post(
+  '/admin/push/dispatch-due',
+  createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'admin-push-dispatch-due' }),
+  async (c) => {
+    try {
+      const authUser = c.get('user');
+      if (authUser.role !== 'admin' && authUser.role !== 'bishop') {
+        return c.json({ error: 'Forbidden' }, 403);
+      }
+
+      const result = await dispatchDueScheduledPushNotifications();
+
+      await recordAuditLog({
+        actor: authUser,
+        action: 'push.dispatch_due',
+        targetType: 'scheduled_push_notification',
+        metadata: { processed: result.processed, sent: result.sent, failed: result.failed },
+      });
+
+      return c.json({ success: true, ...result });
+    } catch (err: any) {
+      console.error('Error dispatching due push notifications:', err);
+      return c.json({ error: err.message || 'Internal server error' }, 500);
+    }
+  },
+);
+
+pushRoutes.get('/admin/push/scheduled', async (c) => {
+  try {
+    const authUser = c.get('user');
+    if (authUser.role !== 'admin' && authUser.role !== 'bishop') {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    const notifications = await db
+      .select()
+      .from(scheduledPushNotifications)
+      .orderBy(desc(scheduledPushNotifications.scheduledFor))
+      .limit(25);
+
+    return c.json({ notifications });
+  } catch (err: any) {
+    console.error('Error fetching scheduled push notifications:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+pushRoutes.post('/admin/push/schedule', async (c) => {
+  try {
+    const authUser = c.get('user');
+    if (authUser.role !== 'admin' && authUser.role !== 'bishop') {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    const validation = validateScheduledPushBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+
+    const [notification] = await db
+      .insert(scheduledPushNotifications)
+      .values({
+        createdByUserId: authUser.id,
+        title: validation.data.title,
+        body: validation.data.body,
+        url: validation.data.url,
+        scheduledFor: validation.data.scheduledFor,
+      })
+      .returning();
+
+    await recordAuditLog({
+      actor: authUser,
+      action: 'push.scheduled',
+      targetType: 'scheduled_push_notification',
+      targetId: notification.id,
+      metadata: { title: notification.title, scheduledFor: notification.scheduledFor },
+    });
+
+    return c.json({ notification });
+  } catch (err: any) {
+    console.error('Error scheduling push notification:', err);
     return c.json({ error: err.message || 'Internal server error' }, 500);
   }
 });

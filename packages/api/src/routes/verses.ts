@@ -7,9 +7,14 @@ import {
   bibleBooks,
   verseReadings,
   users,
+  favoriteVerses,
+  verseReflections,
+  prayerRequests,
+  prayerJoins,
   eq,
   desc,
   and,
+  count,
   lte,
   gt,
   asc
@@ -18,6 +23,16 @@ import { fetchVerseFromApi, fetchVerseFromEsv } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { DEFAULT_FALLBACK_VERSE } from '@unstpbl/shared';
 import { getEmbedding, cosineSimilarity } from '../lib/embeddings.js';
+import { createRateLimit } from '../middleware/rateLimit.js';
+import {
+  validateDaysQuery,
+  validatePrayerBody,
+  validateReadBody,
+  validateReflectionBody,
+  validateSearchQuery,
+  validateUuid,
+  validateVerseIdBody,
+} from '../lib/validation.js';
 
 export const verseRoutes = new Hono();
 
@@ -318,6 +333,7 @@ verseRoutes.get('/verses/today', async (c) => {
         date: result.verse_schedule.date,
         verseId: resolvedVerse.id,
         mode: result.verse_schedule.mode,
+        pastoralNote: result.verse_schedule.pastoralNote,
       },
       verse: {
         id: resolvedVerse.id,
@@ -345,7 +361,9 @@ verseRoutes.get('/verses/today', async (c) => {
  */
 verseRoutes.get('/verses/history', async (c) => {
   try {
-    const days = parseInt(c.req.query('days') || '7', 10);
+    const daysValidation = validateDaysQuery(c.req.query('days'));
+    if (!daysValidation.ok) return c.json({ error: daysValidation.error }, 400);
+    const days = daysValidation.data;
     const timezone = process.env.CHURCH_TIMEZONE || 'Africa/Harare';
     const today = new Intl.DateTimeFormat('en-CA', {
       timeZone: timezone,
@@ -381,6 +399,7 @@ verseRoutes.get('/verses/history', async (c) => {
           date: row.verse_schedule.date,
           verseId: resolvedVerse.id,
           mode: row.verse_schedule.mode,
+          pastoralNote: row.verse_schedule.pastoralNote,
         },
         verse: {
           id: resolvedVerse.id,
@@ -412,11 +431,9 @@ verseRoutes.get('/verses/history', async (c) => {
 verseRoutes.post('/verses/read', authMiddleware, async (c) => {
   try {
     const user = c.get('user');
-    const { verseScheduleId } = await c.req.json();
-
-    if (!verseScheduleId) {
-      return c.json({ error: 'Missing verseScheduleId' }, 400);
-    }
+    const validation = validateReadBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const { verseScheduleId } = validation.data;
 
     try {
       await db.insert(verseReadings).values({
@@ -435,15 +452,352 @@ verseRoutes.post('/verses/read', authMiddleware, async (c) => {
   }
 });
 
+verseRoutes.get('/me/progress', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const readings = await db
+      .select({
+        readAt: verseReadings.readAt,
+        date: verseSchedule.date,
+      })
+      .from(verseReadings)
+      .innerJoin(verseSchedule, eq(verseReadings.verseScheduleId, verseSchedule.id))
+      .where(eq(verseReadings.userId, user.id))
+      .orderBy(desc(verseSchedule.date));
+
+    const favoriteCount = await db
+      .select({ val: count() })
+      .from(favoriteVerses)
+      .where(eq(favoriteVerses.userId, user.id));
+
+    const openPrayerCount = await db
+      .select({ val: count() })
+      .from(prayerRequests)
+      .where(and(eq(prayerRequests.userId, user.id), eq(prayerRequests.status, 'open')));
+
+    const readDates = new Set(readings.map((reading) => String(reading.date)));
+    const timezone = process.env.CHURCH_TIMEZONE || 'Africa/Harare';
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const cursor = new Date(`${formatter.format(new Date())}T00:00:00.000Z`);
+    let streak = 0;
+
+    while (readDates.has(cursor.toISOString().slice(0, 10))) {
+      streak += 1;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+
+    return c.json({
+      totalReads: readings.length,
+      currentStreak: streak,
+      favoriteCount: favoriteCount[0]?.val ?? 0,
+      openPrayerCount: openPrayerCount[0]?.val ?? 0,
+      recentReadDates: Array.from(readDates).slice(0, 30),
+    });
+  } catch (err: any) {
+    console.error('Error fetching user progress:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.get('/verses/favorites', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const favorites = await db
+      .select({
+        id: favoriteVerses.id,
+        createdAt: favoriteVerses.createdAt,
+        verseId: bibleVerses.id,
+        text: bibleVerses.text,
+        chapter: bibleVerses.chapter,
+        verseNumber: bibleVerses.verseNumber,
+        translation: bibleVerses.translation,
+        bookName: bibleBooks.name,
+        bookAbbreviation: bibleBooks.abbreviation,
+      })
+      .from(favoriteVerses)
+      .innerJoin(bibleVerses, eq(favoriteVerses.verseId, bibleVerses.id))
+      .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id))
+      .where(eq(favoriteVerses.userId, user.id))
+      .orderBy(desc(favoriteVerses.createdAt))
+      .limit(20);
+
+    return c.json({ favorites });
+  } catch (err: any) {
+    console.error('Error fetching favorite verses:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.post('/verses/favorites', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const validation = validateVerseIdBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+
+    await db
+      .insert(favoriteVerses)
+      .values({ userId: user.id, verseId: validation.data.verseId })
+      .onConflictDoNothing();
+
+    return c.json({ success: true });
+  } catch (err: any) {
+    console.error('Error favoriting verse:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.delete('/verses/favorites/:verseId', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const verseId = parseInt(c.req.param('verseId'), 10);
+    if (!Number.isSafeInteger(verseId) || verseId < 1) return c.json({ error: 'Invalid verse ID' }, 400);
+
+    await db
+      .delete(favoriteVerses)
+      .where(and(eq(favoriteVerses.userId, user.id), eq(favoriteVerses.verseId, verseId)));
+
+    return c.json({ success: true });
+  } catch (err: any) {
+    console.error('Error removing favorite verse:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.get('/verses/reflections', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const verseScheduleId = c.req.query('verseScheduleId');
+    const verseId = c.req.query('verseId');
+
+    if (verseScheduleId) {
+      const reflections = await db
+        .select({
+          id: verseReflections.id,
+          userId: verseReflections.userId,
+          verseId: verseReflections.verseId,
+          verseScheduleId: verseReflections.verseScheduleId,
+          content: verseReflections.content,
+          createdAt: verseReflections.createdAt,
+          user: {
+            id: users.id,
+            email: users.email,
+            displayName: users.displayName,
+            congregation: users.congregation,
+          }
+        })
+        .from(verseReflections)
+        .innerJoin(users, eq(verseReflections.userId, users.id))
+        .where(eq(verseReflections.verseScheduleId, verseScheduleId))
+        .orderBy(desc(verseReflections.createdAt))
+        .limit(50);
+      return c.json({ reflections });
+    }
+
+    const filters = verseId
+      ? and(eq(verseReflections.userId, user.id), eq(verseReflections.verseId, parseInt(verseId, 10)))
+      : eq(verseReflections.userId, user.id);
+
+    const reflections = await db
+      .select()
+      .from(verseReflections)
+      .where(filters)
+      .orderBy(desc(verseReflections.createdAt))
+      .limit(20);
+
+    return c.json({ reflections });
+  } catch (err: any) {
+    console.error('Error fetching reflections:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.post('/verses/reflections', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const validation = validateReflectionBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+
+    const [reflection] = await db
+      .insert(verseReflections)
+      .values({ userId: user.id, ...validation.data })
+      .returning();
+
+    return c.json({ reflection });
+  } catch (err: any) {
+    console.error('Error saving reflection:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.get('/prayers', authMiddleware, async (c) => {
+  try {
+    const currentUser = c.get('user');
+    const allPrayers = await db
+      .select({
+        id: prayerRequests.id,
+        userId: prayerRequests.userId,
+        title: prayerRequests.title,
+        content: prayerRequests.content,
+        status: prayerRequests.status,
+        createdAt: prayerRequests.createdAt,
+        answeredAt: prayerRequests.answeredAt,
+        type: prayerRequests.type,
+        isAnonymous: prayerRequests.isAnonymous,
+        authorName: users.displayName,
+        authorCongregation: users.congregation,
+      })
+      .from(prayerRequests)
+      .innerJoin(users, eq(prayerRequests.userId, users.id))
+      .orderBy(desc(prayerRequests.createdAt))
+      .limit(100);
+
+    const formatted = await Promise.all(allPrayers.map(async (prayer) => {
+      const joinCountResult = await db
+        .select({ val: count() })
+        .from(prayerJoins)
+        .where(eq(prayerJoins.prayerRequestId, prayer.id));
+      const joinCount = joinCountResult[0]?.val ?? 0;
+
+      const userJoin = await db
+        .select()
+        .from(prayerJoins)
+        .where(and(eq(prayerJoins.prayerRequestId, prayer.id), eq(prayerJoins.userId, currentUser.id)))
+        .limit(1);
+
+      const hasJoined = userJoin.length > 0;
+
+      return {
+        id: prayer.id,
+        userId: prayer.userId,
+        title: prayer.title,
+        content: prayer.content,
+        status: prayer.status,
+        createdAt: prayer.createdAt,
+        answeredAt: prayer.answeredAt,
+        type: prayer.type || 'request',
+        isAnonymous: prayer.isAnonymous || false,
+        user: prayer.isAnonymous ? { displayName: 'Anonymous Member', congregation: null } : {
+          displayName: prayer.authorName || 'Family Member',
+          congregation: prayer.authorCongregation
+        },
+        _count: {
+          joins: joinCount
+        },
+        hasJoined
+      };
+    }));
+
+    return c.json({ prayers: formatted });
+  } catch (err: any) {
+    console.error('Error fetching prayer requests:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.post('/prayers', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const validation = validatePrayerBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+
+    const [prayer] = await db
+      .insert(prayerRequests)
+      .values({
+        userId: user.id,
+        title: validation.data.title,
+        content: validation.data.content,
+        type: validation.data.type || 'request',
+        isAnonymous: validation.data.isAnonymous || false,
+      })
+      .returning();
+
+    return c.json({ prayer });
+  } catch (err: any) {
+    console.error('Error creating prayer request:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.post('/prayers/:id/join', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const idValidation = validateUuid(c.req.param('id'), 'id');
+    if (!idValidation.ok) return c.json({ error: idValidation.error }, 400);
+
+    const prayerId = idValidation.data;
+
+    const prayer = await db.select().from(prayerRequests).where(eq(prayerRequests.id, prayerId)).limit(1);
+    if (prayer.length === 0) {
+      return c.json({ error: 'Prayer request not found' }, 404);
+    }
+
+    await db
+      .insert(prayerJoins)
+      .values({
+        userId: user.id,
+        prayerRequestId: prayerId,
+      })
+      .onConflictDoNothing();
+
+    return c.json({ success: true });
+  } catch (err: any) {
+    console.error('Error joining prayer:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.delete('/prayers/:id/join', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const idValidation = validateUuid(c.req.param('id'), 'id');
+    if (!idValidation.ok) return c.json({ error: idValidation.error }, 400);
+
+    const prayerId = idValidation.data;
+
+    await db
+      .delete(prayerJoins)
+      .where(and(eq(prayerJoins.prayerRequestId, prayerId), eq(prayerJoins.userId, user.id)));
+
+    return c.json({ success: true });
+  } catch (err: any) {
+    console.error('Error leaving prayer join:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+verseRoutes.put('/prayers/:id/answered', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    const idValidation = validateUuid(c.req.param('id'), 'id');
+    if (!idValidation.ok) return c.json({ error: idValidation.error }, 400);
+
+    const [prayer] = await db
+      .update(prayerRequests)
+      .set({ status: 'answered', answeredAt: new Date() })
+      .where(and(eq(prayerRequests.id, idValidation.data), eq(prayerRequests.userId, user.id)))
+      .returning();
+
+    if (!prayer) return c.json({ error: 'Prayer request not found' }, 404);
+    return c.json({ prayer });
+  } catch (err: any) {
+    console.error('Error updating prayer request:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
 /**
  * GET /verses/search?q=... — Semantically search cached verses.
  */
-verseRoutes.get('/verses/search', async (c) => {
+verseRoutes.get('/verses/search', createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'verses-search' }), async (c) => {
   try {
-    const query = c.req.query('q');
-    if (!query) {
-      return c.json({ error: 'Search query parameter "q" is required' }, 400);
-    }
+    const validation = validateSearchQuery(c.req.query('q'));
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const query = validation.data;
 
     let queryEmbedding: number[] | null = null;
     try {
@@ -550,7 +904,7 @@ verseRoutes.get('/verses/search', async (c) => {
 verseRoutes.get('/verses/:id/related', async (c) => {
   try {
     const verseId = parseInt(c.req.param('id'), 10);
-    if (isNaN(verseId)) {
+    if (!Number.isSafeInteger(verseId) || verseId < 1) {
       return c.json({ error: 'Invalid verse ID' }, 400);
     }
 

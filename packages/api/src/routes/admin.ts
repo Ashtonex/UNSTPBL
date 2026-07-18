@@ -6,15 +6,19 @@ import {
   verseSchedule,
   verseReadings,
   users,
+  adminAuditLogs,
   eq,
   count,
   and,
-  gte
+  gte,
+  desc
 } from '@unstpbl/db';
 import { fetchVerseFromApi } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { bishopMiddleware } from '../middleware/bishop.js';
 import { adminOnlyMiddleware } from '../middleware/admin.js';
+import { validateRoleUpdateBody, validateScheduleBody, validateUuid } from '../lib/validation.js';
+import { recordAuditLog } from '../lib/audit.js';
 
 export const adminRoutes = new Hono();
 
@@ -51,21 +55,62 @@ adminRoutes.get('/admin/users', adminOnlyMiddleware, async (c) => {
  */
 adminRoutes.put('/admin/users/:userId/role', adminOnlyMiddleware, async (c) => {
   try {
+    const actor = c.get('user');
     const userId = c.req.param('userId');
-    const { role } = await c.req.json();
+    const userIdValidation = validateUuid(userId, 'userId');
+    if (!userIdValidation.ok) return c.json({ error: userIdValidation.error }, 400);
 
-    if (!role || (role !== 'member' && role !== 'bishop' && role !== 'admin')) {
-      return c.json({ error: 'Invalid or missing role' }, 400);
-    }
+    const validation = validateRoleUpdateBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const { role } = validation.data;
 
     await db
       .update(users)
       .set({ role })
       .where(eq(users.id, userId));
 
+    await recordAuditLog({
+      actor,
+      action: 'user.role_updated',
+      targetType: 'user',
+      targetId: userId,
+      metadata: { role },
+    });
+
     return c.json({ success: true, message: `User role updated to ${role} successfully.` });
   } catch (err: any) {
     console.error('Error updating user role:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+/**
+ * GET /admin/audit — Returns recent admin audit events.
+ */
+adminRoutes.get('/admin/audit', adminOnlyMiddleware, async (c) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '25', 10) || 25, 1), 100);
+
+    const logs = await db
+      .select({
+        id: adminAuditLogs.id,
+        actorUserId: adminAuditLogs.actorUserId,
+        action: adminAuditLogs.action,
+        targetType: adminAuditLogs.targetType,
+        targetId: adminAuditLogs.targetId,
+        metadata: adminAuditLogs.metadata,
+        createdAt: adminAuditLogs.createdAt,
+        actorEmail: users.email,
+        actorDisplayName: users.displayName,
+      })
+      .from(adminAuditLogs)
+      .innerJoin(users, eq(adminAuditLogs.actorUserId, users.id))
+      .orderBy(desc(adminAuditLogs.createdAt))
+      .limit(limit);
+
+    return c.json({ logs });
+  } catch (err: any) {
+    console.error('Error fetching admin audit logs:', err);
     return c.json({ error: err.message || 'Internal server error' }, 500);
   }
 });
@@ -149,6 +194,62 @@ adminRoutes.get('/admin/stats/translations', async (c) => {
 });
 
 /**
+ * GET /admin/stats/congregations — Engagement by congregation.
+ */
+adminRoutes.get('/admin/stats/congregations', async (c) => {
+  try {
+    const timezone = process.env.CHURCH_TIMEZONE || 'Africa/Harare';
+    const todayDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    const members = await db
+      .select({ id: users.id, congregation: users.congregation })
+      .from(users)
+      .where(eq(users.role, 'member'));
+
+    const todaySchedule = await db
+      .select()
+      .from(verseSchedule)
+      .where(eq(verseSchedule.date, todayDate))
+      .limit(1);
+
+    const todayReadings = todaySchedule.length
+      ? await db
+          .select({ userId: verseReadings.userId })
+          .from(verseReadings)
+          .where(eq(verseReadings.verseScheduleId, todaySchedule[0].id))
+      : [];
+
+    const readUserIds = new Set(todayReadings.map((reading) => reading.userId));
+    const groups = new Map<string, { congregation: string; members: number; readsToday: number }>();
+
+    for (const member of members) {
+      const congregation = member.congregation?.trim() || 'Unassigned';
+      const group = groups.get(congregation) ?? { congregation, members: 0, readsToday: 0 };
+      group.members += 1;
+      if (readUserIds.has(member.id)) group.readsToday += 1;
+      groups.set(congregation, group);
+    }
+
+    const congregations = Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        readRate: group.members > 0 ? Math.round((group.readsToday / group.members) * 100) : 0,
+      }))
+      .sort((a, b) => b.members - a.members);
+
+    return c.json({ congregations });
+  } catch (err: any) {
+    console.error('Error fetching congregation stats:', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+/**
  * GET /admin/books — Get all books in database for scheduling dropdowns.
  */
 adminRoutes.get('/admin/books', async (c) => {
@@ -213,11 +314,10 @@ adminRoutes.get('/admin/stats', async (c) => {
  */
 adminRoutes.post('/admin/schedule', async (c) => {
   try {
-    const { date, bookId, chapter, verseNumber } = await c.req.json();
-
-    if (!date || !bookId || !chapter || !verseNumber) {
-      return c.json({ error: 'Missing required fields: date, bookId, chapter, verseNumber' }, 400);
-    }
+    const actor = c.get('user');
+    const validation = validateScheduleBody(await c.req.json());
+    if (!validation.ok) return c.json({ error: validation.error }, 400);
+    const { date, bookId, chapter, verseNumber } = validation.data;
 
     // 1. Retrieve book metadata to get API abbreviation
     const books = await db.select().from(bibleBooks).where(eq(bibleBooks.id, bookId)).limit(1);
@@ -279,6 +379,7 @@ adminRoutes.post('/admin/schedule', async (c) => {
           bookId,
           chapter,
           mode: 'manual',
+          pastoralNote: validation.data.pastoralNote || null,
         })
         .where(eq(verseSchedule.date, date));
     } else {
@@ -288,8 +389,17 @@ adminRoutes.post('/admin/schedule', async (c) => {
         bookId,
         chapter,
         mode: 'manual',
+        pastoralNote: validation.data.pastoralNote || null,
       });
     }
+
+    await recordAuditLog({
+      actor,
+      action: 'verse.scheduled',
+      targetType: 'verse_schedule',
+      targetId: date,
+      metadata: { bookId, chapter, verseNumber },
+    });
 
     return c.json({ success: true });
   } catch (err: any) {

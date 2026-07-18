@@ -261,6 +261,66 @@ export default function Layout() {
             </NavLink>
 
             <NavLink
+              to="/prayers"
+              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              <span className="text-xs font-medium">Prayers</span>
+            </NavLink>
+
+            <NavLink
+              to="/family"
+              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+              <span className="text-xs font-medium">Family</span>
+            </NavLink>
+
+            <NavLink
+              to="/birthdays"
+              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 0018 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 0115 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 0012 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 019 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 006 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 013 15.546M12 3v3m0 0c-1.657 0-3 1.12-3 2.5S10.343 11 12 11s3-1.12 3-2.5S13.657 6 12 6zm-7 9.5V21h14v-5.5"
+                />
+              </svg>
+              <span className="text-xs font-medium">Birthdays</span>
+            </NavLink>
+
+            <NavLink
               to="/search"
               className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
             >

@@ -14,10 +14,9 @@ export default function AdminPage() {
     queryFn: api.getAdminUsersList,
   });
 
-  // 2. Fetch general stats for summary card
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['admin-stats'],
-    queryFn: api.getAdminStats,
+  const { data: auditData, isLoading: auditLoading } = useQuery({
+    queryKey: ['admin-audit'],
+    queryFn: () => api.getAdminAuditLogs(10),
   });
 
   // 3. Mutation for updating user role
@@ -28,7 +27,7 @@ export default function AdminPage() {
       setSuccessMsg(`Successfully updated user to role: ${variables.role}`);
       setErrorMsg(null);
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
     onError: (err: any) => {
@@ -79,6 +78,43 @@ export default function AdminPage() {
           </div>
           <p className="text-xs text-white/30 mt-1">DSN: ingest.de.sentry.io</p>
         </div>
+      </div>
+
+      <div className="glass-card p-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-white">Recent Admin Activity</h3>
+          <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Audit Log</span>
+        </div>
+
+        {auditLoading ? (
+          <div className="py-8 flex justify-center items-center">
+            <span className="w-7 h-7 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : auditData?.logs && auditData.logs.length > 0 ? (
+          <div className="divide-y divide-white/5">
+            {auditData.logs.map((log) => (
+              <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                <div>
+                  <p className="text-sm font-semibold text-white">{log.action.replaceAll('.', ' ')}</p>
+                  <p className="text-xs text-white/40">
+                    {log.actorDisplayName || log.actorEmail} · {log.targetType}
+                    {log.targetId ? `:${log.targetId}` : ''}
+                  </p>
+                </div>
+                <time className="text-xs text-white/30 whitespace-nowrap">
+                  {new Date(log.createdAt).toLocaleString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </time>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center py-8 text-white/30 text-sm">No admin activity has been recorded yet.</p>
+        )}
       </div>
 
       {/* Alerts */}
