@@ -3,7 +3,7 @@ services:
     name: unstpbl-api
     runtime: node
     plan: free
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @unstpbl/api build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @unstpbl/api build
     startCommand: pnpm --filter @unstpbl/api start
     healthCheckPath: /health
     autoDeployTrigger: commit
@@ -52,7 +52,7 @@ services:
 
   - type: static
     name: unstpbl-web
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @unstpbl/web build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @unstpbl/web build
     staticPublishPath: apps/web/dist
     autoDeployTrigger: commit
     buildFilter:
