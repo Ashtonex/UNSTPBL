@@ -2,12 +2,15 @@ import { Hono } from 'hono';
 import { db } from '../lib/db.js';
 import { users, eq } from '@unstpbl/db';
 import { authMiddleware } from '../middleware/auth.js';
+import { invalidateAuthForUser } from '../lib/authCache.js';
 import { validateProfileUpdateBody } from '../lib/validation.js';
 
 export const profileRoutes = new Hono();
 
-// Apply auth middleware to all profile routes
-profileRoutes.use('*', authMiddleware);
+// Apply auth middleware to all profile routes.
+// Scoped to /profile rather than '*' — see admin.ts for why a bare '*' leaks
+// across every other sub-app mounted at the same base path.
+profileRoutes.use('/profile', authMiddleware);
 
 /**
  * GET /profile — Returns the current user's profile details.
@@ -89,6 +92,9 @@ profileRoutes.put('/profile', async (c) => {
     if (!updatedProfile) {
       return c.json({ error: 'Profile not found' }, 404);
     }
+
+    // Translation is cached alongside auth, so drop it to apply the change immediately.
+    invalidateAuthForUser(authUser.id);
 
     return c.json({ profile: updatedProfile });
   } catch (err: any) {

@@ -13,8 +13,11 @@ import { dispatchDueScheduledPushNotifications, sendPushToSubscribers } from '..
 
 export const pushRoutes = new Hono();
 
-// Apply auth middleware to all push routes
-pushRoutes.use('*', authMiddleware);
+// Apply auth middleware to all push routes.
+// Scoped to actual prefixes rather than '*' — see admin.ts for why a bare '*'
+// leaks across every other sub-app mounted at the same base path.
+pushRoutes.use('/push/*', authMiddleware);
+pushRoutes.use('/admin/push/*', authMiddleware);
 
 /**
  * POST /push/subscribe — Save subscription payload for authenticated user.

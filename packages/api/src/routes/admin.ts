@@ -19,12 +19,17 @@ import { bishopMiddleware } from '../middleware/bishop.js';
 import { adminOnlyMiddleware } from '../middleware/admin.js';
 import { validateRoleUpdateBody, validateScheduleBody, validateUuid } from '../lib/validation.js';
 import { recordAuditLog } from '../lib/audit.js';
+import { invalidateAuthForUser } from '../lib/authCache.js';
+import { invalidateTodayVerseCache } from './verses.js';
 
 export const adminRoutes = new Hono();
 
-// Apply auth and bishop guards to all admin endpoints
-adminRoutes.use('*', authMiddleware);
-adminRoutes.use('*', bishopMiddleware);
+// Apply auth and bishop guards to all admin endpoints.
+// Scoped to /admin/* rather than '*' — Hono merges sub-app middleware into the
+// parent router at the shared mount path, so a bare '*' here would intercept
+// every route from every other sub-app mounted at '/' (cron, health, 404s, etc).
+adminRoutes.use('/admin/*', authMiddleware);
+adminRoutes.use('/admin/*', bishopMiddleware);
 
 /**
  * GET /admin/users — Get list of all registered users (Admin only).
@@ -68,6 +73,8 @@ adminRoutes.put('/admin/users/:userId/role', adminOnlyMiddleware, async (c) => {
       .update(users)
       .set({ role })
       .where(eq(users.id, userId));
+
+    invalidateAuthForUser(userId);
 
     await recordAuditLog({
       actor,
@@ -267,11 +274,10 @@ adminRoutes.get('/admin/books', async (c) => {
  */
 adminRoutes.get('/admin/stats', async (c) => {
   try {
-    // 1. Get total member count
-    const memberCountResult = await db
-      .select({ val: count() })
-      .from(users)
-      .where(eq(users.role, 'member'));
+    // 1. Get total member count. Counts every registered user (admins and
+    // bishops are part of the congregation too) so it matches the readings
+    // below, which are recorded for all roles.
+    const memberCountResult = await db.select({ val: count() }).from(users);
     const memberCount = memberCountResult[0]?.val ?? 0;
 
     // 2. Get today's read rate
@@ -392,6 +398,8 @@ adminRoutes.post('/admin/schedule', async (c) => {
         pastoralNote: validation.data.pastoralNote || null,
       });
     }
+
+    invalidateTodayVerseCache();
 
     await recordAuditLog({
       actor,

@@ -8,7 +8,10 @@ import {
 
 export const birthdayRoutes = new Hono();
 
-birthdayRoutes.use('*', authMiddleware);
+// Scoped to actual prefixes rather than '*' — see admin.ts for why a bare '*'
+// leaks across every other sub-app mounted at the same base path.
+birthdayRoutes.use('/birthdays', authMiddleware);
+birthdayRoutes.use('/birthdays/*', authMiddleware);
 
 birthdayRoutes.get('/birthdays', async (c) => {
   try {

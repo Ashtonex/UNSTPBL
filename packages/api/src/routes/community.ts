@@ -20,8 +20,16 @@ import { validateUuid } from '../lib/validation.js';
 
 export const communityRoutes = new Hono();
 
-// Apply auth to all community routes
-communityRoutes.use('*', authMiddleware);
+// Apply auth to all community routes.
+// Scoped to actual prefixes rather than '*' — see admin.ts for why a bare '*'
+// leaks across every other sub-app mounted at the same base path.
+communityRoutes.use('/circles', authMiddleware);
+communityRoutes.use('/circles/*', authMiddleware);
+communityRoutes.use('/sermons', authMiddleware);
+communityRoutes.use('/sermons/*', authMiddleware);
+communityRoutes.use('/trivia/*', authMiddleware);
+communityRoutes.use('/admin/trivia', authMiddleware);
+communityRoutes.use('/stats/milestones', authMiddleware);
 
 // ── 1. Circles (Home/Cell Groups) ──────────────────────────────────────────
 

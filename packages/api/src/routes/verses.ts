@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
-import { createClient } from '@supabase/supabase-js';
 import { db } from '../lib/db.js';
+import { resolveAuth } from '../lib/authCache.js';
+import { createMemoCache } from '../lib/memoCache.js';
 import {
   verseSchedule,
   bibleVerses,
@@ -17,7 +18,10 @@ import {
   count,
   lte,
   gt,
-  asc
+  asc,
+  or,
+  ilike,
+  sql
 } from '@unstpbl/db';
 import { fetchVerseFromApi, fetchVerseFromEsv } from '../lib/bibleApi.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -45,24 +49,24 @@ async function getPreferredTranslation(c: any): Promise<string> {
     return 'KJV';
   }
   const token = authHeader.replace('Bearer ', '');
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-  if (!supabaseUrl || !supabaseServiceKey) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     return 'KJV';
   }
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return 'KJV';
-
-    const dbUsers = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
-    if (dbUsers.length > 0) {
-      return dbUsers[0].translation || 'KJV';
-    }
-    return 'KJV';
+    const auth = await resolveAuth(token);
+    return auth?.translation || 'KJV';
   } catch (e) {
     return 'KJV';
   }
+}
+
+// Today's verse payload per date + translation. It only changes when an admin
+// reschedules it (which invalidates this), so the TTL is just a safety net.
+const TODAY_VERSE_TTL_MS = 5 * 60_000;
+const todayVerseCache = createMemoCache<any>({ maxEntries: 20 });
+
+export function invalidateTodayVerseCache(): void {
+  todayVerseCache.invalidate();
 }
 
 /**
@@ -315,41 +319,49 @@ verseRoutes.get('/verses/today', async (c) => {
       day: '2-digit',
     }).format(new Date());
 
-    const result = await getOrCreateTodayVerse(today);
     const translation = await getPreferredTranslation(c);
 
-    const resolvedVerse = await resolveVerseInTranslation(
-      result.bible_books.id,
-      result.bible_books.name,
-      result.bible_books.abbreviation,
-      result.bible_verses.chapter,
-      result.bible_verses.verseNumber,
-      translation
-    );
+    const payload = await todayVerseCache.getOrLoad(`${today}:${translation}`, async () => {
+      const result = await getOrCreateTodayVerse(today);
 
-    return c.json({
-      schedule: {
-        id: result.verse_schedule.id,
-        date: result.verse_schedule.date,
-        verseId: resolvedVerse.id,
-        mode: result.verse_schedule.mode,
-        pastoralNote: result.verse_schedule.pastoralNote,
-      },
-      verse: {
-        id: resolvedVerse.id,
-        bookId: resolvedVerse.bookId,
-        chapter: resolvedVerse.chapter,
-        verseNumber: resolvedVerse.verseNumber,
-        text: resolvedVerse.text,
-        translation: resolvedVerse.translation,
-      },
-      book: {
-        id: result.bible_books.id,
-        name: result.bible_books.name,
-        abbreviation: result.bible_books.abbreviation,
-        testament: result.bible_books.testament,
-      },
+      const resolvedVerse = await resolveVerseInTranslation(
+        result.bible_books.id,
+        result.bible_books.name,
+        result.bible_books.abbreviation,
+        result.bible_verses.chapter,
+        result.bible_verses.verseNumber,
+        translation
+      );
+
+      return {
+        ttlMs: TODAY_VERSE_TTL_MS,
+        value: {
+          schedule: {
+            id: result.verse_schedule.id,
+            date: result.verse_schedule.date,
+            verseId: resolvedVerse.id,
+            mode: result.verse_schedule.mode,
+            pastoralNote: result.verse_schedule.pastoralNote,
+          },
+          verse: {
+            id: resolvedVerse.id,
+            bookId: resolvedVerse.bookId,
+            chapter: resolvedVerse.chapter,
+            verseNumber: resolvedVerse.verseNumber,
+            text: resolvedVerse.text,
+            translation: resolvedVerse.translation,
+          },
+          book: {
+            id: result.bible_books.id,
+            name: result.bible_books.name,
+            abbreviation: result.bible_books.abbreviation,
+            testament: result.bible_books.testament,
+          },
+        },
+      };
     });
+
+    return c.json(payload);
   } catch (err: any) {
     console.error('Error fetching today\'s verse:', err);
     return c.json({ error: err.message || 'Internal server error' }, 500);
@@ -806,7 +818,55 @@ verseRoutes.get('/verses/search', createRateLimit({ windowMs: 60_000, max: 20, k
       console.warn('⚠️ Embedding calculation failed, falling back to local database text search:', err);
     }
 
-    // Fetch all cached verses
+    if (!queryEmbedding) {
+      // Keyword fallback, done in SQL. The cache holds ~30k verses, so pulling
+      // them all into Node on every search is far too slow (and memory-heavy on
+      // small instances). Score = share of query words found in the verse.
+      const queryWords = [...new Set(query.toLowerCase().split(/\s+/).filter(Boolean))].slice(0, 10);
+      if (queryWords.length === 0) return c.json({ matches: [] });
+
+      const patterns = queryWords.map((word) => `%${word.replace(/[\\%_]/g, '\\$&')}%`);
+      const matchCount = sql<number>`(${sql.join(
+        patterns.map((pattern) => sql`(${bibleVerses.text} ilike ${pattern})::int`),
+        sql` + `,
+      )})`;
+
+      const rows = await db
+        .select({
+          id: bibleVerses.id,
+          text: bibleVerses.text,
+          chapter: bibleVerses.chapter,
+          verseNumber: bibleVerses.verseNumber,
+          translation: bibleVerses.translation,
+          bookName: bibleBooks.name,
+          bookAbbreviation: bibleBooks.abbreviation,
+          matchCount,
+        })
+        .from(bibleVerses)
+        .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id))
+        .where(or(...patterns.map((pattern) => ilike(bibleVerses.text, pattern))))
+        .orderBy(desc(matchCount), asc(bibleVerses.id))
+        .limit(6);
+
+      const matches = rows.map((row) => ({
+        verse: {
+          id: row.id,
+          text: row.text,
+          chapter: row.chapter,
+          verseNumber: row.verseNumber,
+          translation: row.translation,
+        },
+        book: {
+          name: row.bookName,
+          abbreviation: row.bookAbbreviation,
+        },
+        score: Number(row.matchCount) / queryWords.length,
+      }));
+
+      return c.json({ matches });
+    }
+
+    // Semantic path: needs every verse's embedding to rank by cosine similarity.
     const allVerses = await db
       .select({
         id: bibleVerses.id,
@@ -820,41 +880,6 @@ verseRoutes.get('/verses/search', createRateLimit({ windowMs: 60_000, max: 20, k
       })
       .from(bibleVerses)
       .innerJoin(bibleBooks, eq(bibleVerses.bookId, bibleBooks.id));
-
-    if (!queryEmbedding) {
-      // Fallback: keyword matching case-insensitive search
-      const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const matches = allVerses
-        .map((row) => {
-          const textLower = row.text.toLowerCase();
-          let matchCount = 0;
-          queryWords.forEach((word) => {
-            if (textLower.includes(word)) {
-              matchCount++;
-            }
-          });
-          const score = queryWords.length > 0 ? matchCount / queryWords.length : 0;
-          return {
-            verse: {
-              id: row.id,
-              text: row.text,
-              chapter: row.chapter,
-              verseNumber: row.verseNumber,
-              translation: row.translation,
-            },
-            book: {
-              name: row.bookName,
-              abbreviation: row.bookAbbreviation,
-            },
-            score,
-          };
-        })
-        .filter((item) => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
-
-      return c.json({ matches });
-    }
 
     const matches: any[] = [];
 
