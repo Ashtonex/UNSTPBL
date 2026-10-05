@@ -22,6 +22,23 @@ healthRoutes.get('/health', (c) => {
 type CheckResult = 'ok' | string;
 
 /**
+ * Reduces an error to a category that is safe to show publicly. Never returns
+ * the message itself: supabase-js/fetch errors can echo header values (keys).
+ */
+function describeError(err: unknown): string {
+  const e = err as { name?: string; message?: string; cause?: { code?: string } } | null;
+  const message = (e?.message || '').toLowerCase();
+  const causeCode = e?.cause?.code;
+  if (causeCode && /^(ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|CERT_|ERR_TLS)/.test(causeCode)) {
+    return causeCode;
+  }
+  if (message.includes('supabaseurl')) return 'supabase-url-rejected';
+  if (message.includes('supabasekey')) return 'supabase-key-rejected';
+  if (message.includes('header')) return 'invalid-header-value (check for stray spaces/newlines in the key)';
+  return e?.name || 'unknown-error';
+}
+
+/**
  * Readiness: checks the things a logged-in request actually needs. Reports
  * coarse statuses only (never URLs, keys or error text) so it is safe to leave
  * public, and is rate limited because each hit makes real upstream calls.
@@ -48,7 +65,8 @@ healthRoutes.get(
       checks.supabaseConfig = 'missing';
     } else {
       try {
-        new URL(url);
+        const { protocol } = new URL(url);
+        if (protocol !== 'https:' && protocol !== 'http:') checks.supabaseConfig = 'url-not-http';
       } catch {
         checks.supabaseConfig = 'invalid-url';
       }
@@ -60,10 +78,12 @@ healthRoutes.get(
         const { error } = await getSupabaseClient().auth.admin.listUsers({ page: 1, perPage: 1 });
         if (error) {
           checks.supabaseAuth =
-            error.status === 401 || error.status === 403 ? 'bad-service-key' : 'error';
+            error.status === 401 || error.status === 403
+              ? 'bad-service-key'
+              : `error (status ${error.status ?? 'none'}, ${error.name})`;
         }
-      } catch {
-        checks.supabaseAuth = 'unreachable';
+      } catch (err) {
+        checks.supabaseAuth = `unreachable: ${describeError(err)}`;
       }
     } else {
       checks.supabaseAuth = 'skipped';
