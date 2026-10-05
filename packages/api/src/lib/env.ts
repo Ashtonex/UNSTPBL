@@ -1,8 +1,14 @@
+// The deployed web app (Vercel). Always allowed so a missing or mistyped
+// CORS_ORIGINS on the host can't silently block every browser request.
+// CORS_ORIGINS adds to this list (custom domains, staging, etc.).
+const PRODUCTION_WEB_ORIGINS = ['https://unstpbl-seven.vercel.app'];
+
 export function getAllowedCorsOrigins(): string[] {
-  return (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
+  const configured = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean);
+  return [...new Set([...PRODUCTION_WEB_ORIGINS, ...configured])];
 }
 
 export function isCorsOriginAllowed(origin: string | undefined): boolean {
