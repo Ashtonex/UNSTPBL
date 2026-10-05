@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import type { DailyVerse } from '@unstpbl/shared';
+import Tilt3DCard from './3d/Tilt3DCard';
+import ParticleBurst from './3d/ParticleBurst';
 
 interface VerseCardProps {
   dailyVerse: DailyVerse;
@@ -18,13 +20,22 @@ export default function VerseCard({
 }: VerseCardProps) {
   const [animateRead, setAnimateRead] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showBurst, setShowBurst] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const { verse, book, schedule } = dailyVerse;
 
   const handleMarkRead = () => {
     setAnimateRead(true);
+    setShowBurst(true);
     onMarkRead?.();
     setTimeout(() => setAnimateRead(false), 600);
+  };
+
+  const handleToggleFavWithBurst = () => {
+    if (!isFavorite) {
+      setShowBurst(true);
+    }
+    onToggleFavorite?.();
   };
 
   const handleShareImage = async () => {
@@ -66,7 +77,7 @@ export default function VerseCard({
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in relative">
       {/* Date Badge */}
       <div className="flex items-center gap-2 mb-6">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -80,36 +91,56 @@ export default function VerseCard({
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </div>
 
-      {/* Verse Card */}
-      <div ref={cardRef} className="glass-card p-6 md:p-8 animate-slide-up relative overflow-hidden">
-        {/* Background PAOZ Map logo as watermark overlay */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center p-8">
-          <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
-        </div>
+      {/* 3D Interactive Spatial Tilt Card */}
+      <Tilt3DCard maxTilt={14} scale={1.025} glareOpacity={0.3} className="w-full">
+        <div ref={cardRef} className="glass-card p-6 md:p-8 relative overflow-hidden transform-gpu">
+          {/* Particle Burst Explosion Layer */}
+          <ParticleBurst active={showBurst} onComplete={() => setShowBurst(false)} />
 
-        {/* Decorative quotation mark */}
-        <div className="text-brand-500/20 text-6xl font-serif leading-none mb-2 select-none relative z-10">
-          &ldquo;
-        </div>
-
-        {/* Verse Text */}
-        <blockquote className="verse-text mb-6 pl-2 relative z-10">{verse.text}</blockquote>
-
-        {/* Reference */}
-        <div className="flex items-end justify-between relative z-10">
-          <div>
-            <p className="verse-reference">
-              {book.name} {verse.chapter}:{verse.verseNumber}
-            </p>
-            <p className="text-[10px] text-white/30 font-medium uppercase tracking-wider mt-1">
-              Victory Tabernacle City Mutare
-            </p>
+          {/* Depth Layer -10: Background PAOZ Map logo watermark overlay */}
+          <div
+            className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center p-8 transition-transform duration-200"
+            style={{ transform: 'translateZ(-10px)' }}
+          >
+            <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
           </div>
-          <span className="text-white/20 text-xs font-medium px-2 py-1 rounded-full bg-white/5">
-            {verse.translation}
-          </span>
+
+          {/* Depth Layer 20: Decorative quotation mark */}
+          <div
+            className="text-brand-500/25 text-6xl font-serif leading-none mb-2 select-none relative z-10 transition-transform duration-200"
+            style={{ transform: 'translateZ(20px)' }}
+          >
+            &ldquo;
+          </div>
+
+          {/* Depth Layer 35: Verse Text */}
+          <blockquote
+            className="verse-text mb-6 pl-2 relative z-10 transition-transform duration-200 drop-shadow-md"
+            style={{ transform: 'translateZ(35px)' }}
+          >
+            {verse.text}
+          </blockquote>
+
+          {/* Depth Layer 45: Reference & Badges */}
+          <div
+            className="flex items-end justify-between relative z-10 transition-transform duration-200"
+            style={{ transform: 'translateZ(45px)' }}
+          >
+            <div>
+              <p className="verse-reference">
+                {book.name} {verse.chapter}:{verse.verseNumber}
+              </p>
+              <p className="text-[10px] text-white/40 font-medium uppercase tracking-wider mt-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
+                Victory Tabernacle City Mutare
+              </p>
+            </div>
+            <span className="text-white/40 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 border border-white/10 shadow-sm backdrop-blur-md">
+              {verse.translation}
+            </span>
+          </div>
         </div>
-      </div>
+      </Tilt3DCard>
 
       {/* Action Buttons */}
       <div className="mt-6 flex justify-center gap-4">
@@ -148,7 +179,7 @@ export default function VerseCard({
 
         {onToggleFavorite && (
           <button
-            onClick={onToggleFavorite}
+            onClick={handleToggleFavWithBurst}
             className={`bg-white/10 hover:bg-white/20 active:scale-[0.98] text-white font-semibold py-2 px-4 rounded-xl transition-all duration-200 flex items-center gap-2 border text-sm ${
               isFavorite ? 'border-brand-400/40 text-brand-300' : 'border-white/10'
             }`}
@@ -178,3 +209,4 @@ export default function VerseCard({
     </div>
   );
 }
+
