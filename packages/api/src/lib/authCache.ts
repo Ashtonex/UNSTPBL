@@ -19,12 +19,29 @@ const AUTH_CACHE_TTL_MS = 60_000;
 
 let supabaseClient: SupabaseClient | null = null;
 
+/**
+ * supabase-js builds a Realtime client inside createClient() and, on Node < 22
+ * (no native WebSocket), throws "Node.js 20 detected without native WebSocket
+ * support" unless handed a transport. Render runs Node 20, so every auth lookup
+ * failed there. This server only uses Supabase Auth, never Realtime, so supply a
+ * transport that exists only to satisfy that check and refuses to be used.
+ */
+class UnusedRealtimeTransport {
+  constructor() {
+    throw new Error('Realtime is not available on this server.');
+  }
+}
+
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseClient) {
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_KEY;
     if (!url || !key) throw new Error('Missing Supabase configuration');
-    supabaseClient = createClient(url, key);
+    supabaseClient = createClient(url, key, {
+      // A long-lived server client shouldn't persist sessions or run refresh timers.
+      auth: { persistSession: false, autoRefreshToken: false },
+      realtime: { transport: UnusedRealtimeTransport as unknown as typeof WebSocket },
+    });
   }
   return supabaseClient;
 }
