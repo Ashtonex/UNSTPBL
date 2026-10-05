@@ -16,15 +16,30 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error('Offline');
   }
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    // Keep the "Failed to fetch" wording: the offline queueing below matches on it.
+    if (err instanceof TypeError) {
+      throw new Error(`Failed to fetch – cannot reach the API at ${API_BASE}`);
+    }
+    throw err;
+  }
+  if (!res.ok) {
+    const detail = await res.json().then(
+      (body) => (typeof body?.error === 'string' ? body.error : undefined),
+      () => undefined,
+    );
+    throw new Error(`API error: ${res.status}${detail ? ` – ${detail}` : ''}`);
+  }
   return res.json();
 }
 

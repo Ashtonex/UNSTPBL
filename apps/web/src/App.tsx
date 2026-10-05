@@ -29,16 +29,26 @@ export default function App() {
   const { setUser, setSession, setProfile, setLoading } = useAuthStore();
 
   useEffect(() => {
-    const syncProfile = async (session: any) => {
-      if (session?.user) {
-        try {
-          const { profile } = await api.getProfile();
-          setProfile(profile);
-        } catch (err) {
-          console.error('Error fetching profile:', err);
-        }
-      } else {
+    // getSession() and onAuthStateChange() (INITIAL_SESSION, SIGNED_IN, ...) all
+    // report the same session at login, so only fetch the profile once per user.
+    let syncedUserId: string | null = null;
+
+    const syncProfile = async (session: any, force = false) => {
+      const userId: string | undefined = session?.user?.id;
+      if (!userId) {
+        syncedUserId = null;
         setProfile(null);
+        return;
+      }
+      if (syncedUserId === userId && !force) return;
+
+      syncedUserId = userId;
+      try {
+        const { profile } = await api.getProfile();
+        setProfile(profile);
+      } catch (err) {
+        syncedUserId = null; // allow a later auth event to retry
+        console.error('Error fetching profile:', err);
       }
     };
 
@@ -66,11 +76,12 @@ export default function App() {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
-      syncProfile(session);
+      // Token refreshes re-sync so role changes made mid-session still show up.
+      syncProfile(session, event === 'TOKEN_REFRESHED');
     });
 
     return () => {

@@ -9,7 +9,7 @@ export default function AdminPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // 1. Fetch Users List
-  const { data: usersData, isLoading: usersLoading } = useQuery({
+  const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery({
     queryKey: ['admin-users'],
     queryFn: api.getAdminUsersList,
   });
@@ -56,6 +56,12 @@ export default function AdminPage() {
         <h2 className="text-2xl font-bold text-white mb-1">System Administration</h2>
         <p className="text-white/40 text-sm">Manage user roles, platform permissions, and monitor system metrics.</p>
       </div>
+
+      {usersError && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+          Could not load users. {(usersError as Error).message}
+        </div>
+      )}
 
       {/* Stats Summary Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -84,7 +84,7 @@ export default function SearchPage() {
 
         {error && (
           <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
-            Failed to complete semantic search. Make sure the API server is online.
+            Failed to complete semantic search. {(error as Error).message}
           </div>
         )}
 

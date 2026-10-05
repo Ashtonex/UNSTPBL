@@ -119,7 +119,7 @@ export default function BishopPage() {
   const [circleDesc, setCircleDesc] = useState('');
 
   // 1. Fetch Admin Stats (Read rates and total members count)
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: api.getAdminStats,
     refetchInterval: 15000,
@@ -342,6 +342,12 @@ export default function BishopPage() {
         <h2 className="text-2xl font-bold text-white mb-1">Bishop Dashboard</h2>
         <p className="text-white/40 text-sm">Manage daily scripture reading schedules and track congregation completion trends.</p>
       </div>
+
+      {statsError && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+          Could not load dashboard stats. {(statsError as Error).message}
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
