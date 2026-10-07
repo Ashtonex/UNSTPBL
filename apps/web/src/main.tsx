@@ -12,18 +12,24 @@ if ('serviceWorker' in navigator) {
   registerSW({ immediate: true });
 }
 
-// Initialize Sentry
+// Initialize Sentry — replay is lazy-added after first paint to keep startup fast
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
     ],
     tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || '0.1'),
     replaysSessionSampleRate: Number(import.meta.env.VITE_SENTRY_REPLAY_SAMPLE_RATE || '0.05'),
     replaysOnErrorSampleRate: 1.0,
   });
+
+  // Lazy-load the replay integration after 4 s so it doesn't block first paint
+  setTimeout(() => {
+    import('@sentry/react').then(({ replayIntegration }) => {
+      Sentry.addIntegration(replayIntegration());
+    });
+  }, 4000);
 }
 
 const queryClient = new QueryClient({
