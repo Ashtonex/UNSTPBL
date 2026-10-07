@@ -30,49 +30,44 @@ export default function Tilt3DCard({
 
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+  const applyTilt = useCallback(
+    (clientX: number, clientY: number, fastTransition = false) => {
       if (!cardRef.current) return;
 
       const rect = cardRef.current.getBoundingClientRect();
       const width = rect.width;
       const height = rect.height;
 
-      // Mouse X & Y inside card relative to center [-1 to 1]
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      // X & Y inside card relative to center [-1 to 1]
+      const mouseX = clientX - rect.left;
+      const mouseY = clientY - rect.top;
 
-      const normX = (mouseX / width - 0.5) * 2;
-      const normY = (mouseY / height - 0.5) * 2;
+      const normX = Math.max(-1, Math.min(1, (mouseX / width - 0.5) * 2));
+      const normY = Math.max(-1, Math.min(1, (mouseY / height - 0.5) * 2));
 
       // Calculate tilt angles
       const rotateX = -normY * maxTilt;
       const rotateY = normX * maxTilt;
 
       // Light sheen position
-      const sheenX = (mouseX / width) * 100;
-      const sheenY = (mouseY / height) * 100;
+      const sheenX = Math.max(0, Math.min(100, (mouseX / width) * 100));
+      const sheenY = Math.max(0, Math.min(100, (mouseY / height) * 100));
 
       setStyle({
         transform: `perspective(${perspective}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(${scale}, ${scale}, ${scale})`,
-        transition: 'transform 0.1s ease-out',
+        transition: fastTransition ? 'transform 0.15s ease-out' : 'transform 0.08s ease-out',
       });
 
       setGlareStyle({
         opacity: glareOpacity,
-        background: `radial-gradient(circle at ${sheenX.toFixed(1)}% ${sheenY.toFixed(1)}%, rgba(251, 191, 36, 0.35) 0%, rgba(245, 158, 11, 0.12) 40%, rgba(255,255,255,0) 75%)`,
+        background: `radial-gradient(circle at ${sheenX.toFixed(1)}% ${sheenY.toFixed(1)}%, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.18) 40%, rgba(255,255,255,0) 75%)`,
         transition: 'opacity 0.2s ease',
       });
     },
     [maxTilt, perspective, scale, glareOpacity]
   );
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
+  const resetTilt = useCallback(() => {
     setStyle({
       transform: `perspective(${perspective}px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`,
       transition: 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -82,6 +77,40 @@ export default function Tilt3DCard({
       background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 80%)',
       transition: 'opacity 0.5s ease',
     });
+  }, [perspective]);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      applyTilt(e.clientX, e.clientY);
+    },
+    [applyTilt]
+  );
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    resetTilt();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setIsHovered(true);
+    if (e.touches.length > 0) {
+      applyTilt(e.touches[0].clientX, e.touches[0].clientY, true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      applyTilt(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsHovered(false);
+    resetTilt();
   };
 
   // Mobile Device Gyroscope listener fallback
@@ -120,11 +149,15 @@ export default function Tilt3DCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       style={{
         transformStyle: 'preserve-3d',
         ...style,
       }}
-      className={`relative rounded-2xl will-change-transform ${className}`}
+      className={`relative rounded-2xl will-change-transform touch-none sm:touch-auto ${className}`}
     >
       {/* Dynamic Specular Light Glare Overlay */}
       <div

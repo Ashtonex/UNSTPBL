@@ -1,8 +1,21 @@
 import { supabase } from './supabase';
 import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User } from '@unstpbl/shared';
+const getApiBase = () => {
+  const configured = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    if (configured.includes('localhost')) {
+      return configured.replace('localhost', window.location.hostname);
+    }
+  }
+  return configured;
+};
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
+const API_BASE = getApiBase();
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const {
     data: { session },
@@ -17,21 +30,30 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   }
   const headers = await getAuthHeaders();
   let res: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...options,
+      signal: options?.signal || controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...headers,
         ...options?.headers,
       },
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new TypeError(`Failed to fetch – API request timed out after 3.5s at ${API_BASE}`);
+    }
     // Keep the "Failed to fetch" wording: the offline queueing below matches on it.
     if (err instanceof TypeError) {
       throw new Error(`Failed to fetch – cannot reach the API at ${API_BASE}`);
     }
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
   if (!res.ok) {
     const detail = await res.json().then(

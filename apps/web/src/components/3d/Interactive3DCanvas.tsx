@@ -42,8 +42,18 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
 
-      // Particle Geometry & Material setup
-      const particleCount = Math.min(180, Math.floor((window.innerWidth * window.innerHeight) / 9000));
+      const aspect = window.innerWidth / window.innerHeight;
+      const isMobile = window.innerWidth < 768;
+
+      // Adapt spawn box to visible viewport frustum so particles aren't wasted off-screen on tall mobile screens
+      const visibleHeight = 56;
+      const visibleWidth = Math.max(28, visibleHeight * aspect);
+
+      // On mobile, guarantee at least 95 bright particles (previously starved down to ~35 with most spawned off-screen)
+      const particleCount = isMobile
+        ? 95
+        : Math.min(180, Math.floor((window.innerWidth * window.innerHeight) / 7500));
+
       const positions = new Float32Array(particleCount * 3);
       const originalPositions = new Float32Array(particleCount * 3);
       const scales = new Float32Array(particleCount);
@@ -55,9 +65,9 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
       const colorWhite = new THREE.Color('#ffffff');
 
       for (let i = 0; i < particleCount; i++) {
-        const x = (Math.random() - 0.5) * 80;
-        const y = (Math.random() - 0.5) * 80;
-        const z = (Math.random() - 0.5) * 60;
+        const x = (Math.random() - 0.5) * visibleWidth * 1.35;
+        const y = (Math.random() - 0.5) * visibleHeight * 1.35;
+        const z = (Math.random() - 0.5) * (isMobile ? 32 : 55);
 
         positions[i * 3] = x;
         positions[i * 3 + 1] = y;
@@ -67,11 +77,11 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
         originalPositions[i * 3 + 1] = y;
         originalPositions[i * 3 + 2] = z;
 
-        scales[i] = Math.random() * 1.8 + 0.6;
+        scales[i] = isMobile ? Math.random() * 2.2 + 0.8 : Math.random() * 1.8 + 0.6;
 
         // Color variance
         const rand = Math.random();
-        const particleColor = rand > 0.6 ? colorAmber : rand > 0.3 ? colorGold : rand > 0.1 ? colorCyan : colorWhite;
+        const particleColor = rand > 0.55 ? colorAmber : rand > 0.3 ? colorGold : rand > 0.1 ? colorCyan : colorWhite;
         colors[i * 3] = particleColor.r;
         colors[i * 3 + 1] = particleColor.g;
         colors[i * 3 + 2] = particleColor.b;
@@ -81,42 +91,43 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-      // Custom circular particle texture via canvas
+      // Crisp high-res glowing particle texture
       const canvas = document.createElement('canvas');
-      canvas.width = 32;
-      canvas.height = 32;
+      canvas.width = 64;
+      canvas.height = 64;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
         gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        gradient.addColorStop(0.3, 'rgba(251, 191, 36, 0.8)');
-        gradient.addColorStop(0.7, 'rgba(245, 158, 11, 0.3)');
+        gradient.addColorStop(0.25, 'rgba(251, 191, 36, 0.95)');
+        gradient.addColorStop(0.55, 'rgba(245, 158, 11, 0.45)');
+        gradient.addColorStop(0.85, 'rgba(56, 189, 248, 0.2)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(16, 16, 16, 0, Math.PI * 2);
+        ctx.arc(32, 32, 32, 0, Math.PI * 2);
         ctx.fill();
       }
 
       const texture = new THREE.CanvasTexture(canvas);
       const material = new THREE.PointsMaterial({
-        size: 2.4,
+        size: isMobile ? 3.0 : 2.4,
         map: texture,
         transparent: true,
         vertexColors: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-        opacity: 0.75,
+        opacity: isMobile ? 0.95 : 0.8,
       });
 
       const particleSystem = new THREE.Points(geometry, material);
       scene.add(particleSystem);
 
-      // Connecting Constellation Lines
+      // Connecting Constellation Lines - boosted opacity and threshold for mobile clarity
       const lineMaterial = new THREE.LineBasicMaterial({
         color: 0xf59e0b,
         transparent: true,
-        opacity: 0.08,
+        opacity: isMobile ? 0.22 : 0.12,
         blending: THREE.AdditiveBlending,
       });
 
@@ -126,12 +137,22 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
       const lineMesh = new THREE.LineSegments(lineGeometry, lineMaterial);
       scene.add(lineMesh);
 
-      // Mouse Move Listener
+      // Mouse & Touch listeners
       const handleMouseMove = (event: MouseEvent) => {
         const normX = (event.clientX / window.innerWidth) * 2 - 1;
         const normY = -(event.clientY / window.innerHeight) * 2 + 1;
-        mouseRef.current.targetX = normX * 15;
-        mouseRef.current.targetY = normY * 15;
+        mouseRef.current.targetX = normX * 16;
+        mouseRef.current.targetY = normY * 16;
+      };
+
+      const handleTouchStart = (event: TouchEvent) => {
+        if (event.touches.length > 0) {
+          const touch = event.touches[0];
+          const normX = (touch.clientX / window.innerWidth) * 2 - 1;
+          const normY = -(touch.clientY / window.innerHeight) * 2 + 1;
+          mouseRef.current.targetX = normX * 18;
+          mouseRef.current.targetY = normY * 18;
+        }
       };
 
       const handleTouchMove = (event: TouchEvent) => {
@@ -139,13 +160,20 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
           const touch = event.touches[0];
           const normX = (touch.clientX / window.innerWidth) * 2 - 1;
           const normY = -(touch.clientY / window.innerHeight) * 2 + 1;
-          mouseRef.current.targetX = normX * 15;
-          mouseRef.current.targetY = normY * 15;
+          mouseRef.current.targetX = normX * 18;
+          mouseRef.current.targetY = normY * 18;
         }
       };
 
+      const handleTouchEnd = () => {
+        mouseRef.current.targetX = 0;
+        mouseRef.current.targetY = 0;
+      };
+
       window.addEventListener('mousemove', handleMouseMove, { passive: true });
+      window.addEventListener('touchstart', handleTouchStart, { passive: true });
       window.addEventListener('touchmove', handleTouchMove, { passive: true });
+      window.addEventListener('touchend', handleTouchEnd, { passive: true });
 
       const handleResize = () => {
         if (!containerRef.current) return;
@@ -243,7 +271,9 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
 
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('touchstart', handleTouchStart);
         window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
         window.removeEventListener('resize', handleResize);
         cancelAnimationFrame(animationFrameId);
         if (renderer.domElement && container.contains(renderer.domElement)) {
@@ -262,7 +292,7 @@ export default function Interactive3DCanvas({ isSpeaking = false }: Interactive3
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-80 transition-opacity duration-1000"
+      className="fixed inset-0 pointer-events-none z-[1] overflow-hidden opacity-90 transition-opacity duration-700"
       aria-hidden="true"
     />
   );

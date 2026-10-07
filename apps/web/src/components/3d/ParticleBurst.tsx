@@ -4,6 +4,8 @@ interface ParticleBurstProps {
   active: boolean;
   onComplete?: () => void;
   color?: string;
+  originX?: number;
+  originY?: number;
 }
 
 interface Particle {
@@ -19,7 +21,13 @@ interface Particle {
   angle: number;
 }
 
-export default function ParticleBurst({ active, onComplete, color = '#fbbf24' }: ParticleBurstProps) {
+export default function ParticleBurst({
+  active,
+  onComplete,
+  color = '#fbbf24',
+  originX,
+  originY,
+}: ParticleBurstProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -32,21 +40,24 @@ export default function ParticleBurst({ active, onComplete, color = '#fbbf24' }:
     const width = (canvas.width = canvas.offsetWidth || 300);
     const height = (canvas.height = canvas.offsetHeight || 300);
 
+    const spawnX = originX !== undefined ? Math.min(Math.max(20, originX), width - 20) : width / 2;
+    const spawnY = originY !== undefined ? Math.min(Math.max(20, originY), height - 20) : height / 2;
+
     const particles: Particle[] = [];
-    const colors = [color, '#f59e0b', '#38bdf8', '#ffffff', '#eab308'];
+    const colors = [color, '#f59e0b', '#38bdf8', '#ffffff', '#eab308', '#fb7185'];
 
     // Spawn burst particles
-    const particleCount = 45;
+    const particleCount = 52;
     for (let i = 0; i < particleCount; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = Math.random() * 7 + 2;
+      const speed = Math.random() * 8 + 2.5;
 
       particles.push({
-        x: width / 2,
-        y: height / 2,
+        x: spawnX,
+        y: spawnY,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 1.5, // slight upward float
-        size: Math.random() * 5 + 2,
+        vy: Math.sin(angle) * speed - 1.8, // slight upward float
+        size: Math.random() * 5.5 + 2.5,
         color: colors[Math.floor(Math.random() * colors.length)],
         alpha: 1,
         decay: Math.random() * 0.025 + 0.015,

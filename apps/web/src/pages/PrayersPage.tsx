@@ -289,32 +289,34 @@ export default function PrayersPage() {
               {/* Bottom Row: Actions */}
               <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1 relative z-10">
                 <button
-                  onClick={() => handleToggleJoin(prayer)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] border ${
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                      try {
+                        navigator.vibrate(25);
+                      } catch {}
+                    }
+                    handleToggleJoin(prayer);
+                  }}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] border ${
                     prayer.hasJoined
-                      ? 'bg-brand-500/15 border-brand-500/35 text-brand-300'
-                      : 'bg-white/5 border-white/5 hover:bg-white/10 text-white/50 hover:text-white/80'
+                      ? 'bg-amber-500/20 border-amber-400/40 text-amber-200 ring-2 ring-amber-400/25 shadow-lg shadow-amber-500/15'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70 hover:text-white'
                   }`}
                 >
-                  <svg
-                    className={`w-4 h-4 ${prayer.hasJoined ? 'fill-current animate-pulse-soft' : ''}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                  <span>
-                    {prayer.hasJoined ? 'Praying!' : 'Amen / Stand with them'}
-                  </span>
+                  {prayer.hasJoined ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-base animate-pulse">🕯️</span>
+                      <span className="font-bold text-amber-300">Candle Lit</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-base opacity-70">🕯️</span>
+                      <span>Light Candle & Pray</span>
+                    </span>
+                  )}
                   {prayer._count?.joins > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 bg-white/10 rounded-full text-[9px]">
-                      {prayer._count.joins}
+                    <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-[10px] font-bold border border-amber-400/30">
+                      {prayer._count.joins} praying
                     </span>
                   )}
                 </button>

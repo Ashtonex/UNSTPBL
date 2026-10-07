@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../lib/api';
@@ -11,11 +11,17 @@ const Interactive3DCanvas = lazy(() => import('./3d/Interactive3DCanvas'));
 export default function Layout() {
   const { signOut, profile } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [visible, setVisible] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const prevScrollY = useRef(0);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  const navRef = useRef<HTMLElement>(null);
+  const navScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   // Helper to register push subscription
   const setupPushNotifications = async () => {
@@ -135,10 +141,12 @@ export default function Layout() {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
+      if (navRef.current?.contains(e.target as Node)) return;
       startY = e.touches[0].clientY;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (navRef.current?.contains(e.target as Node)) return;
       if (!startY) return;
       const currentY = e.touches[0].clientY;
       const diffY = startY - currentY; // positive means swiping up (scrolling down)
@@ -168,6 +176,62 @@ export default function Layout() {
     };
   }, []);
 
+  const checkScrollState = () => {
+    const el = navScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 6);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 6);
+  };
+
+  useEffect(() => {
+    checkScrollState();
+    window.addEventListener('resize', checkScrollState);
+    return () => window.removeEventListener('resize', checkScrollState);
+  }, [profile]);
+
+  // Auto-scroll active tab into center view when navigating
+  useEffect(() => {
+    const el = navScrollRef.current;
+    if (!el) return;
+    const timer = setTimeout(() => {
+      const activeEl = el.querySelector('[aria-current="page"]') as HTMLElement;
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'nearest',
+        });
+      }
+      checkScrollState();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  // Drag-to-swipe support for mouse / desktop emulation
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragScrollLeft = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!navScrollRef.current) return;
+    isDragging.current = true;
+    dragStartX.current = e.pageX - navScrollRef.current.offsetLeft;
+    dragScrollLeft.current = navScrollRef.current.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !navScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - navScrollRef.current.offsetLeft;
+    const walk = (x - dragStartX.current) * 1.5;
+    navScrollRef.current.scrollLeft = dragScrollLeft.current - walk;
+    checkScrollState();
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDragging.current = false;
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     signOut();
@@ -176,6 +240,122 @@ export default function Layout() {
 
   const showBishopTab = profile?.role === 'admin' || profile?.role === 'bishop';
   const showAdminTab = profile?.role === 'admin';
+
+  const navItems = [
+    {
+      to: '/',
+      label: 'Verse',
+      end: true,
+      icon: (
+        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+          />
+        </svg>
+      ),
+    },
+    {
+      to: '/prayers',
+      label: 'Prayers',
+      icon: (
+        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      to: '/family',
+      label: 'Family',
+      icon: (
+        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      to: '/birthdays',
+      label: 'Birthdays',
+      icon: (
+        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 0018 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 0115 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 0012 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 019 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 006 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 013 15.546M12 3v3m0 0c-1.657 0-3 1.12-3 2.5S10.343 11 12 11s3-1.12 3-2.5S13.657 6 12 6zm-7 9.5V21h14v-5.5"
+          />
+        </svg>
+      ),
+    },
+    {
+      to: '/search',
+      label: 'Search',
+      icon: (
+        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      to: '/profile',
+      label: 'Profile',
+      icon: (
+        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          />
+        </svg>
+      ),
+    },
+    ...(showBishopTab
+      ? [
+          {
+            to: '/bishop',
+            label: 'Bishop',
+            icon: (
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            ),
+          },
+        ]
+      : []),
+    ...(showAdminTab
+      ? [
+          {
+            to: '/admin',
+            label: 'Admin',
+            icon: (
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="min-h-screen flex flex-col relative text-white bg-surface-950 overflow-x-hidden">
@@ -189,7 +369,7 @@ export default function Layout() {
         <img
           src="/background_eagle.png"
           alt="Eagle Background"
-          className="w-full h-full object-cover animate-bg-alive opacity-15"
+          className="w-full h-full object-cover animate-bg-alive opacity-30 sm:opacity-20"
         />
         <div className="absolute inset-0 bg-radial-vignette" />
       </div>
@@ -233,185 +413,66 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Main Content - Padded to compensate for fixed navbars */}
+        {/* Main Content - Balanced padding for mobile and desktop */}
         <main
-          className="flex-1 px-4 pb-24 max-w-lg mx-auto w-full transition-all duration-300"
-          style={{ paddingTop: isOffline ? '144px' : '112px' }}
+          className="flex-1 px-4 pb-28 max-w-lg mx-auto w-full transition-all duration-300"
+          style={{ paddingTop: isOffline ? '120px' : '84px' }}
         >
           <Outlet />
         </main>
 
-        {/* Bottom Navigation - Hides on scroll down, shows on scroll up */}
+        {/* Bottom Navigation - Swipable on small screens, centered on desktop */}
         <nav
-          className={`fixed bottom-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-t border-white/10 transition-all duration-300 transform ${
-            visible ? 'translate-y-0 shadow-[0_-8px_30px_rgba(0,0,0,0.5)]' : 'translate-y-full'
+          ref={navRef}
+          aria-label="Bottom Navigation"
+          className={`fixed bottom-0 left-0 right-0 z-50 bg-surface-950/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom,0px)] transition-all duration-300 transform select-none ${
+            visible ? 'translate-y-0 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]' : 'translate-y-full'
           }`}
         >
-          <div className="max-w-lg mx-auto flex justify-around py-2">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
+          {/* Scroll fade edge indicators */}
+          {canScrollLeft && (
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-surface-950/95 via-surface-950/70 to-transparent z-20 flex items-center pl-1 text-white/50">
+              <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
               </svg>
-              <span className="text-xs font-medium">Verse</span>
-            </NavLink>
-
-            <NavLink
-              to="/prayers"
-              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
+            </div>
+          )}
+          {canScrollRight && (
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-surface-950/95 via-surface-950/70 to-transparent z-20 flex items-center justify-end pr-1 text-white/50">
+              <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
               </svg>
-              <span className="text-xs font-medium">Prayers</span>
-            </NavLink>
+            </div>
+          )}
 
-            <NavLink
-              to="/family"
-              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              <span className="text-xs font-medium">Family</span>
-            </NavLink>
-
-            <NavLink
-              to="/birthdays"
-              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 0018 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 0115 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 0012 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 019 15.546c-.523 0-1.046-.151-1.5-.454A2.704 2.704 0 006 14.638c-.523 0-1.046.151-1.5.454A2.704 2.704 0 013 15.546M12 3v3m0 0c-1.657 0-3 1.12-3 2.5S10.343 11 12 11s3-1.12 3-2.5S13.657 6 12 6zm-7 9.5V21h14v-5.5"
-                />
-              </svg>
-              <span className="text-xs font-medium">Birthdays</span>
-            </NavLink>
-
-            <NavLink
-              to="/search"
-              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <span className="text-xs font-medium">Search</span>
-            </NavLink>
-
-            <NavLink
-              to="/profile"
-              className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-              <span className="text-xs font-medium">Profile</span>
-            </NavLink>
-
-            {showBishopTab && (
+          <div
+            ref={navScrollRef}
+            onScroll={checkScrollState}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            className="max-w-lg mx-auto flex items-center justify-start sm:justify-around gap-1.5 sm:gap-2 px-3 py-2 overflow-x-auto hide-scrollbar scroll-smooth touch-pan-x cursor-grab active:cursor-grabbing"
+          >
+            {navItems.map((item) => (
               <NavLink
-                to="/bishop"
-                className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center shrink-0 min-w-[66px] sm:min-w-[72px] px-2.5 py-1.5 rounded-xl transition-all duration-200 ${
+                    isActive
+                      ? 'text-brand-400 bg-brand-500/15 ring-1 ring-brand-500/30 font-semibold shadow-[0_0_12px_rgba(245,158,11,0.15)] scale-[1.02]'
+                      : 'text-white/60 hover:text-white/90 hover:bg-white/5 active:scale-95'
+                  }`
+                }
               >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                <span className="text-xs font-medium">Bishop</span>
+                {item.icon}
+                <span className="text-[11px] sm:text-xs font-medium tracking-tight mt-0.5 whitespace-nowrap">
+                  {item.label}
+                </span>
               </NavLink>
-            )}
-
-            {showAdminTab && (
-              <NavLink
-                to="/admin"
-                className={({ isActive }) => `nav-link ${isActive ? 'text-brand-400' : ''}`}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-                <span className="text-xs font-medium">Admin</span>
-              </NavLink>
-            )}
+            ))}
           </div>
         </nav>
       </div>

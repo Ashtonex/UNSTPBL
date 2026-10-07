@@ -14,14 +14,52 @@ interface AuthState {
   signOut: () => void;
 }
 
+// Quick hydration from localStorage so returning users don't wait on network spins
+const cachedUser = (() => {
+  try {
+    const raw = localStorage.getItem('unstpbl_cached_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+})();
+
+const cachedProfile = (() => {
+  try {
+    const raw = localStorage.getItem('unstpbl_cached_profile');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+})();
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: cachedUser,
   session: null,
-  profile: null,
-  isLoading: true,
-  setUser: (user) => set({ user }),
+  profile: cachedProfile,
+  // If we already have a cached user, we can immediately unblock the UI and verify session in background!
+  isLoading: !cachedUser,
+  setUser: (user) => {
+    try {
+      if (user) localStorage.setItem('unstpbl_cached_user', JSON.stringify(user));
+      else localStorage.removeItem('unstpbl_cached_user');
+    } catch {}
+    set({ user });
+  },
   setSession: (session) => set({ session }),
-  setProfile: (profile) => set({ profile }),
+  setProfile: (profile) => {
+    try {
+      if (profile) localStorage.setItem('unstpbl_cached_profile', JSON.stringify(profile));
+      else localStorage.removeItem('unstpbl_cached_profile');
+    } catch {}
+    set({ profile });
+  },
   setLoading: (isLoading) => set({ isLoading }),
-  signOut: () => set({ user: null, session: null, profile: null }),
+  signOut: () => {
+    try {
+      localStorage.removeItem('unstpbl_cached_user');
+      localStorage.removeItem('unstpbl_cached_profile');
+    } catch {}
+    set({ user: null, session: null, profile: null });
+  },
 }));

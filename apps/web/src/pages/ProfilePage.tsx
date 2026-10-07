@@ -24,6 +24,8 @@ export default function ProfilePage() {
   const [birthday, setBirthday] = useState('');
   const [birthdayVisibility, setBirthdayVisibility] = useState<'members' | 'private'>('members');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarError, setAvatarError] = useState(false);
+  const [isResolvingUrl, setIsResolvingUrl] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -59,7 +61,82 @@ export default function ProfilePage() {
     setBirthday(profile.birthday || '');
     setBirthdayVisibility(profile.birthdayVisibility || 'members');
     setAvatarUrl(profile.avatarUrl || '');
+    setAvatarError(false);
   }, [profile]);
+
+  // Handle local photo upload (converts & compresses to high-res WebP/JPEG data URL)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setMessage({ text: 'Please select a valid image file (PNG, JPG, or WebP).', type: 'error' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Create an optimized square thumbnail on canvas (max 400x400)
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 400;
+        let width = img.width;
+        let height = img.height;
+
+        // Crop center square
+        const minDim = Math.min(width, height);
+        const startX = (width - minDim) / 2;
+        const startY = (height - minDim) / 2;
+
+        const targetDim = Math.min(minDim, MAX_DIM);
+        canvas.width = targetDim;
+        canvas.height = targetDim;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, targetDim, targetDim);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setAvatarUrl(dataUrl);
+          setAvatarError(false);
+          setMessage({ text: 'Photo loaded! Click "Save Profile" to keep changes.', type: 'success' });
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Convert Pinterest web links into direct image thumbnail URLs if possible
+  const handleAvatarUrlChange = async (url: string) => {
+    setAvatarUrl(url);
+    setAvatarError(false);
+
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    // Detect if user pasted a Pinterest page URL instead of direct image URL
+    if (trimmed.includes('pinterest.com/pin/') && !trimmed.match(/\.(jpg|jpeg|png|webp)/i)) {
+      setIsResolvingUrl(true);
+      try {
+        const oembedUrl = `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(trimmed)}`;
+        const res = await fetch(oembedUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.thumbnail_url) {
+            // High-res version of Pinterest thumbnail (replace /236x/ with /736x/ or /originals/)
+            const highRes = data.thumbnail_url.replace('/236x/', '/736x/');
+            setAvatarUrl(highRes);
+            setMessage({ text: 'Auto-converted Pinterest link to direct image!', type: 'success' });
+          }
+        }
+      } catch (err) {
+        console.warn('Could not auto-resolve Pinterest oEmbed:', err);
+      } finally {
+        setIsResolvingUrl(false);
+      }
+    }
+  };
 
   const completion = useMemo(() => {
     const fields = [displayName, congregation, bio, phone, location, birthday, avatarUrl];
@@ -98,12 +175,27 @@ export default function ProfilePage() {
         <div className="h-28 bg-gradient-to-r from-brand-500/40 via-amber-500/30 to-emerald-500/30" />
         <div className="px-5 pb-5 -mt-12">
           <div className="flex items-end gap-4">
-            <div className="w-24 h-24 rounded-2xl bg-surface-900 border-4 border-surface-950 overflow-hidden flex items-center justify-center shadow-xl">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+            <div className="w-24 h-24 rounded-2xl bg-surface-900 border-4 border-surface-950 overflow-hidden flex items-center justify-center shadow-xl relative group">
+              {avatarUrl && !avatarError ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName || 'Profile'}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarError(true)}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-2xl font-black text-brand-300">{initials(displayName, profile?.email)}</span>
               )}
+              {/* Quick camera upload button on top of avatar preview */}
+              <label
+                htmlFor="avatar-file-upload"
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-white text-[10px] font-bold gap-1"
+                title="Upload Photo"
+              >
+                <span>📷</span>
+                <span>Change</span>
+              </label>
             </div>
             <div className="min-w-0 pb-2">
               <h2 className="text-2xl font-extrabold text-white truncate">{displayName || 'Your name'}</h2>
@@ -144,6 +236,18 @@ export default function ProfilePage() {
                 }`}
               >
                 {message.text}
+              </div>
+            )}
+
+            {avatarError && (
+              <div className="p-3.5 rounded-xl text-xs bg-amber-500/15 border border-amber-500/40 text-amber-200 flex items-start gap-2.5 shadow-md">
+                <span className="text-lg shrink-0">⚠️</span>
+                <div>
+                  <p className="font-bold text-amber-100">The link entered is a webpage, not an image file.</p>
+                  <p className="opacity-90 mt-1 leading-relaxed">
+                    Pinterest pin pages (like <code>pinterest.com/pin/...</code>) cannot load directly inside an image tag. You can upload your picture directly from your device below, or right-click the Pinterest picture and choose <strong>"Copy Image Address"</strong>.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -208,16 +312,69 @@ export default function ProfilePage() {
               </label>
             </div>
 
-            <label className="block">
-              <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Avatar Image URL</span>
-              <input
-                type="url"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-              />
-            </label>
+            {/* Profile Avatar Section: Direct Upload & URL */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="block text-xs font-bold text-white/80 uppercase tracking-wider">
+                  Profile Photo / Avatar
+                </span>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarUrl('');
+                      setAvatarError(false);
+                    }}
+                    className="text-[11px] text-rose-400 hover:text-rose-300 underline"
+                  >
+                    Remove Photo
+                  </button>
+                )}
+              </div>
+
+              {/* Upload directly from device */}
+              <div>
+                <input
+                  id="avatar-file-upload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="avatar-file-upload"
+                  className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 active:scale-[0.99] border border-white/15 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <span>📷</span>
+                  <span>Upload Photo from Phone / Computer</span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 my-2">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Or paste direct link</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <div>
+                <input
+                  type="url"
+                  value={avatarUrl}
+                  onChange={(e) => handleAvatarUrlChange(e.target.value)}
+                  placeholder="https://example.com/photo.jpg"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-xs text-white outline-none font-mono"
+                />
+                {isResolvingUrl && (
+                  <p className="text-[11px] text-amber-300 mt-1 flex items-center gap-1">
+                    <span className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin inline-block" />
+                    Converting webpage link to direct image...
+                  </p>
+                )}
+                <p className="text-[10px] text-white/40 mt-1.5 leading-normal">
+                  Tip: Webpage links (like Pinterest, Facebook, or Instagram pin links) are not image files. If linking an image online, right-click the image and choose <em>"Copy Image Address"</em> so it ends in <code>.jpg</code> or <code>.png</code>.
+                </p>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="block">

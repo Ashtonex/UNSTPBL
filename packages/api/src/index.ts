@@ -71,7 +71,7 @@ const app = createApp();
 
 if (process.env.NODE_ENV !== 'test') {
   console.log(`UNSTPBL API running on http://localhost:${port}`);
-  serve({ fetch: app.fetch, port });
+  serve({ fetch: app.fetch, port, hostname: '0.0.0.0' });
 }
 
 export default app;

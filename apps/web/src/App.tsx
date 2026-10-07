@@ -6,8 +6,9 @@ import { api } from './lib/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
+import HomePage from './pages/HomePage';
+
 const LoginPage = lazy(() => import('./pages/LoginPage'));
-const HomePage = lazy(() => import('./pages/HomePage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const BishopPage = lazy(() => import('./pages/BishopPage'));

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { usePWA } from '../lib/usePWA';
 import { DEFAULT_FALLBACK_VERSE } from '@unstpbl/shared';
 import VerseCard from '../components/VerseCard';
 import type { DailyVerse } from '@unstpbl/shared';
@@ -11,10 +12,21 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [isRead, setIsRead] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  const [selectedReaction, setSelectedReaction] = useState('');
   const [reflection, setReflection] = useState('');
   const [prayerTitle, setPrayerTitle] = useState('');
   const [prayerContent, setPrayerContent] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [spokenCharIndex, setSpokenCharIndex] = useState<number | null>(null);
+
+  // 1-Minute Scripture Trivia State
+  const [triviaAnswered, setTriviaAnswered] = useState<number | null>(null);
+  const [triviaCelebration, setTriviaCelebration] = useState(false);
+
+  // PWA Add to Home Screen install
+  const { isInstallable, install: installPWA } = usePWA();
 
   useEffect(() => {
     return () => {
@@ -38,7 +50,7 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ['verse-history'],
     queryFn: () => api.getVerseHistory(10),
-    enabled: showHistory,
+    enabled: true,
   });
 
   const {
@@ -140,6 +152,7 @@ export default function HomePage() {
   const handleMarkRead = async () => {
     if (!dailyVerse?.schedule?.id) return;
     setIsRead(true);
+    setShowStreakModal(true);
     localStorage.setItem(`read-verse-${dailyVerse.schedule.id}`, 'true');
     try {
       await api.markAsRead(dailyVerse.schedule.id);
@@ -158,7 +171,12 @@ export default function HomePage() {
     );
   }
 
-  const currentVerse = error ? fallbackVerse : dailyVerse || fallbackVerse;
+  const baseVerse = error ? fallbackVerse : dailyVerse || fallbackVerse;
+  const currentVerse =
+    historyOffset > 0 && historyData?.verses && historyData.verses[historyOffset - 1]
+      ? historyData.verses[historyOffset - 1]
+      : baseVerse;
+
   const showRelated = !!dailyVerse?.verse?.id && dailyVerse.verse.id !== 0;
   const isFavorite = !!favoritesData?.favorites.some((favorite) => favorite.verseId === currentVerse.verse.id);
 
@@ -168,6 +186,32 @@ export default function HomePage() {
       removeFavoriteMutation.mutate(currentVerse.verse.id);
     } else {
       addFavoriteMutation.mutate(currentVerse.verse.id);
+    }
+  };
+
+  const handleReactionSelect = (reaction: string) => {
+    setSelectedReaction(reaction);
+    if (currentVerse.schedule.id) {
+      localStorage.setItem(`unstpbl_reaction_${currentVerse.schedule.id}`, reaction);
+    }
+    if (currentVerse.verse.id) {
+      reflectionMutation.mutate({
+        verseId: currentVerse.verse.id,
+        verseScheduleId: currentVerse.schedule.id !== 'fallback' ? currentVerse.schedule.id : undefined,
+        content: `${reaction} on devotional reading!`,
+      });
+    }
+  };
+
+  const handleSwipeLeft = () => {
+    if (historyData?.verses && historyOffset < historyData.verses.length) {
+      setHistoryOffset((prev) => prev + 1);
+    }
+  };
+
+  const handleSwipeRight = () => {
+    if (historyOffset > 0) {
+      setHistoryOffset((prev) => prev - 1);
     }
   };
 
@@ -189,23 +233,36 @@ export default function HomePage() {
     if (isSpeaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
+      setSpokenCharIndex(null);
       return;
     }
 
-    const textToSpeak = `Today's Scripture: ${currentVerse.book.name} chapter ${currentVerse.verse.chapter} verse ${currentVerse.verse.verseNumber}. ${currentVerse.verse.text}. ${
-      currentVerse.schedule.pastoralNote ? `Bishop's Devotional Note: ${currentVerse.schedule.pastoralNote}` : ''
-    }`;
-
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    const verseTextOnly = currentVerse.verse.text;
+    const utterance = new SpeechSynthesisUtterance(verseTextOnly);
     const voices = window.speechSynthesis.getVoices();
     const englishVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices.find(v => v.lang.startsWith('en'));
     if (englishVoice) {
       utterance.voice = englishVoice;
     }
 
-    utterance.rate = 0.95;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.rate = 0.92;
+
+    // Word boundary tracking for karaoke highlighter
+    utterance.onboundary = (e: SpeechSynthesisEvent) => {
+      if (e.name === 'word') {
+        setSpokenCharIndex(e.charIndex);
+      }
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setSpokenCharIndex(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setSpokenCharIndex(null);
+    };
 
     setIsSpeaking(true);
     window.speechSynthesis.speak(utterance);
@@ -214,17 +271,17 @@ export default function HomePage() {
   return (
     <div className="py-4 relative min-h-[calc(100vh-8rem)]">
       {/* Greeting */}
-      <div className="mb-8 animate-fade-in flex justify-between items-end gap-4">
+      <div className="mb-6 animate-fade-in flex justify-between items-end gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">Today&apos;s Verse</h2>
-          <p className="text-white/40 text-xs sm:text-sm">Take a moment to reflect on God&apos;s word.</p>
+          <p className="text-white/70 text-xs sm:text-sm">Take a moment to reflect on God&apos;s word.</p>
         </div>
         <button
           onClick={handleSpeak}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
             isSpeaking
               ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse-soft'
-              : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/60 hover:text-white/90'
+              : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70 hover:text-white/90'
           }`}
         >
           {isSpeaking ? (
@@ -245,6 +302,22 @@ export default function HomePage() {
         </button>
       </div>
 
+      {/* History offset banner if flipped backwards */}
+      {historyOffset > 0 && (
+        <div className="mb-4 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs animate-fade-in shadow-sm">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span>📖</span>
+            <span>Past Reading ({historyOffset} reading{historyOffset > 1 ? 's' : ''} back)</span>
+          </span>
+          <button
+            onClick={() => setHistoryOffset(0)}
+            className="font-bold underline text-white hover:text-amber-200 transition-colors"
+          >
+            Back to Today
+          </button>
+        </div>
+      )}
+
       {/* Verse Display */}
       <VerseCard
         dailyVerse={currentVerse}
@@ -252,7 +325,35 @@ export default function HomePage() {
         isRead={isRead}
         isFavorite={isFavorite}
         onToggleFavorite={currentVerse.verse.id ? handleToggleFavorite : undefined}
+        isSpeaking={isSpeaking}
+        spokenCharIndex={spokenCharIndex}
+        onToggleSpeak={handleSpeak}
+        selectedReaction={selectedReaction}
+        onSelectReaction={handleReactionSelect}
+        onSwipeLeft={handleSwipeLeft}
+        onSwipeRight={handleSwipeRight}
+        hasPrev={!!historyData?.verses && historyOffset < historyData.verses.length}
+        hasNext={historyOffset > 0}
       />
+
+      {/* PWA Home Screen Install Banner */}
+      {isInstallable && (
+        <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-brand-600/30 via-brand-500/20 to-amber-500/20 border border-brand-500/40 flex items-center justify-between gap-3 shadow-xl backdrop-blur-md animate-fade-in">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📲</span>
+            <div>
+              <p className="text-xs font-bold text-white">Add UNSTPBL to Home Screen</p>
+              <p className="text-[11px] text-white/70">1-Tap instant access, works offline with daily audio!</p>
+            </div>
+          </div>
+          <button
+            onClick={() => installPWA()}
+            className="px-3.5 py-1.5 rounded-xl bg-brand-500 hover:bg-brand-400 active:scale-95 text-white font-bold text-xs shadow-md whitespace-nowrap transition-all"
+          >
+            Install
+          </button>
+        </div>
+      )}
 
       {/* Bishop's Devotional Note */}
       {currentVerse.schedule.pastoralNote && (
@@ -267,26 +368,86 @@ export default function HomePage() {
               Bp
             </div>
             <div>
-              <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest">Bishop's Devotional Note</h4>
+              <h4 className="text-xs font-bold text-white/70 uppercase tracking-widest">Bishop's Devotional Note</h4>
               <p className="text-[9px] text-brand-400 font-semibold">Victory Tabernacle</p>
             </div>
           </div>
-          <p className="text-xs text-white/80 leading-relaxed italic pr-2 whitespace-pre-line">
+          <p className="text-xs text-white/90 leading-relaxed italic pr-2 whitespace-pre-line">
             "{currentVerse.schedule.pastoralNote}"
           </p>
         </div>
       )}
 
+      {/* 1-Minute Scripture Trivia (Kid- & Family-Friendly) */}
+      <div className="mt-6 glass-card p-5 border border-brand-500/20 relative overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🎯</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-300">1-Minute Faith Trivia</span>
+          </div>
+          <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+            Daily Challenge
+          </span>
+        </div>
+
+        <p className="text-xs sm:text-sm text-white/90 font-medium mb-3">
+          Where is today&apos;s scripture from: <span className="text-brand-300 font-bold">{currentVerse.book.name}</span>?
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: 0, label: 'Old Testament', correct: currentVerse.book.testament === 'old' },
+            { id: 1, label: 'New Testament', correct: currentVerse.book.testament === 'new' },
+          ].map((opt) => {
+            const isSelected = triviaAnswered === opt.id;
+            let btnStyle = 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80';
+            if (isSelected) {
+              btnStyle = opt.correct
+                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 ring-2 ring-emerald-400/40'
+                : 'bg-rose-500/25 border-rose-400 text-rose-200 ring-2 ring-rose-400/40';
+            }
+
+            return (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  setTriviaAnswered(opt.id);
+                  if (opt.correct) {
+                    setTriviaCelebration(true);
+                    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                      try {
+                        navigator.vibrate([25, 40, 25]);
+                      } catch {}
+                    }
+                  }
+                }}
+                className={`p-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center justify-center gap-2 ${btnStyle}`}
+              >
+                <span>{opt.label}</span>
+                {isSelected && (opt.correct ? '⭐' : '❌')}
+              </button>
+            );
+          })}
+        </div>
+
+        {triviaCelebration && (
+          <p className="mt-3 text-xs text-emerald-300 font-semibold text-center animate-fade-in flex items-center justify-center gap-1.5">
+            <span>🎉 Excellent! You earned today&apos;s Faith Star!</span>
+            <span>⭐</span>
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-3 mt-6">
         <div className="glass-card p-4">
-          <p className="text-white/40 text-xs uppercase font-semibold tracking-wider">Current Streak</p>
+          <p className="text-white/60 text-xs uppercase font-semibold tracking-wider">Current Streak</p>
           <p className="text-3xl font-bold text-gradient mt-1">{progress?.currentStreak ?? 0}</p>
-          <p className="text-white/30 text-xs mt-1">days</p>
+          <p className="text-white/50 text-xs mt-1">days</p>
         </div>
         <div className="glass-card p-4">
-          <p className="text-white/40 text-xs uppercase font-semibold tracking-wider">Saved Verses</p>
+          <p className="text-white/60 text-xs uppercase font-semibold tracking-wider">Saved Verses</p>
           <p className="text-3xl font-bold text-gradient mt-1">{progress?.favoriteCount ?? 0}</p>
-          <p className="text-white/30 text-xs mt-1">{progress?.openPrayerCount ?? 0} active prayers</p>
+          <p className="text-white/50 text-xs mt-1">{progress?.openPrayerCount ?? 0} active prayers</p>
         </div>
       </div>
 
@@ -294,7 +455,7 @@ export default function HomePage() {
       <div className="glass-card p-5 mt-6 space-y-4">
         <div>
           <h3 className="text-white font-bold text-sm">Family Reflections</h3>
-          <p className="text-white/30 text-xs mt-1">Capture and share what today&apos;s scripture speaks to your heart.</p>
+          <p className="text-white/60 text-xs mt-1">Capture and share what today&apos;s scripture speaks to your heart.</p>
         </div>
         <div className="flex gap-2">
           <textarea
@@ -538,6 +699,42 @@ export default function HomePage() {
                 <p className="text-white/30 text-sm">No recent verse history found.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Kid-friendly Streak Celebration Modal */}
+      {showStreakModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
+          <div className="glass-card max-w-sm w-full p-6 text-center border-brand-500/40 relative overflow-hidden shadow-2xl animate-pop-scale">
+            {/* Background ambient lighting */}
+            <div className="absolute -top-10 -left-10 w-28 h-28 rounded-full bg-brand-500/20 blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -right-10 w-28 h-28 rounded-full bg-amber-400/20 blur-2xl pointer-events-none" />
+
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-tr from-brand-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/30 text-3xl animate-bounce">
+              ⭐
+            </div>
+            <h3 className="text-xl font-extrabold text-white mb-1">Devotion Completed!</h3>
+            <p className="text-brand-400 font-bold text-sm mb-2">
+              🔥 {Math.max(1, (progress?.currentStreak ?? 0) + 1)} Day Reading Streak!
+            </p>
+            <p className="text-white/70 text-xs leading-relaxed mb-6">
+              &ldquo;Thy word is a lamp unto my feet, and a light unto my path.&rdquo; Keep shining your light bright!
+            </p>
+            <button
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                  try {
+                    navigator.vibrate(20);
+                  } catch {}
+                }
+                setShowStreakModal(false);
+              }}
+              className="btn-primary w-full py-3 text-sm font-bold shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all"
+            >
+              <span>Amen! Keep Growing</span>
+              <span>🙏</span>
+            </button>
           </div>
         </div>
       )}
