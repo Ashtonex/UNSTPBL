@@ -1,12 +1,9 @@
-import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../lib/api';
-
-// three.js is large; load it as its own chunk after first paint instead of
-// shipping it in the main bundle every visitor downloads.
-const Interactive3DCanvas = lazy(() => import('./3d/Interactive3DCanvas'));
+import AmbientBackground from './AmbientBackground';
 
 export default function Layout() {
   const { signOut, profile } = useAuthStore();
@@ -359,10 +356,8 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col relative text-white bg-surface-950 overflow-x-hidden">
-      {/* Live 3D Interactive Ambient WebGL Canvas Layer */}
-      <Suspense fallback={null}>
-        <Interactive3DCanvas />
-      </Suspense>
+      {/* Live 3D ambient layer: loads last, skipped on low-power devices, failures stay contained */}
+      <AmbientBackground />
 
       {/* Alive Background Image Layer */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

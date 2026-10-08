@@ -5,9 +5,14 @@ import { NetworkFirst } from 'workbox-strategies';
 // Precache resources
 precacheAndRoute((self as any).__WB_MANIFEST || []);
 
-// Cache daily verses using NetworkFirst strategy
+// Cache the public verse feeds (NetworkFirst) so they still load offline.
+// Deliberately NOT a blanket /verses/* match: that also caught /verses/favorites
+// and /verses/reflections, which are personal, and the cache is shared by every
+// account that signs in on the same device.
+const PUBLIC_VERSE_PATHS = new Set(['/verses/today', '/verses/history']);
+
 registerRoute(
-  /\/verses\/.*/,
+  ({ url }) => PUBLIC_VERSE_PATHS.has(url.pathname),
   new NetworkFirst({
     cacheName: 'verse-cache',
   })

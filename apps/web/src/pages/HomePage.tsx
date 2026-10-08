@@ -3,13 +3,41 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { usePWA } from '../lib/usePWA';
+import { readCachedVerse, saveCachedVerse } from '../lib/verseCache';
+import { useAuthStore } from '../stores/auth';
 import { DEFAULT_FALLBACK_VERSE } from '@unstpbl/shared';
 import VerseCard from '../components/VerseCard';
 import type { DailyVerse } from '@unstpbl/shared';
 
+// The API is on a free tier that sleeps when idle; the first request after a
+// quiet period can take most of a minute. Say so rather than showing a bare spinner.
+function VerseLoading() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+      <div className="w-12 h-12 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
+      <p className="text-white/40 text-sm">Fetching today&apos;s verse...</p>
+      {slow && (
+        <p className="text-white/30 text-xs mt-3 max-w-xs animate-fade-in">
+          The server is waking up after a quiet period. This can take up to a minute the first time, then it&apos;s instant.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const userId = useAuthStore((state) => state.user?.id);
+  // Today's verse from this device (same user, same day), shown instantly while
+  // the fresh copy loads. Read once, on first render.
+  const [cachedToday] = useState(() => readCachedVerse(userId));
   const [isRead, setIsRead] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyOffset, setHistoryOffset] = useState(0);
@@ -40,9 +68,19 @@ export default function HomePage() {
     error,
   } = useQuery<DailyVerse>({
     queryKey: ['verse-today'],
-    queryFn: api.getVerseToday,
+    queryFn: async () => {
+      const verse = await api.getVerseToday();
+      saveCachedVerse(userId, verse);
+      return verse;
+    },
     retry: 2,
+    initialData: cachedToday?.verse,
+    initialDataUpdatedAt: cachedToday?.savedAt,
   });
+
+  // Secondary data waits for the verse to settle so the one request the user is
+  // actually waiting on gets the (small) server to itself.
+  const verseSettled = !isLoading;
 
   const {
     data: historyData,
@@ -50,7 +88,7 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ['verse-history'],
     queryFn: () => api.getVerseHistory(10),
-    enabled: true,
+    enabled: verseSettled,
   });
 
   const {
@@ -83,6 +121,7 @@ export default function HomePage() {
   const { data: prayersData } = useQuery({
     queryKey: ['prayer-requests'],
     queryFn: api.getPrayerRequests,
+    enabled: verseSettled,
   });
 
   const addFavoriteMutation = useMutation({
@@ -163,15 +202,12 @@ export default function HomePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-12 h-12 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-white/40 text-sm">Fetching today&apos;s verse...</p>
-      </div>
-    );
+    return <VerseLoading />;
   }
 
-  const baseVerse = error ? fallbackVerse : dailyVerse || fallbackVerse;
+  // Prefer any real verse we have (including a cached one) over the generic
+  // fallback: a failed background refresh must not replace a good verse.
+  const baseVerse = dailyVerse || fallbackVerse;
   const currentVerse =
     historyOffset > 0 && historyData?.verses && historyData.verses[historyOffset - 1]
       ? historyData.verses[historyOffset - 1]
@@ -417,7 +453,9 @@ export default function HomePage() {
                     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                       try {
                         navigator.vibrate([25, 40, 25]);
-                      } catch {}
+                      } catch {
+                        /* haptics are optional */
+                      }
                     }
                   }
                 }}
@@ -726,7 +764,9 @@ export default function HomePage() {
                 if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                   try {
                     navigator.vibrate(20);
-                  } catch {}
+                  } catch {
+                    /* haptics are optional */
+                  }
                 }
                 setShowStreakModal(false);
               }}

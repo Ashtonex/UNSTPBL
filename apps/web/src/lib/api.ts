@@ -1,5 +1,18 @@
 import { supabase } from './supabase';
+import { cleanVerseText } from '@unstpbl/shared';
 import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User } from '@unstpbl/shared';
+
+// Bible APIs return text with translator braces, margin notes and hard line breaks;
+// clean it once here so every screen (card, search, history, favorites) reads well.
+const cleanDailyVerse = (daily: DailyVerse): DailyVerse => ({
+  ...daily,
+  verse: { ...daily.verse, text: cleanVerseText(daily.verse.text) },
+});
+const cleanVerseMatch = <T extends { verse: { text: string } }>(match: T): T => ({
+  ...match,
+  verse: { ...match.verse, text: cleanVerseText(match.verse.text) },
+});
+
 const getApiBase = () => {
   const configured = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
   if (
@@ -16,6 +29,17 @@ const getApiBase = () => {
 };
 
 const API_BASE = getApiBase();
+
+/**
+ * Fire-and-forget request that wakes a sleeping API. `no-cors` keeps it a simple
+ * request (no preflight) and we never read the response, we only want the server up.
+ */
+export function prewarmApi(): void {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+  fetch(`${API_BASE}/health`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {
+    /* best effort */
+  });
+}
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const {
     data: { session },
@@ -24,28 +48,63 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+// The API runs on a free tier that sleeps when idle and can take most of a minute
+// to wake. A short cut-off (it used to be 3.5s) aborts the very request that would
+// have succeeded, and the app then shows the fallback verse and empty dashboards.
+// Writes get longer still: aborting one that actually reached the server makes the
+// client think it failed and retry it.
+const READ_TIMEOUT_MS = 30_000;
+const WRITE_TIMEOUT_MS = 45_000;
+
+interface ApiFetchOptions extends RequestInit {
+  timeoutMs?: number;
+}
+
+// Concurrent 401s (a page fires several requests at once) must share one refresh:
+// refresh tokens are single-use, so refreshing twice would invalidate the session.
+let sessionRefresh: Promise<boolean> | null = null;
+
+function refreshSessionOnce(): Promise<boolean> {
+  if (!sessionRefresh) {
+    sessionRefresh = supabase.auth
+      .refreshSession()
+      .then(({ data, error }) => !error && !!data.session)
+      .catch(() => false)
+      .finally(() => {
+        sessionRefresh = null;
+      });
+  }
+  return sessionRefresh;
+}
+
+async function apiFetch<T>(path: string, options?: ApiFetchOptions, retriedAfterRefresh = false): Promise<T> {
   if (!navigator.onLine) {
     throw new Error('Offline');
   }
+  const { timeoutMs, ...init } = options ?? {};
+  const method = (init.method || 'GET').toUpperCase();
+  const timeoutLimit = timeoutMs ?? (method === 'GET' ? READ_TIMEOUT_MS : WRITE_TIMEOUT_MS);
+
   const headers = await getAuthHeaders();
   let res: Response;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutLimit);
 
   try {
     res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      signal: options?.signal || controller.signal,
+      ...init,
+      signal: init.signal || controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...headers,
-        ...options?.headers,
+        ...init.headers,
       },
     });
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      throw new TypeError(`Failed to fetch – API request timed out after 3.5s at ${API_BASE}`);
+      throw new TypeError(
+        `Failed to fetch – the server took longer than ${Math.round(timeoutLimit / 1000)}s to respond (${API_BASE})`,
+      );
     }
     // Keep the "Failed to fetch" wording: the offline queueing below matches on it.
     if (err instanceof TypeError) {
@@ -55,6 +114,18 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   } finally {
     clearTimeout(timeoutId);
   }
+
+  if (res.status === 401 && headers.Authorization && !retriedAfterRefresh) {
+    // The access token was rejected. Try one refresh and replay the request. Only
+    // if the refresh itself fails is the session really dead (expired or revoked,
+    // e.g. signed out elsewhere): then sign out locally so the app returns to the
+    // login screen instead of showing a signed-in UI whose every call fails.
+    if (await refreshSessionOnce()) {
+      return apiFetch<T>(path, options, true);
+    }
+    await supabase.auth.signOut({ scope: 'local' });
+  }
+
   if (!res.ok) {
     const detail = await res.json().then(
       (body) => (typeof body?.error === 'string' ? body.error : undefined),
@@ -127,9 +198,12 @@ export interface BirthdayFeed {
 }
 
 export const api = {
-  getVerseToday: () => apiFetch<DailyVerse>('/verses/today'),
+  getVerseToday: () => apiFetch<DailyVerse>('/verses/today').then(cleanDailyVerse),
   getVerseHistory: (days = 7) =>
-    apiFetch<{ verses: DailyVerse[]; days: number }>(`/verses/history?days=${days}`),
+    apiFetch<{ verses: DailyVerse[]; days: number }>(`/verses/history?days=${days}`).then((r) => ({
+      ...r,
+      verses: r.verses.map(cleanDailyVerse),
+    })),
   markAsRead: async (verseScheduleId: string) => {
     try {
       return await apiFetch<{ success: boolean }>('/verses/read', {
@@ -178,7 +252,10 @@ export const api = {
   getUserProgress: () =>
     apiFetch<UserProgress>('/me/progress'),
   getFavoriteVerses: () =>
-    apiFetch<{ favorites: FavoriteVerse[] }>('/verses/favorites'),
+    apiFetch<{ favorites: FavoriteVerse[] }>('/verses/favorites').then((r) => ({
+      ...r,
+      favorites: r.favorites.map((favorite) => ({ ...favorite, text: cleanVerseText(favorite.text) })),
+    })),
   addFavoriteVerse: (verseId: number) =>
     apiFetch<{ success: boolean }>('/verses/favorites', {
       method: 'POST',
@@ -461,9 +538,14 @@ export const api = {
       body: JSON.stringify({ role }),
     }),
   searchVerses: (query: string) =>
-    apiFetch<{ matches: Array<{ verse: any; book: any; score: number }> }>(`/verses/search?q=${encodeURIComponent(query)}`),
+    apiFetch<{ matches: Array<{ verse: any; book: any; score: number }> }>(`/verses/search?q=${encodeURIComponent(query)}`).then(
+      (r) => ({ ...r, matches: r.matches.map(cleanVerseMatch) }),
+    ),
   getRelatedVerses: (verseId: number) =>
-    apiFetch<{ related: Array<{ verse: any; book: any; score: number }> }>(`/verses/${verseId}/related`),
+    apiFetch<{ related: Array<{ verse: any; book: any; score: number }> }>(`/verses/${verseId}/related`).then((r) => ({
+      ...r,
+      related: r.related.map(cleanVerseMatch),
+    })),
   getCircles: () =>
     apiFetch<{ circles: any[] }>('/circles'),
   createCircle: (data: { name: string; description?: string }) =>

@@ -2,9 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import * as Sentry from '@sentry/react';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
+import { prewarmApi } from './lib/api';
+import { captureException, initMonitoring } from './lib/monitoring';
 import './index.css';
 
 // Register PWA Service Worker for offline capability & browser installation
@@ -12,25 +14,12 @@ if ('serviceWorker' in navigator) {
   registerSW({ immediate: true });
 }
 
-// Initialize Sentry — replay is lazy-added after first paint to keep startup fast
-if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-    ],
-    tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || '0.1'),
-    replaysSessionSampleRate: Number(import.meta.env.VITE_SENTRY_REPLAY_SAMPLE_RATE || '0.05'),
-    replaysOnErrorSampleRate: 1.0,
-  });
+// Error reporting loads when the browser is idle, after the first paint.
+initMonitoring();
 
-  // Lazy-load the replay integration after 4 s so it doesn't block first paint
-  setTimeout(() => {
-    import('@sentry/react').then(({ replayIntegration }) => {
-      Sentry.addIntegration(replayIntegration());
-    });
-  }, 4000);
-}
+// The API sleeps when idle and can take a minute to wake. Poke it now, while the
+// visitor is still on the login screen, so it is awake by the time they sign in.
+prewarmApi();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,12 +30,31 @@ const queryClient = new QueryClient({
   },
 });
 
+function CrashScreen() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-surface-950 text-white p-6 text-center">
+      <h1 className="text-xl font-semibold">Something went wrong</h1>
+      <p className="text-white/50 text-sm max-w-xs">
+        Please reload the page. If it keeps happening, let your church admin know.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm"
+      >
+        Reload
+      </button>
+    </div>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary fallback={<CrashScreen />} onError={captureException}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
