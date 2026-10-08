@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.11.0",
-    "@sentry/node": "^10.60.0",
     "@supabase/supabase-js": "^2.43.0",
     "@unstpbl/db": "workspace:*",
     "@unstpbl/shared": "workspace:*",

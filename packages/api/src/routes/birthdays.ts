@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authMiddleware } from '../middleware/auth.js';
+import { bishopMiddleware } from '../middleware/bishop.js';
 import {
   dispatchTodaysBirthdayAnnouncements,
   getBirthdayWall,
@@ -27,7 +28,8 @@ birthdayRoutes.get('/birthdays', async (c) => {
   }
 });
 
-birthdayRoutes.post('/birthdays/dispatch-today', async (c) => {
+// Broadcasts a push notification to the whole congregation, so bishops/admins only.
+birthdayRoutes.post('/birthdays/dispatch-today', bishopMiddleware, async (c) => {
   try {
     const result = await dispatchTodaysBirthdayAnnouncements();
     return c.json({ success: true, ...result });

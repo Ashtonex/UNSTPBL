@@ -1,0 +1,49 @@
+name: Keep API warm and run scheduled jobs
+
+# Render's free tier puts the API to sleep after ~15 minutes without traffic, and
+# the first request afterwards waits for a cold start. Pinging it every 10
+# minutes keeps it awake. The same job triggers the scheduled push and birthday
+# endpoints, which otherwise have nothing calling them.
+#
+# One-time setup: Render dashboard -> unstpbl-api -> Environment -> copy CRON_SECRET,
+# then GitHub -> Settings -> Secrets and variables -> Actions -> New secret named
+# CRON_SECRET. Without it only the keep-warm ping runs.
+# Optional repository variable API_URL overrides the default address below.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      API_URL: ${{ vars.API_URL || 'https://unstpbl-api.onrender.com' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Wake the API and keep it warm
+        # A cold start can take a minute or more, so allow a long first attempt.
+        run: curl -fsS --retry 3 --retry-delay 10 --retry-all-errors --max-time 120 "$API_URL/health"
+
+      - name: Dispatch due scheduled push notifications
+        if: env.CRON_SECRET != ''
+        run: |
+          curl -fsS --max-time 60 -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "$API_URL/cron/push/dispatch-due"
+
+      - name: Dispatch today's birthday announcements (06:00 Harare)
+        # Idempotent on the server (one post per person per year); once a day is enough.
+        if: env.CRON_SECRET != '' && github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%H)" = "04" ]; then
+            curl -fsS --max-time 60 -X POST \
+              -H "x-cron-secret: $CRON_SECRET" \
+              "$API_URL/cron/birthdays/dispatch-today"
+          else
+            echo "Not the daily birthday window, skipping."
+          fi

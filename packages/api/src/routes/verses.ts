@@ -62,7 +62,7 @@ async function getPreferredTranslation(c: any): Promise<string> {
 
 // Today's verse payload per date + translation. It only changes when an admin
 // reschedules it (which invalidates this), so the TTL is just a safety net.
-const TODAY_VERSE_TTL_MS = 5 * 60_000;
+const TODAY_VERSE_TTL_MS = 30 * 60_000;
 const todayVerseCache = createMemoCache<any>({ maxEntries: 20 });
 
 export function invalidateTodayVerseCache(): void {
@@ -309,58 +309,84 @@ async function getOrCreateTodayVerse(todayDate: string): Promise<any> {
 /**
  * GET /verses/today — Returns today's scheduled verse.
  */
+function todayInChurchTimezone(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.CHURCH_TIMEZONE || 'Africa/Harare',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+// getOrCreateTodayVerse() inserts today's schedule row when none exists. Share a
+// single in-flight call per date so simultaneous first requests of a new day
+// (for different translations) can't race to create it twice. ttlMs 0 = no
+// caching, in-flight de-duplication only.
+const todayScheduleInflight = createMemoCache<any>({ maxEntries: 4 });
+
+async function loadTodayVerse(today: string, translation: string) {
+  const result = await todayScheduleInflight.getOrLoad(today, async () => ({
+    value: await getOrCreateTodayVerse(today),
+    ttlMs: 0,
+  }));
+
+  const resolvedVerse = await resolveVerseInTranslation(
+    result.bible_books.id,
+    result.bible_books.name,
+    result.bible_books.abbreviation,
+    result.bible_verses.chapter,
+    result.bible_verses.verseNumber,
+    translation
+  );
+
+  return {
+    ttlMs: TODAY_VERSE_TTL_MS,
+    value: {
+      schedule: {
+        id: result.verse_schedule.id,
+        date: result.verse_schedule.date,
+        verseId: resolvedVerse.id,
+        mode: result.verse_schedule.mode,
+        pastoralNote: result.verse_schedule.pastoralNote,
+      },
+      verse: {
+        id: resolvedVerse.id,
+        bookId: resolvedVerse.bookId,
+        chapter: resolvedVerse.chapter,
+        verseNumber: resolvedVerse.verseNumber,
+        text: resolvedVerse.text,
+        translation: resolvedVerse.translation,
+      },
+      book: {
+        id: result.bible_books.id,
+        name: result.bible_books.name,
+        abbreviation: result.bible_books.abbreviation,
+        testament: result.bible_books.testament,
+      },
+    },
+  };
+}
+
+/**
+ * Loads today's verse into the cache ahead of the first real request, so the
+ * first user after a (re)start gets an instant answer instead of paying for the
+ * database connection and queries. Sequential on purpose: they share one
+ * schedule row that may need creating.
+ */
+export async function warmTodayVerseCache(translations: string[] = ['KJV', 'ESV']): Promise<void> {
+  const today = todayInChurchTimezone();
+  for (const translation of translations) {
+    await todayVerseCache.getOrLoad(`${today}:${translation}`, () => loadTodayVerse(today, translation));
+  }
+}
+
 verseRoutes.get('/verses/today', async (c) => {
   try {
-    const timezone = process.env.CHURCH_TIMEZONE || 'Africa/Harare';
-    const today = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date());
-
+    const today = todayInChurchTimezone();
     const translation = await getPreferredTranslation(c);
-
-    const payload = await todayVerseCache.getOrLoad(`${today}:${translation}`, async () => {
-      const result = await getOrCreateTodayVerse(today);
-
-      const resolvedVerse = await resolveVerseInTranslation(
-        result.bible_books.id,
-        result.bible_books.name,
-        result.bible_books.abbreviation,
-        result.bible_verses.chapter,
-        result.bible_verses.verseNumber,
-        translation
-      );
-
-      return {
-        ttlMs: TODAY_VERSE_TTL_MS,
-        value: {
-          schedule: {
-            id: result.verse_schedule.id,
-            date: result.verse_schedule.date,
-            verseId: resolvedVerse.id,
-            mode: result.verse_schedule.mode,
-            pastoralNote: result.verse_schedule.pastoralNote,
-          },
-          verse: {
-            id: resolvedVerse.id,
-            bookId: resolvedVerse.bookId,
-            chapter: resolvedVerse.chapter,
-            verseNumber: resolvedVerse.verseNumber,
-            text: resolvedVerse.text,
-            translation: resolvedVerse.translation,
-          },
-          book: {
-            id: result.bible_books.id,
-            name: result.bible_books.name,
-            abbreviation: result.bible_books.abbreviation,
-            testament: result.bible_books.testament,
-          },
-        },
-      };
-    });
-
+    const payload = await todayVerseCache.getOrLoad(`${today}:${translation}`, () =>
+      loadTodayVerse(today, translation),
+    );
     return c.json(payload);
   } catch (err: any) {
     console.error('Error fetching today\'s verse:', err);

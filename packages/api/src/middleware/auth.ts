@@ -1,7 +1,7 @@
 import { createMiddleware } from 'hono/factory';
-import * as Sentry from '@sentry/node';
 import type { UserRole } from '@unstpbl/shared';
 import { resolveAuth } from '../lib/authCache.js';
+import { captureException } from '../lib/monitoring.js';
 
 export interface AuthUser {
   id: string;
@@ -40,7 +40,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     // The lookup itself broke (bad Supabase config, upstream outage, ...). That
     // is not the caller's fault, so don't report it as an invalid token.
     console.error('Auth lookup failed:', err);
-    Sentry.captureException(err);
+    captureException(err);
     return c.json({ error: 'Authentication service unavailable' }, 503);
   }
   if (!auth) {

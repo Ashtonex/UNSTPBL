@@ -3,16 +3,9 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import 'dotenv/config';
-import * as Sentry from '@sentry/node';
 import { isCorsOriginAllowed } from './lib/env.js';
-
-if (process.env.SENTRY_DSN_API) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN_API,
-    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
-  });
-}
-
+import { captureException, initMonitoring } from './lib/monitoring.js';
+import { warmUp } from './lib/warmup.js';
 import { healthRoutes } from './routes/health.js';
 import { verseRoutes } from './routes/verses.js';
 import { adminRoutes } from './routes/admin.js';
@@ -57,7 +50,7 @@ export function createApp() {
 
   app.onError((err, c) => {
     console.error('Unhandled error:', err);
-    Sentry.captureException(err);
+    captureException(err, { method: c.req.method, path: c.req.path });
     return c.json({ error: 'Internal server error' }, 500);
   });
 
@@ -72,6 +65,11 @@ const app = createApp();
 if (process.env.NODE_ENV !== 'test') {
   console.log(`UNSTPBL API running on http://localhost:${port}`);
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' });
+
+  // Everything slow happens after the port is open, so the host's health check
+  // passes and the first user isn't stuck behind it.
+  initMonitoring();
+  void warmUp();
 }
 
 export default app;
