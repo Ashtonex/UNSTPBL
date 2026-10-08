@@ -32,6 +32,40 @@ function cleanString(value: unknown, field: string, maxLength: number, required 
   return { ok: true, data: trimmed };
 }
 
+// A profile photo is either a link or a small data URL made by the profile page's
+// resize step. The page used to send a ~40 kB data URL while this field was capped
+// at 512 characters, so saving an uploaded photo always failed. Data URLs are now
+// allowed, but only real image types and only up to a size that suits a thumbnail.
+const AVATAR_LINK_MAX = 512;
+const AVATAR_DATA_URL_MAX = 60_000;
+const AVATAR_DATA_URL = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+function avatarValue(value: unknown): ValidationResult<string | undefined> {
+  if (value === undefined || value === null) return { ok: true, data: undefined };
+  if (typeof value !== 'string') return { ok: false, error: 'avatarUrl must be a string' };
+
+  const trimmed = value.trim();
+  if (trimmed === '') return { ok: true, data: '' };
+
+  if (trimmed.startsWith('data:')) {
+    if (!AVATAR_DATA_URL.test(trimmed)) {
+      return { ok: false, error: 'avatarUrl must be a JPEG, PNG or WebP image' };
+    }
+    if (trimmed.length > AVATAR_DATA_URL_MAX) {
+      return { ok: false, error: 'That photo is too large. Please choose a smaller one.' };
+    }
+    return { ok: true, data: trimmed };
+  }
+
+  if (trimmed.length > AVATAR_LINK_MAX) {
+    return { ok: false, error: `avatarUrl must be ${AVATAR_LINK_MAX} characters or less` };
+  }
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return { ok: false, error: 'avatarUrl must be an http(s) link or an uploaded image' };
+  }
+  return { ok: true, data: trimmed };
+}
+
 function positiveInteger(value: unknown, field: string, max: number): ValidationResult<number> {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) {
@@ -147,7 +181,7 @@ export function validateProfileUpdateBody(body: unknown): ValidationResult<{
   const location = cleanString(body.location, 'location', 120);
   if (!location.ok) return location;
 
-  const avatarUrl = cleanString(body.avatarUrl, 'avatarUrl', 512);
+  const avatarUrl = avatarValue(body.avatarUrl);
   if (!avatarUrl.ok) return avatarUrl;
 
   if (body.translation !== undefined && (typeof body.translation !== 'string' || !SUPPORTED_TRANSLATIONS.has(body.translation))) {

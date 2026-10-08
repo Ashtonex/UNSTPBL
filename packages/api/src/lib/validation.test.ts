@@ -55,6 +55,28 @@ describe('validation helpers', () => {
     expect(validateProfileUpdateBody({ translation: 'NIV' }).ok).toBe(false);
   });
 
+  it('accepts an uploaded photo as a small image data URL, and a plain http(s) link', () => {
+    const thumbnail = `data:image/jpeg;base64,${'A'.repeat(12_000)}`;
+    expect(validateProfileUpdateBody({ avatarUrl: thumbnail })).toEqual({
+      ok: true,
+      data: { avatarUrl: thumbnail },
+    });
+    expect(validateProfileUpdateBody({ avatarUrl: ' https://example.org/me.png ' })).toEqual({
+      ok: true,
+      data: { avatarUrl: 'https://example.org/me.png' },
+    });
+    expect(validateProfileUpdateBody({ avatarUrl: '' })).toEqual({ ok: true, data: { avatarUrl: '' } });
+  });
+
+  it('rejects oversized, non-image and non-http avatars', () => {
+    const tooBig = `data:image/jpeg;base64,${'A'.repeat(60_001)}`;
+    expect(validateProfileUpdateBody({ avatarUrl: tooBig }).ok).toBe(false);
+    expect(validateProfileUpdateBody({ avatarUrl: 'data:text/html;base64,PGgxPmhpPC9oMT4=' }).ok).toBe(false);
+    expect(validateProfileUpdateBody({ avatarUrl: 'data:image/svg+xml;base64,PHN2Zz4=' }).ok).toBe(false);
+    expect(validateProfileUpdateBody({ avatarUrl: 'javascript:alert(1)' }).ok).toBe(false);
+    expect(validateProfileUpdateBody({ avatarUrl: `https://example.org/${'a'.repeat(600)}` }).ok).toBe(false);
+  });
+
   it('bounds search and history query inputs', () => {
     expect(validateSearchQuery(' faith ').ok).toBe(true);
     expect(validateSearchQuery('a').ok).toBe(false);

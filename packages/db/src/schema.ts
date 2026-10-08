@@ -37,7 +37,8 @@ export const users = pgTable('users', {
   location: varchar('location', { length: 120 }),
   birthday: date('birthday'),
   birthdayVisibility: varchar('birthday_visibility', { length: 20 }).notNull().default('members'),
-  avatarUrl: varchar('avatar_url', { length: 512 }),
+  // text, not varchar(512): an uploaded photo is stored as a small image data URL.
+  avatarUrl: text('avatar_url'),
   pushSubscription: jsonb('push_subscription'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

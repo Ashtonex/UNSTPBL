@@ -78,11 +78,13 @@ export default function ProfilePage() {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        // Create an optimized square thumbnail on canvas (max 400x400)
+        // Create a small square thumbnail on canvas. The photo is stored as a data
+        // URL in the profile (and returned with every profile/birthday-wall call),
+        // so keep it small: 192px is plenty for an avatar and lands around 8-14 kB.
         const canvas = document.createElement('canvas');
-        const MAX_DIM = 400;
-        let width = img.width;
-        let height = img.height;
+        const MAX_DIM = 192;
+        const width = img.width;
+        const height = img.height;
 
         // Crop center square
         const minDim = Math.min(width, height);
@@ -96,7 +98,7 @@ export default function ProfilePage() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, targetDim, targetDim);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
           setAvatarUrl(dataUrl);
           setAvatarError(false);
           setMessage({ text: 'Photo loaded! Click "Save Profile" to keep changes.', type: 'success' });
