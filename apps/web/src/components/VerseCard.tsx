@@ -69,7 +69,9 @@ export default function VerseCard({
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
         navigator.vibrate(pattern);
-      } catch {}
+      } catch {
+        /* haptics are optional */
+      }
     }
   };
 

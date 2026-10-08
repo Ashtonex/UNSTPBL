@@ -43,7 +43,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       if (user) localStorage.setItem('unstpbl_cached_user', JSON.stringify(user));
       else localStorage.removeItem('unstpbl_cached_user');
-    } catch {}
+    } catch {
+      /* storage unavailable (private mode / full): the cache is only an optimisation */
+    }
     set({ user });
   },
   setSession: (session) => set({ session }),
@@ -51,7 +53,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       if (profile) localStorage.setItem('unstpbl_cached_profile', JSON.stringify(profile));
       else localStorage.removeItem('unstpbl_cached_profile');
-    } catch {}
+    } catch {
+      /* storage unavailable: the cache is only an optimisation */
+    }
     set({ profile });
   },
   setLoading: (isLoading) => set({ isLoading }),
@@ -59,7 +63,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       localStorage.removeItem('unstpbl_cached_user');
       localStorage.removeItem('unstpbl_cached_profile');
-    } catch {}
+      localStorage.removeItem('unstpbl_verse_today_v1');
+    } catch {
+      /* storage unavailable */
+    }
     set({ user: null, session: null, profile: null });
   },
 }));

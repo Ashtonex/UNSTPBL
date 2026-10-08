@@ -293,7 +293,9 @@ export default function PrayersPage() {
                     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                       try {
                         navigator.vibrate(25);
-                      } catch {}
+                      } catch {
+                        /* haptics are optional */
+                      }
                     }
                     handleToggleJoin(prayer);
                   }}
