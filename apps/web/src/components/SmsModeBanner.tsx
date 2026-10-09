@@ -17,11 +17,23 @@ export default function SmsModeBanner() {
     );
   }
 
+  const whatsapp = data.whatsapp;
+  const whatsappNote = whatsapp && (
+    <p className="text-[11px] opacity-80">
+      {whatsapp.configError
+        ? `WhatsApp is not set up correctly: ${whatsapp.configError}`
+        : whatsapp.dryRun
+          ? 'WhatsApp: test mode (nothing sent).'
+          : `WhatsApp: live via ${whatsapp.provider?.name}. ${Math.max(0, whatsapp.monthlyMessageCap - whatsapp.liveMessagesUsed)} of this month's ${whatsapp.monthlyMessageCap} messages remain.`}
+    </p>
+  );
+
   if (data.dryRun) {
     return (
       <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs">
         <strong>Test mode.</strong> Texts are recorded in the history below but <strong>nothing is actually sent</strong> and nothing
         is charged. Connect an SMS provider to go live.
+        {whatsappNote}
       </div>
     );
   }
@@ -34,6 +46,7 @@ export default function SmsModeBanner() {
         <strong>Live.</strong> Texts are really being sent via {data.provider?.name}. {left} of this month&apos;s {data.monthlySegmentCap} text
         segments remain.
       </p>
+      {whatsappNote}
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
         <div className={`h-full ${percent >= 90 ? 'bg-red-400' : 'bg-emerald-400'}`} style={{ width: `${percent}%` }} />
       </div>

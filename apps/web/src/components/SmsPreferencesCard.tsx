@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 
 type Topic = 'announcements' | 'dailyVerse' | 'birthday';
+type Channel = 'sms' | 'whatsapp';
+type Draft = Record<Topic, boolean> & { channel: Channel };
 
 const TOPICS: Array<{ key: Topic; title: string; detail: string }> = [
   { key: 'announcements', title: 'Church announcements', detail: 'Important news and updates from church leadership.' },
@@ -17,15 +19,16 @@ const TOPICS: Array<{ key: Topic; title: string; detail: string }> = [
 export default function SmsPreferencesCard() {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({ queryKey: ['sms-preferences'], queryFn: api.getSmsPreferences });
-  const [draft, setDraft] = useState<Record<Topic, boolean> | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState<{ text: string; good: boolean } | null>(null);
 
   const saved = data?.preferences;
-  const values: Record<Topic, boolean> | null = draft ?? (saved ? { announcements: saved.announcements, dailyVerse: saved.dailyVerse, birthday: saved.birthday } : null);
-  const changed = !!draft && !!saved && TOPICS.some(({ key }) => draft[key] !== saved[key]);
+  const values: Draft | null =
+    draft ?? (saved ? { announcements: saved.announcements, dailyVerse: saved.dailyVerse, birthday: saved.birthday, channel: saved.channel } : null);
+  const changed = !!draft && !!saved && (TOPICS.some(({ key }) => draft[key] !== saved[key]) || draft.channel !== saved.channel);
 
   const save = useMutation({
-    mutationFn: (next: Record<Topic, boolean>) => api.saveSmsPreferences(next),
+    mutationFn: (next: Draft) => api.saveSmsPreferences(next),
     onSuccess: () => {
       setDraft(null);
       setMessage({ good: true, text: 'Your text message choices are saved.' });
@@ -81,6 +84,33 @@ export default function SmsPreferencesCard() {
           </label>
         ))}
       </div>
+
+      <fieldset className="space-y-2">
+        <legend className="text-xs font-semibold text-white/60 mb-1">How should we send them?</legend>
+        {(
+          [
+            { key: 'sms', title: 'Text message (SMS)', detail: 'Works on any phone, with no data or app needed.' },
+            { key: 'whatsapp', title: 'WhatsApp', detail: 'Needs data. This number must be on WhatsApp.' },
+          ] as Array<{ key: Channel; title: string; detail: string }>
+        ).map(({ key, title, detail }) => (
+          <label key={key} className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="radio"
+              name="sms-channel"
+              className="mt-1 accent-amber-400"
+              checked={values.channel === key}
+              onChange={() => {
+                setMessage(null);
+                setDraft({ ...values, channel: key });
+              }}
+            />
+            <span>
+              <span className="block text-sm text-white font-medium">{title}</span>
+              <span className="block text-xs text-white/40">{detail}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <button
         onClick={() => draft && save.mutate(draft)}

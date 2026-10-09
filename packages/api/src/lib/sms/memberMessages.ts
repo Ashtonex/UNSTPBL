@@ -1,14 +1,16 @@
 import { and, eq, gte, inArray, messageLog, smsConsents, smsOptOuts, users, type Database } from '@unstpbl/db';
 import { cleanVerseText } from '@unstpbl/shared';
 import { normalizePhone } from './phone.js';
-import { sendSms, type SmsDeps } from './service.js';
+import { sendSms, type Channel, type SmsDeps } from './service.js';
 import { getTemplateBody } from './templateStore.js';
-import { birthdayGreetingMessage, dailyVerseMessage } from './templates.js';
+import { birthdayGreetingMessage, churchName, dailyVerseMessage, firstName } from './templates.js';
 
 export interface SmsPreferences {
   announcements: boolean;
   dailyVerse: boolean;
   birthday: boolean;
+  /** How the member wants their texts delivered. */
+  channel: Channel;
 }
 
 export interface SmsPreferencesView extends SmsPreferences {
@@ -19,8 +21,6 @@ export interface SmsPreferencesView extends SmsPreferences {
   /** The number replied STOP; texts stay off until they reply START. */
   optedOut: boolean;
 }
-
-const OFF: SmsPreferences = { announcements: false, dailyVerse: false, birthday: false };
 
 export async function getSmsPreferences(database: Database, userId: string): Promise<SmsPreferencesView> {
   const [user] = await database.select({ phone: users.phone }).from(users).where(eq(users.id, userId)).limit(1);
@@ -36,17 +36,24 @@ export async function getSmsPreferences(database: Database, userId: string): Pro
     announcements: consent?.announcements ?? false,
     dailyVerse: consent?.dailyVerse ?? false,
     birthday: consent?.birthday ?? false,
+    channel: consent?.preferredChannel === 'whatsapp' ? 'whatsapp' : 'sms',
     phone: user?.phone ?? null,
     phoneUsable: phone.ok,
     optedOut,
   };
 }
 
-export async function saveSmsPreferences(database: Database, userId: string, preferences: SmsPreferences): Promise<void> {
+export async function saveSmsPreferences(
+  database: Database,
+  userId: string,
+  preferences: Pick<SmsPreferences, 'announcements' | 'dailyVerse' | 'birthday'> & { channel?: Channel },
+): Promise<void> {
+  const { channel, ...topics } = preferences;
+  const values = { ...topics, preferredChannel: channel ?? 'sms' };
   await database
     .insert(smsConsents)
-    .values({ userId, ...preferences })
-    .onConflictDoUpdate({ target: smsConsents.userId, set: { ...preferences, updatedAt: new Date() } });
+    .values({ userId, ...values })
+    .onConflictDoUpdate({ target: smsConsents.userId, set: { ...values, updatedAt: new Date() } });
 }
 
 /**
@@ -56,7 +63,7 @@ export async function saveSmsPreferences(database: Database, userId: string, pre
  */
 export async function sendBirthdayGreeting(database: Database, deps: SmsDeps, userId: string) {
   const [row] = await database
-    .select({ phone: users.phone, name: users.displayName, birthday: smsConsents.birthday })
+    .select({ phone: users.phone, name: users.displayName, birthday: smsConsents.birthday, channel: smsConsents.preferredChannel })
     .from(users)
     .leftJoin(smsConsents, eq(smsConsents.userId, users.id))
     .where(eq(users.id, userId))
@@ -64,7 +71,10 @@ export async function sendBirthdayGreeting(database: Database, deps: SmsDeps, us
 
   if (!row || !row.birthday || !row.phone) return { status: 'skipped' as const };
 
+  const channel: Channel = row.channel === 'whatsapp' ? 'whatsapp' : 'sms';
   return sendSms(deps, {
+    channel,
+    template: channel === 'whatsapp' ? { key: 'birthday', variables: [firstName(row.name), churchName()] } : undefined,
     to: row.phone,
     body: birthdayGreetingMessage(row.name, await getTemplateBody(database, 'birthday')),
     purpose: 'birthday',
@@ -108,7 +118,7 @@ export async function sendDailyVerses(
   };
 
   const members = await database
-    .select({ id: users.id, phone: users.phone, translation: users.translation })
+    .select({ id: users.id, phone: users.phone, translation: users.translation, channel: smsConsents.preferredChannel })
     .from(users)
     .innerJoin(smsConsents, eq(smsConsents.userId, users.id))
     .where(eq(smsConsents.dailyVerse, true));
@@ -130,26 +140,36 @@ export async function sendDailyVerses(
   const alreadySent = new Set(already.map((row) => row.userId));
 
   const verseTemplate = await getTemplateBody(database, 'daily_verse');
-  const messageByTranslation = new Map<string, string>();
+  const messageByTranslation = new Map<string, { message: string; reference: string; verse: string }>();
   const messageFor = async (translation: string) => {
     const cached = messageByTranslation.get(translation);
     if (cached) return cached;
     const payload = await options.getVerse(translation);
     const reference = `${payload.book.name} ${payload.verse.chapter}:${payload.verse.verseNumber}`;
-    const message = dailyVerseMessage(reference, cleanVerseText(payload.verse.text), verseTemplate);
-    messageByTranslation.set(translation, message);
-    return message;
+    const verse = cleanVerseText(payload.verse.text);
+    const entry = { message: dailyVerseMessage(reference, verse, verseTemplate), reference, verse };
+    messageByTranslation.set(translation, entry);
+    return entry;
   };
 
+  const cappedChannels = new Set<Channel>();
   for (const member of targets) {
     if (alreadySent.has(member.id)) {
       summary.alreadySentToday += 1;
       continue;
     }
 
+    const channel: Channel = member.channel === 'whatsapp' ? 'whatsapp' : 'sms';
+    if (cappedChannels.has(channel)) {
+      summary.blocked += 1;
+      continue;
+    }
+    const daily = await messageFor(member.translation || 'KJV');
     const result = await sendSms(deps, {
+      channel,
+      template: channel === 'whatsapp' ? { key: 'daily_verse', variables: [daily.reference, daily.verse, churchName()] } : undefined,
       to: member.phone!,
-      body: await messageFor(member.translation || 'KJV'),
+      body: daily.message,
       purpose: 'daily_verse',
       recipientUserId: member.id,
     });
@@ -161,7 +181,8 @@ export async function sendDailyVerses(
       summary.blocked += 1;
       if (result.reason === 'monthly_cap') {
         summary.stoppedForCap = true;
-        break;
+        // Only this channel is out of allowance; keep going for members on the other one.
+        cappedChannels.add(channel);
       }
     }
   }

@@ -1,5 +1,6 @@
 import { and, eq, inArray, smsConsents, smsOptOuts, userCircles, users, visitors, type Database } from '@unstpbl/db';
 import { normalizePhone } from './phone.js';
+import type { Channel } from './service.js';
 
 export type Audience =
   | { type: 'all_members' }
@@ -14,6 +15,8 @@ export interface Recipient {
   name: string | null;
   userId?: string;
   visitorId?: string;
+  /** How this person wants to be reached. Visitors are always texted by SMS. Absent means SMS. */
+  channel?: Channel;
 }
 
 export interface ResolvedAudience {
@@ -33,7 +36,7 @@ export const MAX_AUDIENCE_SIZE = 500;
  * they consented on their visit card. Anyone who replied STOP is always excluded.
  */
 export async function resolveAudience(database: Database, audience: Audience): Promise<ResolvedAudience> {
-  const candidates: Array<{ rawPhone: string | null; name: string | null; userId?: string; visitorId?: string }> = [];
+  const candidates: Array<{ rawPhone: string | null; name: string | null; userId?: string; visitorId?: string; channel?: Channel }> = [];
 
   if (audience.type === 'visitors') {
     const rows = await database
@@ -43,7 +46,7 @@ export async function resolveAudience(database: Database, audience: Audience): P
     for (const row of rows) candidates.push({ rawPhone: row.phone, name: row.name, visitorId: row.id });
   } else {
     const base = database
-      .select({ id: users.id, name: users.displayName, phone: users.phone })
+      .select({ id: users.id, name: users.displayName, phone: users.phone, channel: smsConsents.preferredChannel })
       .from(users)
       .innerJoin(smsConsents, eq(smsConsents.userId, users.id));
 
@@ -64,7 +67,9 @@ export async function resolveAudience(database: Database, audience: Audience): P
           .where(and(eq(smsConsents.announcements, true), eq(userCircles.circleId, audience.circleId)));
         break;
     }
-    for (const row of rows) candidates.push({ rawPhone: row.phone, name: row.name, userId: row.id });
+    for (const row of rows) {
+      candidates.push({ rawPhone: row.phone, name: row.name, userId: row.id, channel: row.channel === 'whatsapp' ? 'whatsapp' : 'sms' });
+    }
   }
 
   const byPhone = new Map<string, Recipient>();
@@ -76,7 +81,13 @@ export async function resolveAudience(database: Database, audience: Audience): P
       continue;
     }
     if (!byPhone.has(phone.e164)) {
-      byPhone.set(phone.e164, { phone: phone.e164, name: candidate.name, userId: candidate.userId, visitorId: candidate.visitorId });
+      byPhone.set(phone.e164, {
+        phone: phone.e164,
+        name: candidate.name,
+        userId: candidate.userId,
+        visitorId: candidate.visitorId,
+        channel: candidate.channel,
+      });
     }
   }
 

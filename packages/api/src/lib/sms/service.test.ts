@@ -27,7 +27,7 @@ const liveProvider = (send = vi.fn().mockResolvedValue({ providerMessageId: 'SM1
   send,
 });
 
-const settings = { monthlySegmentCap: 10, costPerSegmentUsd: 0.05 };
+const settings = { monthlySegmentCap: 10, costPerSegmentUsd: 0.05, whatsappMonthlyMessageCap: 300, whatsappCostPerMessageUsd: null };
 
 function deps(over: Partial<SmsDeps> & { store?: SmsStore } = {}): SmsDeps {
   return {
@@ -185,23 +185,27 @@ describe('sendSms', () => {
 
 describe('settings and estimates', () => {
   it('defaults to a conservative cap and unknown cost', () => {
-    expect(readSmsSettings({})).toEqual({ monthlySegmentCap: 300, costPerSegmentUsd: null });
+    expect(readSmsSettings({})).toEqual({ monthlySegmentCap: 300, costPerSegmentUsd: null, whatsappMonthlyMessageCap: 300, whatsappCostPerMessageUsd: null });
   });
 
   it('reads the cap and cost from the environment, ignoring junk', () => {
     expect(readSmsSettings({ SMS_MONTHLY_SEGMENT_CAP: '1200', SMS_COST_PER_SEGMENT_USD: '0.019' })).toEqual({
       monthlySegmentCap: 1200,
       costPerSegmentUsd: 0.019,
+      whatsappMonthlyMessageCap: 300,
+      whatsappCostPerMessageUsd: null,
     });
     expect(readSmsSettings({ SMS_MONTHLY_SEGMENT_CAP: 'lots', SMS_COST_PER_SEGMENT_USD: '-3' })).toEqual({
       monthlySegmentCap: 300,
       costPerSegmentUsd: null,
+      whatsappMonthlyMessageCap: 300,
+      whatsappCostPerMessageUsd: null,
     });
     expect(readSmsSettings({ SMS_MONTHLY_SEGMENT_CAP: '0' }).monthlySegmentCap).toBe(0);
   });
 
   it('estimates cost, or says it is unknown', () => {
-    expect(estimateCost(50, 2, { monthlySegmentCap: 1, costPerSegmentUsd: 0.02 })).toEqual({ totalSegments: 100, estimatedCostUsd: 2 });
-    expect(estimateCost(50, 2, { monthlySegmentCap: 1, costPerSegmentUsd: null })).toEqual({ totalSegments: 100, estimatedCostUsd: null });
+    expect(estimateCost(50, 2, { monthlySegmentCap: 1, costPerSegmentUsd: 0.02, whatsappMonthlyMessageCap: 300, whatsappCostPerMessageUsd: null })).toEqual({ totalSegments: 100, estimatedCostUsd: 2 });
+    expect(estimateCost(50, 2, { monthlySegmentCap: 1, costPerSegmentUsd: null, whatsappMonthlyMessageCap: 300, whatsappCostPerMessageUsd: null })).toEqual({ totalSegments: 100, estimatedCostUsd: null });
   });
 });

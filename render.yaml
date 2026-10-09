@@ -67,6 +67,25 @@ services:
         sync: false
       - key: TWILIO_MESSAGING_SERVICE_SID
         sync: false
+      # WhatsApp: same rules as SMS (dashboard-managed, safe test mode while unset). See docs/SMS.md.
+      - key: WHATSAPP_PROVIDER
+        sync: false
+      - key: WHATSAPP_MONTHLY_MESSAGE_CAP
+        sync: false
+      - key: WHATSAPP_COST_PER_MESSAGE_USD
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: TWILIO_WHATSAPP_MESSAGING_SERVICE_SID
+        sync: false
+      - key: WHATSAPP_TEMPLATE_VISITOR_WELCOME_SID
+        sync: false
+      - key: WHATSAPP_TEMPLATE_BIRTHDAY_SID
+        sync: false
+      - key: WHATSAPP_TEMPLATE_DAILY_VERSE_SID
+        sync: false
+      - key: WHATSAPP_TEMPLATE_ANNOUNCEMENT_SID
+        sync: false
 
   - type: static
     name: unstpbl-web

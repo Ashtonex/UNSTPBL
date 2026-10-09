@@ -457,6 +457,8 @@ export const smsConsents = pgTable('sms_consents', {
   announcements: boolean('announcements').notNull().default(false),
   dailyVerse: boolean('daily_verse').notNull().default(false),
   birthday: boolean('birthday').notNull().default(false),
+  /** How the member wants these texts delivered: 'sms' or 'whatsapp'. */
+  preferredChannel: varchar('preferred_channel', { length: 10 }).notNull().default('sms'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

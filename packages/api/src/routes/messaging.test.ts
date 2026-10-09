@@ -60,7 +60,7 @@ vi.mock('../lib/sms/store.js', () => ({
       insertLog: async (entry) => void log.push(entry),
     },
     getProvider: () => ({ name: 'dryrun', live: false, send: async () => ({ providerMessageId: 'd1', status: 'dry_run' as const }) }),
-    settings: { monthlySegmentCap: 100, costPerSegmentUsd: 0.1 },
+    settings: { monthlySegmentCap: 100, costPerSegmentUsd: 0.1, whatsappMonthlyMessageCap: 300, whatsappCostPerMessageUsd: null },
   }),
 }));
 
@@ -223,6 +223,42 @@ describe('announcements', () => {
     expect(JSON.stringify(body.sample)).not.toContain('771111111');
   });
 
+  it('splits a mixed audience by channel and prices each part separately', async () => {
+    process.env.SMS_COST_PER_SEGMENT_USD = '0.1';
+    process.env.WHATSAPP_COST_PER_MESSAGE_USD = '0.0275';
+    resolveAudience.mockResolvedValue({
+      recipients: [
+        { phone: '+263771111111', name: 'Ann', channel: 'sms' },
+        { phone: '+263772222222', name: 'Ben', channel: 'whatsapp' },
+        { phone: '+263773333333', name: 'Cal', channel: 'whatsapp' },
+        { phone: '+263774444444', name: 'Dee' },
+      ],
+      skippedInvalidPhone: 0,
+      skippedOptedOut: 0,
+    });
+    const res = await call('POST', '/messages/preview', { message: 'Service moves to 9am.', audience });
+    const body = (await res.json()) as Record<string, any>;
+    delete process.env.SMS_COST_PER_SEGMENT_USD;
+    delete process.env.WHATSAPP_COST_PER_MESSAGE_USD;
+
+    expect(body.recipients).toBe(4);
+    expect(body.smsRecipients).toBe(2); // an undefined channel means SMS
+    expect(body.whatsappRecipients).toBe(2);
+    expect(body.totalSegments).toBe(2); // segments are an SMS idea: only SMS people count
+    expect(body.estimatedCostUsd).toBeCloseTo(2 * 0.1 + 2 * 0.0275, 6);
+  });
+
+  it('says the cost is unknown when the WhatsApp price has not been set', async () => {
+    resolveAudience.mockResolvedValue({
+      recipients: [{ phone: '+263772222222', name: 'Ben', channel: 'whatsapp' }],
+      skippedInvalidPhone: 0,
+      skippedOptedOut: 0,
+    });
+    const body = (await (await call('POST', '/messages/preview', { message: 'Hi', audience })).json()) as Record<string, any>;
+    expect(body.whatsappRecipients).toBe(1);
+    expect(body.estimatedCostUsd).toBeNull();
+  });
+
   it.each([
     [{ message: '' }, 'message'],
     [{ message: 'x'.repeat(321) }, '320'],
@@ -321,7 +357,7 @@ describe('deliverAnnouncement', () => {
         insertLog: async (entry) => void entries.push(entry),
       },
       getProvider: () => ({ name: 'twilio', live: true, send: async () => (calls++, { providerMessageId: 'x', status: 'sent' as const }) }),
-      settings: { monthlySegmentCap: 100, costPerSegmentUsd: null },
+      settings: { monthlySegmentCap: 100, costPerSegmentUsd: null, whatsappMonthlyMessageCap: 300, whatsappCostPerMessageUsd: null },
     };
     const recipients = Array.from({ length: 40 }, (_, i) => ({ phone: `+2637711${String(i).padStart(5, '0')}`, name: null }));
 
@@ -380,6 +416,14 @@ describe('provider webhooks', () => {
     expect(clearOptOut).not.toHaveBeenCalled();
   });
 
+  it('records an opt-out for a STOP sent over WhatsApp, which arrives as whatsapp:+263...', async () => {
+    enableTwilio();
+    const params = { From: 'whatsapp:+263771234567', Body: 'STOP' };
+    const res = await hook('/webhooks/sms/twilio/inbound', params, sign('/webhooks/sms/twilio/inbound', params));
+    expect(res.status).toBe(200);
+    expect(recordOptOut.mock.calls[0][1]).toBe('+263771234567');
+  });
+
   it('records an opt-out when a correctly signed STOP arrives, and answers with empty TwiML', async () => {
     enableTwilio();
     const params = { From: '0771234567', Body: ' Stop. ' };
@@ -431,7 +475,21 @@ describe('member text preferences', () => {
   it('saves valid preferences for the signed-in member only', async () => {
     getSmsPreferences.mockResolvedValue(view());
     await call('PUT', '/me/sms-preferences', { announcements: true, dailyVerse: true, birthday: false });
-    expect(saveSmsPreferences).toHaveBeenCalledWith(expect.anything(), 'user-1', { announcements: true, dailyVerse: true, birthday: false });
+    expect(saveSmsPreferences).toHaveBeenCalledWith(expect.anything(), 'user-1', { announcements: true, dailyVerse: true, birthday: false, channel: 'sms' });
+  });
+
+  it('lets a member choose WhatsApp, and rejects any other channel', async () => {
+    getSmsPreferences.mockResolvedValue(view());
+    const res = await call('PUT', '/me/sms-preferences', { announcements: true, dailyVerse: false, birthday: false, channel: 'whatsapp' });
+    expect(res.status).toBe(200);
+    expect(saveSmsPreferences).toHaveBeenCalledWith(expect.anything(), 'user-1', { announcements: true, dailyVerse: false, birthday: false, channel: 'whatsapp' });
+    expect((await call('PUT', '/me/sms-preferences', { announcements: true, dailyVerse: false, birthday: false, channel: 'fax' })).status).toBe(400);
+  });
+
+  it('changing only the channel never needs a phone number', async () => {
+    getSmsPreferences.mockResolvedValue(view({ phoneUsable: false }));
+    const res = await call('PUT', '/me/sms-preferences', { announcements: false, dailyVerse: false, birthday: false, channel: 'whatsapp' });
+    expect(res.status).toBe(200);
   });
 
   it('rejects incomplete or non-boolean preferences', async () => {

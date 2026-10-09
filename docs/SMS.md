@@ -87,6 +87,36 @@ segments.
 A different provider (for example a local Zimbabwean aggregator) can be added by writing one small
 adapter in `packages/api/src/lib/sms/providers/`; nothing else needs to change.
 
+## WhatsApp
+
+WhatsApp is built in the same safe way as SMS and is in **test mode** until you switch it on. A member picks
+**Text message (SMS)** or **WhatsApp** under **Profile → Text messages**; it applies to every topic they opted in to
+(announcements, today's verse, birthday). Visitors are always texted by SMS.
+
+- **Same safeguards.** The same consent, STOP list (a STOP sent over WhatsApp blocks both channels), preview-and-confirm,
+  duplicate guard and audit log. WhatsApp has its own monthly cap, counted in messages (`WHATSAPP_MONTHLY_MESSAGE_CAP`,
+  default 300), so a full SMS allowance never stops WhatsApp and the reverse.
+- **Cheaper per message, but needs data.** A WhatsApp message is one billable unit with no segments. Set
+  `WHATSAPP_COST_PER_MESSAGE_USD` so previews show a cost; announcement previews price SMS and WhatsApp recipients separately.
+- **Why wording is not editable here.** To start a conversation, a business may only send a **message template that Meta has
+  approved**. Free text is allowed only within 24 hours of the person writing to you, and the app never sends it. So each
+  kind of message needs an approved template, created in the Twilio console (Content Template Builder) and submitted to
+  Meta. Its Content SID goes in the matching variable; the values are filled in order as `{{1}}`, `{{2}}`, ...
+
+  | Message | Variable | `{{1}}` | `{{2}}` | `{{3}}` |
+  | --- | --- | --- | --- | --- |
+  | Visitor thank-you | `WHATSAPP_TEMPLATE_VISITOR_WELCOME_SID` | first name | church name | |
+  | Birthday blessing | `WHATSAPP_TEMPLATE_BIRTHDAY_SID` | first name | church name | |
+  | Daily verse | `WHATSAPP_TEMPLATE_DAILY_VERSE_SID` | reference | verse text | church name |
+  | Announcement | `WHATSAPP_TEMPLATE_ANNOUNCEMENT_SID` | the message | church name | |
+
+  A WhatsApp send with no template configured fails with a clear message in the history instead of being sent as free text.
+- **Going live:** apply migration `0009_whatsapp_channel.sql`; get a WhatsApp sender approved (Twilio WhatsApp sender or
+  Meta Business verification); create and get the templates approved; set `WHATSAPP_PROVIDER=twilio`,
+  `TWILIO_WHATSAPP_FROM` (or `TWILIO_WHATSAPP_MESSAGING_SERVICE_SID`), the template SIDs, a cap and a price. Point the
+  sender's incoming-message webhook at `POST {PUBLIC_API_URL}/webhooks/sms/twilio/inbound` so STOP replies are recorded.
+- **Not built yet:** WhatsApp for visitors, two-way conversations, and rich media.
+
 ## Running it day to day
 
 - **Visitors:** add each guest once. Entering the same number again records a return visit instead

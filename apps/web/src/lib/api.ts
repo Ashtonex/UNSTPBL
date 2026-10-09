@@ -244,6 +244,14 @@ export interface MessagingStatus {
   liveSegmentsUsed: number;
   costPerSegmentUsd: number | null;
   maxAudienceSize: number;
+  whatsapp?: {
+    provider: { name: string; live: boolean } | null;
+    configError: string | null;
+    dryRun: boolean;
+    monthlyMessageCap: number;
+    liveMessagesUsed: number;
+    costPerMessageUsd: number | null;
+  };
 }
 
 export interface SavedAnnouncement {
@@ -277,6 +285,8 @@ export interface MessagePreview {
   segmentsPerMessage: number;
   tooLong: boolean;
   recipients: number;
+  smsRecipients?: number;
+  whatsappRecipients?: number;
   tooManyRecipients: boolean;
   sample: Array<{ name: string | null; phone: string }>;
   skippedInvalidPhone: number;
@@ -289,6 +299,7 @@ export interface MessagePreview {
 
 export interface MessageLogEntry {
   id: string;
+  channel?: 'sms' | 'whatsapp';
   purpose: string;
   phone: string;
   body: string;
@@ -303,6 +314,8 @@ export interface SmsPreferences {
   announcements: boolean;
   dailyVerse: boolean;
   birthday: boolean;
+  /** How the member wants these texts delivered. */
+  channel: 'sms' | 'whatsapp';
   phone: string | null;
   phoneUsable: boolean;
   optedOut: boolean;
@@ -738,6 +751,6 @@ export const api = {
     }),
   getMessageLog: () => apiFetch<{ messages: MessageLogEntry[] }>('/messages/log?limit=40'),
   getSmsPreferences: () => apiFetch<{ preferences: SmsPreferences }>('/me/sms-preferences'),
-  saveSmsPreferences: (data: Pick<SmsPreferences, 'announcements' | 'dailyVerse' | 'birthday'>) =>
+  saveSmsPreferences: (data: Pick<SmsPreferences, 'announcements' | 'dailyVerse' | 'birthday' | 'channel'>) =>
     apiFetch<{ preferences: SmsPreferences }>('/me/sms-preferences', { method: 'PUT', body: JSON.stringify(data) }),
 };

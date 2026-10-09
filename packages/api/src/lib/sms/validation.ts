@@ -146,12 +146,18 @@ export function validateSendBody(body: unknown): Result<{ message: string; audie
   return { ok: true, data: { ...preview.data, confirmRecipients: confirm } };
 }
 
-export function validateSmsPreferencesBody(body: unknown): Result<{ announcements: boolean; dailyVerse: boolean; birthday: boolean }> {
+export function validateSmsPreferencesBody(
+  body: unknown,
+): Result<{ announcements: boolean; dailyVerse: boolean; birthday: boolean; channel: 'sms' | 'whatsapp' }> {
   if (!isRecord(body)) return fail('Request body must be an object.');
-  const data = { announcements: false, dailyVerse: false, birthday: false };
+  const data = { announcements: false, dailyVerse: false, birthday: false, channel: 'sms' as 'sms' | 'whatsapp' };
   for (const key of ['announcements', 'dailyVerse', 'birthday'] as const) {
     if (typeof body[key] !== 'boolean') return fail(`${key} must be true or false.`);
     data[key] = body[key] as boolean;
+  }
+  if (body.channel !== undefined) {
+    if (body.channel !== 'sms' && body.channel !== 'whatsapp') return fail('channel must be "sms" or "whatsapp".');
+    data.channel = body.channel;
   }
   return { ok: true, data };
 }

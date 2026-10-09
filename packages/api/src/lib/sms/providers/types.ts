@@ -2,6 +2,12 @@ export interface SmsSendRequest {
   /** Recipient in E.164 form, e.g. +263771234567. */
   to: string;
   body: string;
+  /**
+   * WhatsApp only. A business may start a conversation only with a message template that
+   * Meta has approved, so a send names the template and the values to fill into it.
+   * (`body` is still the full text, used for the log and for previews.)
+   */
+  template?: { key: string; variables: string[] };
 }
 
 export interface SmsSendResult {

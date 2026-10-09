@@ -363,7 +363,9 @@ export default function MessagesPage() {
             <div>
               <dt className="text-[11px] uppercase tracking-wide text-white/35">Will reach</dt>
               <dd className="text-2xl font-bold text-white">{preview.recipients}</dd>
-              <dd className="text-[11px] text-white/35">people</dd>
+              <dd className="text-[11px] text-white/35">
+                people{preview.whatsappRecipients ? ` · ${preview.smsRecipients ?? 0} by SMS, ${preview.whatsappRecipients} by WhatsApp` : ''}
+              </dd>
             </div>
             <div>
               <dt className="text-[11px] uppercase tracking-wide text-white/35">Estimated cost</dt>
@@ -426,7 +428,7 @@ export default function MessagesPage() {
           <article key={entry.id} className="glass-card p-3 space-y-1.5">
             <div className="flex items-center justify-between gap-2 text-[11px]">
               <span className="text-white/45">
-                {PURPOSE_LABEL[entry.purpose] ?? entry.purpose} · {entry.phone}
+                {PURPOSE_LABEL[entry.purpose] ?? entry.purpose} · {entry.channel === 'whatsapp' ? 'WhatsApp · ' : ''}{entry.phone}
               </span>
               <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${STATUS_STYLE[entry.status]}`}>{STATUS_LABEL[entry.status]}</span>
             </div>

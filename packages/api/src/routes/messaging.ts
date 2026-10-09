@@ -12,7 +12,7 @@ import { analyzeSms } from '../lib/sms/encoding.js';
 import { getSmsPreferences, saveSmsPreferences } from '../lib/sms/memberMessages.js';
 import { applyDeliveryStatus, classifyInboundKeyword, clearOptOut, recordOptOut } from '../lib/sms/optOut.js';
 import { maskPhone, normalizePhone } from '../lib/sms/phone.js';
-import { getSmsProvider, SmsConfigError } from '../lib/sms/providers/index.js';
+import { getSmsProvider, getWhatsappProvider, SmsConfigError } from '../lib/sms/providers/index.js';
 import { isValidTwilioSignature } from '../lib/sms/providers/twilio.js';
 import {
   MAX_SEGMENTS_PER_MESSAGE,
@@ -20,12 +20,13 @@ import {
   readSmsSettings,
   sendSms,
   startOfMonthUtc,
+  type Channel,
   type SmsDeps,
 } from '../lib/sms/service.js';
 import { createDbStore, defaultSmsDeps } from '../lib/sms/store.js';
 import { MAX_SAVED_ANNOUNCEMENTS, createSavedAnnouncement, deleteSavedAnnouncement, listSavedAnnouncements } from '../lib/sms/savedAnnouncements.js';
 import { listTemplates, resetTemplate, saveTemplate, buildTemplateView } from '../lib/sms/templateStore.js';
-import { announcementMessage, checkTemplateBody, isTemplateKey } from '../lib/sms/templates.js';
+import { announcementMessage, checkTemplateBody, churchName, isTemplateKey } from '../lib/sms/templates.js';
 import {
   validatePreviewBody,
   validateSendBody,
@@ -72,8 +73,25 @@ function providerSummary(): { name: string; live: boolean } | { error: string } 
   }
 }
 
-async function liveSegmentsUsed(): Promise<number> {
-  return createDbStore(db).liveSegmentsSentSince(startOfMonthUtc(new Date()));
+function whatsappProviderSummary(): { name: string; live: boolean } | { error: string } {
+  try {
+    const provider = getWhatsappProvider();
+    return { name: provider.name, live: provider.live };
+  } catch (err) {
+    return { error: err instanceof SmsConfigError ? err.message : 'WhatsApp is not configured.' };
+  }
+}
+
+async function liveSegmentsUsed(channel: Channel = 'sms'): Promise<number> {
+  return createDbStore(db).liveSegmentsSentSince(startOfMonthUtc(new Date()), channel);
+}
+
+const channelOf = (recipient: Recipient): Channel => (recipient.channel === 'whatsapp' ? 'whatsapp' : 'sms');
+
+/** Splits an audience by how each person wants to be reached. */
+function splitByChannel(recipients: Recipient[]): { sms: number; whatsapp: number } {
+  const whatsapp = recipients.filter((r) => channelOf(r) === 'whatsapp').length;
+  return { sms: recipients.length - whatsapp, whatsapp };
 }
 
 /** Runs `work` over `items` with a fixed number in flight at once. */
@@ -95,6 +113,7 @@ messagingRoutes.get('/messages/status', ...leaders, async (c) => {
   try {
     const settings = readSmsSettings();
     const provider = providerSummary();
+    const whatsapp = whatsappProviderSummary();
     return c.json({
       provider: 'error' in provider ? null : provider,
       configError: 'error' in provider ? provider.error : null,
@@ -103,6 +122,14 @@ messagingRoutes.get('/messages/status', ...leaders, async (c) => {
       liveSegmentsUsed: await liveSegmentsUsed(),
       costPerSegmentUsd: settings.costPerSegmentUsd,
       maxAudienceSize: MAX_AUDIENCE_SIZE,
+      whatsapp: {
+        provider: 'error' in whatsapp ? null : whatsapp,
+        configError: 'error' in whatsapp ? whatsapp.error : null,
+        dryRun: 'error' in whatsapp ? false : !whatsapp.live,
+        monthlyMessageCap: settings.whatsappMonthlyMessageCap,
+        liveMessagesUsed: await liveSegmentsUsed('whatsapp'),
+        costPerMessageUsd: settings.whatsappCostPerMessageUsd,
+      },
     });
   } catch (err) {
     console.error('Error loading messaging status:', err);
@@ -119,10 +146,20 @@ messagingRoutes.post('/messages/preview', ...leaders, createRateLimit({ windowMs
     const finalMessage = announcementMessage(parsed.data.message);
     const analysis = analyzeSms(finalMessage);
     const audience = await resolveAudience(db, parsed.data.audience);
-    const estimate = estimateCost(audience.recipients.length, analysis.segments, settings);
+    const split = splitByChannel(audience.recipients);
+    const estimate = estimateCost(split.sms, analysis.segments, settings);
+    const whatsappCost = settings.whatsappCostPerMessageUsd === null ? null : split.whatsapp * settings.whatsappCostPerMessageUsd;
+    // The total is unknown if any channel in use has no price set.
+    const estimatedCostUsd =
+      (split.sms > 0 && estimate.estimatedCostUsd === null) || (split.whatsapp > 0 && whatsappCost === null)
+        ? null
+        : (split.sms > 0 ? (estimate.estimatedCostUsd ?? 0) : 0) + (split.whatsapp > 0 ? (whatsappCost ?? 0) : 0);
     const provider = providerSummary();
     const live = !('error' in provider) && provider.live;
     const used = live ? await liveSegmentsUsed() : 0;
+    const whatsappProvider = whatsappProviderSummary();
+    const whatsappLive = !('error' in whatsappProvider) && whatsappProvider.live;
+    const whatsappUsed = whatsappLive && split.whatsapp > 0 ? await liveSegmentsUsed('whatsapp') : 0;
 
     return c.json({
       finalMessage,
@@ -136,9 +173,13 @@ messagingRoutes.post('/messages/preview', ...leaders, createRateLimit({ windowMs
       skippedInvalidPhone: audience.skippedInvalidPhone,
       skippedOptedOut: audience.skippedOptedOut,
       totalSegments: estimate.totalSegments,
-      estimatedCostUsd: estimate.estimatedCostUsd,
-      dryRun: 'error' in provider ? false : !provider.live,
-      willExceedCap: live && used + estimate.totalSegments > settings.monthlySegmentCap,
+      estimatedCostUsd,
+      smsRecipients: split.sms,
+      whatsappRecipients: split.whatsapp,
+      dryRun: ('error' in provider ? false : !provider.live) && (split.whatsapp === 0 || ('error' in whatsappProvider ? false : !whatsappProvider.live)),
+      willExceedCap:
+        (live && split.sms > 0 && used + estimate.totalSegments > settings.monthlySegmentCap) ||
+        (whatsappLive && split.whatsapp > 0 && whatsappUsed + split.whatsapp > settings.whatsappMonthlyMessageCap),
     });
   } catch (err) {
     console.error('Error previewing message:', err);
@@ -172,15 +213,25 @@ messagingRoutes.post('/messages/send', ...leaders, createRateLimit({ windowMs: 6
       );
     }
 
+    const split = splitByChannel(recipients);
     const provider = providerSummary();
-    if ('error' in provider) return c.json({ error: provider.error }, 503);
-    if (provider.live) {
+    if (split.sms > 0 && 'error' in provider) return c.json({ error: provider.error }, 503);
+    if (split.sms > 0 && !('error' in provider) && provider.live) {
       const used = await liveSegmentsUsed();
-      const needed = recipients.length * analysis.segments;
+      const needed = split.sms * analysis.segments;
       if (used + needed > settings.monthlySegmentCap) {
         return c.json({ error: `This would use ${needed} segments but only ${Math.max(0, settings.monthlySegmentCap - used)} remain of this month's ${settings.monthlySegmentCap}.` }, 400);
       }
     }
+    const whatsappProvider = whatsappProviderSummary();
+    if (split.whatsapp > 0 && 'error' in whatsappProvider) return c.json({ error: whatsappProvider.error }, 503);
+    if (split.whatsapp > 0 && !('error' in whatsappProvider) && whatsappProvider.live) {
+      const used = await liveSegmentsUsed('whatsapp');
+      if (used + split.whatsapp > settings.whatsappMonthlyMessageCap) {
+        return c.json({ error: `This would send ${split.whatsapp} WhatsApp messages but only ${Math.max(0, settings.whatsappMonthlyMessageCap - used)} remain of this month's ${settings.whatsappMonthlyMessageCap}.` }, 400);
+      }
+    }
+    const anyLive = (!('error' in provider) && provider.live && split.sms > 0) || (!('error' in whatsappProvider) && whatsappProvider.live && split.whatsapp > 0);
 
     const batchKey = createHash('sha256')
       .update(JSON.stringify([actor.id, parsed.data.message, parsed.data.audience]))
@@ -200,10 +251,10 @@ messagingRoutes.post('/messages/send', ...leaders, createRateLimit({ windowMs: 6
       actor,
       action: 'sms.announcement_started',
       targetType: 'sms_announcement',
-      metadata: { recipients: recipients.length, segmentsEach: analysis.segments, audience: parsed.data.audience, dryRun: !provider.live },
+      metadata: { recipients: recipients.length, sms: split.sms, whatsapp: split.whatsapp, segmentsEach: analysis.segments, audience: parsed.data.audience, dryRun: !anyLive },
     });
 
-    return c.json({ accepted: true, recipients: recipients.length, dryRun: !provider.live }, 202);
+    return c.json({ accepted: true, recipients: recipients.length, dryRun: !anyLive }, 202);
   } catch (err) {
     console.error('Error sending announcement:', err);
     return c.json({ error: 'Could not send the message.' }, 500);
@@ -218,9 +269,19 @@ export async function deliverAnnouncement(
 ): Promise<{ sent: number; dryRun: number; blocked: number; failed: number; stoppedForCap: boolean }> {
   const summary = { sent: 0, dryRun: 0, blocked: 0, failed: 0, stoppedForCap: false };
   const body = announcementMessage(message);
+  // A channel that hit its monthly limit stops; people on the other channel still get the message.
+  const cappedChannels = new Set<Channel>();
 
   await pool(recipients, SEND_CONCURRENCY, async (recipient) => {
+    const channel = channelOf(recipient);
+    if (cappedChannels.has(channel)) {
+      summary.blocked += 1;
+      return;
+    }
+
     const result = await sendSms(deps, {
+      channel,
+      template: channel === 'whatsapp' ? { key: 'announcement', variables: [message.trim(), churchName()] } : undefined,
       to: recipient.phone,
       body,
       purpose: 'announcement',
@@ -236,7 +297,7 @@ export async function deliverAnnouncement(
       summary.blocked += 1;
       if (result.reason === 'monthly_cap') {
         summary.stoppedForCap = true;
-        return false; // stop the pool: every remaining send would be blocked the same way
+        cappedChannels.add(channel);
       }
     }
   });
@@ -277,6 +338,7 @@ messagingRoutes.get('/messages/log', ...leaders, async (c) => {
     const rows = await db
       .select({
         id: messageLog.id,
+        channel: messageLog.channel,
         purpose: messageLog.purpose,
         phone: messageLog.recipientPhone,
         body: messageLog.body,
@@ -407,7 +469,7 @@ messagingRoutes.put('/me/sms-preferences', authMiddleware, async (c) => {
     if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
     const current = await getSmsPreferences(db, userId);
-    const enablingAnything = Object.values(parsed.data).some(Boolean);
+    const enablingAnything = parsed.data.announcements || parsed.data.dailyVerse || parsed.data.birthday;
     if (enablingAnything && !current.phoneUsable) {
       return c.json({ error: 'Add a valid mobile number to your profile first, for example 077 123 4567.' }, 400);
     }
@@ -561,7 +623,8 @@ messagingRoutes.post('/webhooks/sms/twilio/inbound', async (c) => {
     const check = await checkTwilioWebhook(c, '/webhooks/sms/twilio/inbound');
     if (!check.ok) return c.json({ error: check.error }, check.status);
 
-    const from = normalizePhone(check.params.From ?? '');
+    // WhatsApp messages arrive as "whatsapp:+263..."; STOP works the same on both channels.
+    const from = normalizePhone((check.params.From ?? '').replace(/^whatsapp:/i, ''));
     const keyword = classifyInboundKeyword(check.params.Body);
     if (from.ok && keyword === 'stop') await recordOptOut(db, from.e164, 'stop_keyword');
     if (from.ok && keyword === 'start') await clearOptOut(db, from.e164);
