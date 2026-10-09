@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const BishopPage = lazy(() => import('./pages/BishopPage'));
@@ -98,6 +99,7 @@ export default function App() {
     <Suspense fallback={<RouteLoading />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route
           path="/"
           element={

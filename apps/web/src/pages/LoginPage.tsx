@@ -1,17 +1,35 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '../lib/supabase';
+import { RECOVERY_FLAG, supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
 
 export default function LoginPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Arrived from a password-reset email: show the "choose a new password" form instead of
+  // sending the (now signed-in) person straight home.
+  const recovering = new URLSearchParams(location.search).get('reset') === '1';
 
   useEffect(() => {
-    if (user) navigate('/', { replace: true });
-  }, [user, navigate]);
+    if (user && !recovering) navigate('/', { replace: true });
+  }, [user, recovering, navigate]);
+
+  useEffect(() => {
+    if (!recovering) return;
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== 'USER_UPDATED') return;
+      try {
+        sessionStorage.removeItem(RECOVERY_FLAG);
+      } catch {
+        // Nothing to clean up.
+      }
+      navigate('/', { replace: true });
+    });
+    return () => data.subscription.unsubscribe();
+  }, [recovering, navigate]);
 
   return (
     <div className="h-[100dvh] flex flex-col items-center justify-center px-4 py-2 sm:py-8 relative overflow-hidden bg-surface-950">
@@ -57,10 +75,13 @@ export default function LoginPage() {
         <div className="glass-card p-5 sm:p-8 border border-white/5 shadow-2xl relative shrink-0">
           <div className="absolute -top-10 -left-10 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
           
-          <h2 className="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 text-center">Sign In / Register</h2>
+          <h2 className="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 text-center">
+            {recovering ? 'Choose a new password' : 'Sign In / Register'}
+          </h2>
 
           <Auth
             supabaseClient={supabase}
+            view={recovering ? 'update_password' : undefined}
             appearance={{
               theme: ThemeSupa,
               variables: {
@@ -95,7 +116,7 @@ export default function LoginPage() {
               },
             }}
             providers={[]}
-            redirectTo={window.location.origin}
+            redirectTo={`${window.location.origin}/auth/callback`}
           />
         </div>
 
