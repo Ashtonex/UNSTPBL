@@ -126,8 +126,8 @@ export default function BishopPage() {
     refetchInterval: 15000,
   });
 
-  // The outreach tools only appear once the messaging backend answers. Until its database
-  // tables exist this fails quietly and the links simply stay hidden: no dead-end pages.
+  // Only used to label the outreach cards (test mode vs live). The links themselves always
+  // show: a slow or sleeping API must never hide the way into the Visitors and Messages pages.
   const { data: messagingStatus } = useQuery({
     queryKey: ['messaging-status'],
     queryFn: api.getMessagingStatus,
@@ -359,19 +359,19 @@ export default function BishopPage() {
         </div>
       )}
 
-      {/* Outreach tools (shown only when the messaging backend is ready) */}
-      {messagingStatus && (
-        <div className="grid grid-cols-2 gap-4">
-          <Link to="/visitors" className="glass-card p-4 block hover:bg-white/5 transition-colors">
-            <p className="text-white font-semibold text-sm">Visitors</p>
-            <p className="text-white/40 text-xs mt-1">Welcome guests and follow up.</p>
-          </Link>
-          <Link to="/messages" className="glass-card p-4 block hover:bg-white/5 transition-colors">
-            <p className="text-white font-semibold text-sm">Text messages</p>
-            <p className="text-white/40 text-xs mt-1">Announcements and history.</p>
-          </Link>
-        </div>
-      )}
+      {/* Outreach tools */}
+      <div className="grid grid-cols-2 gap-4">
+        <Link to="/visitors" className="glass-card p-4 block hover:bg-white/5 transition-colors">
+          <p className="text-white font-semibold text-sm">Visitors</p>
+          <p className="text-white/40 text-xs mt-1">Welcome guests and follow up.</p>
+        </Link>
+        <Link to="/messages" className="glass-card p-4 block hover:bg-white/5 transition-colors">
+          <p className="text-white font-semibold text-sm">Text messages</p>
+          <p className="text-white/40 text-xs mt-1">
+            {messagingStatus?.dryRun ? 'Test mode: nothing is sent.' : 'Announcements and history.'}
+          </p>
+        </Link>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
