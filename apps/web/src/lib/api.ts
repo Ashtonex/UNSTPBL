@@ -246,6 +246,13 @@ export interface MessagingStatus {
   maxAudienceSize: number;
 }
 
+export interface SavedAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface MessageTemplate {
   key: 'visitor_welcome' | 'birthday' | 'daily_verse';
   label: string;
@@ -706,6 +713,10 @@ export const api = {
   sendVisitorWelcome: (id: string) =>
     apiFetch<{ status: string; reason?: string; detail?: string }>(`/visitors/${id}/welcome`, { method: 'POST' }),
   getMessagingStatus: () => apiFetch<MessagingStatus>('/messages/status'),
+  getSavedMessages: () => apiFetch<{ saved: SavedAnnouncement[]; limit: number }>('/messages/saved'),
+  saveMessage: (title: string, body: string) =>
+    apiFetch<{ saved: SavedAnnouncement }>('/messages/saved', { method: 'POST', body: JSON.stringify({ title, body }) }),
+  deleteSavedMessage: (id: string) => apiFetch<{ ok: boolean }>(`/messages/saved/${id}`, { method: 'DELETE' }),
   getMessageTemplates: () => apiFetch<{ templates: MessageTemplate[] }>('/messages/templates'),
   previewMessageTemplate: (key: MessageTemplate['key'], body: string) =>
     apiFetch<TemplatePreview>('/messages/templates/preview', { method: 'POST', body: JSON.stringify({ key, body }) }),

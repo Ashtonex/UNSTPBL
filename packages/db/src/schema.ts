@@ -475,6 +475,15 @@ export const messageTemplates = pgTable('message_templates', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Announcements a leader saved to reuse ("Service time change", "Prayer meeting reminder"...). */
+export const savedAnnouncements = pgTable('saved_announcements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 80 }).notNull(),
+  body: text('body').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Every message attempt (sent, dry-run, blocked or failed): the audit trail and the spend meter. */
 export const messageLog = pgTable(
   'message_log',

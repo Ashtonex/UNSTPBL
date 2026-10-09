@@ -15,6 +15,9 @@ const clearOptOut = vi.fn();
 const applyDeliveryStatus = vi.fn();
 const recordAuditLog = vi.fn();
 const liveSegmentsSentSince = vi.fn();
+const listSavedAnnouncements = vi.fn();
+const createSavedAnnouncement = vi.fn();
+const deleteSavedAnnouncement = vi.fn();
 const listTemplates = vi.fn();
 const saveTemplate = vi.fn();
 const resetTemplate = vi.fn();
@@ -27,6 +30,12 @@ vi.mock('./verses.js', () => ({ churchToday: () => '2026-10-11' }));
 vi.mock('../lib/sms/audience.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/sms/audience.js')>()),
   resolveAudience,
+}));
+vi.mock('../lib/sms/savedAnnouncements.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/sms/savedAnnouncements.js')>()),
+  listSavedAnnouncements,
+  createSavedAnnouncement,
+  deleteSavedAnnouncement,
 }));
 vi.mock('../lib/sms/templateStore.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/sms/templateStore.js')>()),
@@ -98,6 +107,9 @@ const GUARDED: Array<[string, string]> = [
   ['POST', '/messages/send'],
   ['POST', '/messages/test'],
   ['GET', '/messages/log'],
+  ['GET', '/messages/saved'],
+  ['POST', '/messages/saved'],
+  ['DELETE', `/messages/saved/${UUID}`],
   ['GET', '/messages/templates'],
   ['POST', '/messages/templates/preview'],
   ['PUT', '/messages/templates/birthday'],
@@ -484,5 +496,56 @@ describe('editable message wording', () => {
     expect(res.status).toBe(200);
     expect(resetTemplate).toHaveBeenCalledWith({}, 'visitor_welcome');
     expect(recordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'sms.template_reset' }));
+  });
+});
+
+describe('saved announcements', () => {
+  const row = { id: UUID, title: 'Service time', body: 'Service moves to 9am.', createdAt: new Date('2026-10-12T08:00:00Z') };
+
+  it('lists saved messages for leaders', async () => {
+    asRole('bishop');
+    listSavedAnnouncements.mockResolvedValue([row]);
+    const res = await call('GET', '/messages/saved');
+    const json = (await res.json()) as { saved: unknown[]; limit: number };
+    expect(res.status).toBe(200);
+    expect(json.saved).toHaveLength(1);
+    expect(json.limit).toBe(50);
+  });
+
+  it('saves a named message and records who saved it', async () => {
+    asRole('admin');
+    createSavedAnnouncement.mockResolvedValue(row);
+    const res = await call('POST', '/messages/saved', { title: '  Service time ', body: '  Service moves to 9am.  ' });
+    expect(res.status).toBe(201);
+    expect(createSavedAnnouncement).toHaveBeenCalledWith({}, { title: 'Service time', body: 'Service moves to 9am.' }, 'user-1');
+  });
+
+  it.each([
+    [{ title: '', body: 'x' }],
+    [{ title: 'No body', body: '   ' }],
+    [{ title: 'x'.repeat(81), body: 'x' }],
+    [{ title: 'Too long', body: 'x'.repeat(400) }],
+    [{ body: 'no title' }],
+  ])('rejects an incomplete or oversized message %#', async (body) => {
+    asRole('bishop');
+    const res = await call('POST', '/messages/saved', body);
+    expect(res.status).toBe(400);
+    expect(createSavedAnnouncement).not.toHaveBeenCalled();
+  });
+
+  it('tells the leader when the list is full', async () => {
+    asRole('bishop');
+    createSavedAnnouncement.mockResolvedValue(null);
+    const res = await call('POST', '/messages/saved', { title: 'One more', body: 'Hello' });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain('Delete one first');
+  });
+
+  it('deletes a saved message, and 404s for one that is gone', async () => {
+    asRole('bishop');
+    deleteSavedAnnouncement.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    expect((await call('DELETE', `/messages/saved/${UUID}`)).status).toBe(200);
+    expect((await call('DELETE', `/messages/saved/${UUID}`)).status).toBe(404);
+    expect((await call('DELETE', '/messages/saved/not-a-uuid')).status).toBe(400);
   });
 });

@@ -117,6 +117,16 @@ export function validateMessageText(value: unknown): Result<string> {
   return { ok: true, data: trimmed };
 }
 
+export function validateSavedAnnouncement(body: unknown): Result<{ title: string; body: string }> {
+  if (!isRecord(body)) return fail('Request body must be an object.');
+  if (typeof body.title !== 'string' || body.title.trim() === '') return fail('Give the message a short name.');
+  const title = body.title.trim();
+  if (title.length > 80) return fail('The name must be 80 characters or less.');
+  const text = validateMessageText(body.body);
+  if (!text.ok) return text;
+  return { ok: true, data: { title, body: text.data } };
+}
+
 export function validatePreviewBody(body: unknown): Result<{ message: string; audience: Audience }> {
   if (!isRecord(body)) return fail('Request body must be an object.');
   const message = validateMessageText(body.message);

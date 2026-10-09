@@ -23,6 +23,7 @@ import {
   type SmsDeps,
 } from '../lib/sms/service.js';
 import { createDbStore, defaultSmsDeps } from '../lib/sms/store.js';
+import { MAX_SAVED_ANNOUNCEMENTS, createSavedAnnouncement, deleteSavedAnnouncement, listSavedAnnouncements } from '../lib/sms/savedAnnouncements.js';
 import { listTemplates, resetTemplate, saveTemplate, buildTemplateView } from '../lib/sms/templateStore.js';
 import { announcementMessage, checkTemplateBody, isTemplateKey } from '../lib/sms/templates.js';
 import {
@@ -32,6 +33,7 @@ import {
   validateVisitorBody,
   validateVisitorPatch,
   validateMessageText,
+  validateSavedAnnouncement,
 } from '../lib/sms/validation.js';
 import { recordVisit, registerVisitor, sendVisitorWelcome } from '../lib/sms/visitors.js';
 import { churchToday } from './verses.js';
@@ -415,6 +417,44 @@ messagingRoutes.put('/me/sms-preferences', authMiddleware, async (c) => {
   } catch (err) {
     console.error('Error saving SMS preferences:', err);
     return c.json({ error: 'Could not save your text message settings.' }, 500);
+  }
+});
+
+// ── Saved announcements (reuse instead of retyping) ──────────────────────────
+
+messagingRoutes.get('/messages/saved', ...leaders, async (c) => {
+  try {
+    return c.json({ saved: await listSavedAnnouncements(db), limit: MAX_SAVED_ANNOUNCEMENTS });
+  } catch (err) {
+    console.error('Error loading saved announcements:', err);
+    return c.json({ error: 'Could not load saved messages.' }, 500);
+  }
+});
+
+messagingRoutes.post('/messages/saved', ...leaders, createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'sms-saved-create' }), async (c) => {
+  try {
+    const parsed = validateSavedAnnouncement(await jsonBody(c));
+    if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+
+    const saved = await createSavedAnnouncement(db, parsed.data, c.get('user').id);
+    if (!saved) return c.json({ error: `You can keep up to ${MAX_SAVED_ANNOUNCEMENTS} saved messages. Delete one first.` }, 400);
+    return c.json({ saved }, 201);
+  } catch (err) {
+    console.error('Error saving announcement:', err);
+    return c.json({ error: 'Could not save the message.' }, 500);
+  }
+});
+
+messagingRoutes.delete('/messages/saved/:id', ...leaders, async (c) => {
+  try {
+    const id = validateUuid(c.req.param('id'), 'id');
+    if (!id.ok) return c.json({ error: id.error }, 400);
+
+    if (!(await deleteSavedAnnouncement(db, id.data))) return c.json({ error: 'Saved message not found.' }, 404);
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting saved announcement:', err);
+    return c.json({ error: 'Could not delete the message.' }, 500);
   }
 });
 

@@ -43,6 +43,16 @@ const PURPOSE_LABEL: Record<string, string> = {
   test: 'Test',
 };
 
+// Starting points a leader can tap and then edit. Anything in [brackets] must be filled in first.
+const STARTER_IDEAS: Array<{ title: string; body: string }> = [
+  { title: 'Service time change', body: 'Please note: this Sunday\'s service will start at [time]. See you there!' },
+  { title: 'Prayer meeting', body: 'Join us for prayer on [day] at [time] at [place]. Come expecting God to move.' },
+  { title: 'Special event', body: 'You are invited to [event] on [date] at [time]. Bring a friend!' },
+  { title: 'Encouragement', body: 'Be encouraged this week: God is faithful and He is with you. Stay strong in the Lord.' },
+];
+
+const hasUnfilledBlank = (text: string) => /\[[^\]]+\]/.test(text);
+
 const cleanError = (err: Error) => err.message.replace(/^API error: \d+ – /, '');
 
 const formatTime = (iso: string) =>
@@ -59,6 +69,8 @@ export default function MessagesPage() {
   const [feedback, setFeedback] = useState<{ text: string; good: boolean } | null>(null);
 
   const circles = useQuery({ queryKey: ['circles'], queryFn: api.getCircles, enabled: audienceType === 'circle' });
+  const saved = useQuery({ queryKey: ['saved-messages'], queryFn: api.getSavedMessages, retry: false });
+  const [saveTitle, setSaveTitle] = useState<string | null>(null);
   const log = useQuery({ queryKey: ['message-log'], queryFn: api.getMessageLog, refetchInterval: 15_000 });
 
   const audience: MessageAudience | null =
@@ -88,6 +100,28 @@ export default function MessagesPage() {
     },
     onError: (err: Error) => setFeedback({ good: false, text: cleanError(err) }),
   });
+
+  const saveMutation = useMutation({
+    mutationFn: (title: string) => api.saveMessage(title, message),
+    onSuccess: () => {
+      setSaveTitle(null);
+      setFeedback({ good: true, text: 'Saved. Find it under "Start from" next time.' });
+      queryClient.invalidateQueries({ queryKey: ['saved-messages'] });
+    },
+    onError: (err: Error) => setFeedback({ good: false, text: cleanError(err) }),
+  });
+
+  const deleteSavedMutation = useMutation({
+    mutationFn: (id: string) => api.deleteSavedMessage(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-messages'] }),
+    onError: (err: Error) => setFeedback({ good: false, text: cleanError(err) }),
+  });
+
+  const useText = (body: string) => {
+    setMessage(body);
+    setSaveTitle(null);
+    resetPreview();
+  };
 
   const testMutation = useMutation({
     mutationFn: () => api.sendTestMessage(message),
@@ -130,7 +164,8 @@ export default function MessagesPage() {
     },
   });
 
-  const canPreview = message.trim().length > 0 && message.length <= MAX_LENGTH && audience !== null;
+  const blank = hasUnfilledBlank(message);
+  const canPreview = message.trim().length > 0 && message.length <= MAX_LENGTH && audience !== null && !blank;
   const blockers = preview
     ? [
         preview.tooLong && 'This message is too long once the opt-out line is added. Please shorten it.',
@@ -170,6 +205,74 @@ export default function MessagesPage() {
           <p className="text-[11px] text-white/35 mt-1 text-right">
             {message.length}/{MAX_LENGTH} · the church name and an opt-out line are added automatically
           </p>
+          {blank && <p className="text-[11px] text-amber-300 mt-1">Fill in the [bracketed] parts before sending.</p>}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[11px] uppercase tracking-wider text-white/30">Start from</p>
+          <div className="flex flex-wrap gap-2">
+            {STARTER_IDEAS.map((idea) => (
+              <button
+                key={idea.title}
+                type="button"
+                onClick={() => useText(idea.body)}
+                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:bg-white/10"
+              >
+                {idea.title}
+              </button>
+            ))}
+            {(saved.data?.saved ?? []).map((item) => (
+              <span key={item.id} className="inline-flex items-center rounded-lg bg-brand-500/10 border border-brand-500/25 text-xs text-brand-200">
+                <button type="button" onClick={() => useText(item.body)} title={item.body} className="pl-2.5 pr-1.5 py-1.5 hover:text-white">
+                  {item.title}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete saved message ${item.title}`}
+                  disabled={deleteSavedMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Delete the saved message "${item.title}"?`)) deleteSavedMutation.mutate(item.id);
+                  }}
+                  className="pr-2 py-1.5 text-white/35 hover:text-rose-300"
+                >
+                  &times;
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {saveTitle === null ? (
+            <button
+              type="button"
+              disabled={message.trim().length === 0}
+              onClick={() => setSaveTitle('')}
+              className="text-xs text-brand-300 hover:text-brand-200 disabled:opacity-40"
+            >
+              Save this message to reuse later
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                className={FIELD}
+                maxLength={80}
+                placeholder="A short name, e.g. Service time change"
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
+                aria-label="Name for this saved message"
+              />
+              <button
+                type="button"
+                disabled={saveTitle.trim().length === 0 || saveMutation.isPending}
+                onClick={() => saveMutation.mutate(saveTitle.trim())}
+                className="px-4 bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white font-semibold rounded-xl text-sm"
+              >
+                {saveMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setSaveTitle(null)} className="px-2 text-xs text-white/40 hover:text-white">
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         <label className="block text-xs text-white/50">
@@ -230,7 +333,7 @@ export default function MessagesPage() {
           </button>
           <button
             onClick={() => testMutation.mutate()}
-            disabled={message.trim().length === 0 || testMutation.isPending}
+            disabled={message.trim().length === 0 || blank || testMutation.isPending}
             className="px-4 bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition-colors"
           >
             Text me a test
