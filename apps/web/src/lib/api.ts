@@ -246,6 +246,23 @@ export interface MessagingStatus {
   maxAudienceSize: number;
 }
 
+export interface MessageTemplate {
+  key: 'visitor_welcome' | 'birthday' | 'daily_verse';
+  label: string;
+  when: string;
+  placeholders: Array<{ token: string; meaning: string }>;
+  required: string[];
+  defaultBody: string;
+  body: string;
+  isCustom: boolean;
+  updatedAt: string | null;
+  preview: { text: string; segments: number; encoding: 'gsm7' | 'ucs2'; characters: number };
+}
+
+export type TemplatePreview =
+  | { valid: false; error: string }
+  | { valid: true; body: string; preview: MessageTemplate['preview']; costPerMessageUsd: number | null };
+
 export interface MessagePreview {
   finalMessage: string;
   encoding: 'gsm7' | 'ucs2';
@@ -689,6 +706,13 @@ export const api = {
   sendVisitorWelcome: (id: string) =>
     apiFetch<{ status: string; reason?: string; detail?: string }>(`/visitors/${id}/welcome`, { method: 'POST' }),
   getMessagingStatus: () => apiFetch<MessagingStatus>('/messages/status'),
+  getMessageTemplates: () => apiFetch<{ templates: MessageTemplate[] }>('/messages/templates'),
+  previewMessageTemplate: (key: MessageTemplate['key'], body: string) =>
+    apiFetch<TemplatePreview>('/messages/templates/preview', { method: 'POST', body: JSON.stringify({ key, body }) }),
+  saveMessageTemplate: (key: MessageTemplate['key'], body: string) =>
+    apiFetch<{ template: MessageTemplate }>(`/messages/templates/${key}`, { method: 'PUT', body: JSON.stringify({ body }) }),
+  resetMessageTemplate: (key: MessageTemplate['key']) =>
+    apiFetch<{ template: MessageTemplate }>(`/messages/templates/${key}`, { method: 'DELETE' }),
   previewMessage: (message: string, audience: MessageAudience) =>
     apiFetch<MessagePreview>('/messages/preview', { method: 'POST', body: JSON.stringify({ message, audience }) }),
   sendMessage: (message: string, audience: MessageAudience, confirmRecipients: number) =>

@@ -467,6 +467,14 @@ export const smsOptOuts = pgTable('sms_opt_outs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Leader-edited wording for the standing texts. A missing row means "use the built-in default". */
+export const messageTemplates = pgTable('message_templates', {
+  key: varchar('key', { length: 30 }).primaryKey(),
+  body: text('body').notNull(),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Every message attempt (sent, dry-run, blocked or failed): the audit trail and the spend meter. */
 export const messageLog = pgTable(
   'message_log',

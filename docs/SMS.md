@@ -12,6 +12,19 @@ from **test mode** to sending real texts.
 | Members | Announcements, the daily verse, a birthday blessing | Each member switches on what they want under **Profile → Text messages** |
 | Leaders | Send an announcement | **Bishop → Text messages**: write, preview who it reaches and what it costs, confirm, send |
 
+## Changing the wording
+
+**Bishop → Text messages → Change what the thank-you, birthday and daily verse texts say** (or **Bishop → Message wording**)
+lets a bishop or admin edit the three standing texts. Drop in `{first_name}`, `{church}`, and for the daily verse
+`{reference}` and `{verse}` with the buttons; a live preview shows the finished text, its length in segments and its
+cost. **Reset to original** restores the built-in wording. Notes:
+
+- "Reply STOP to opt out." is always added by the system and cannot be removed (typing it yourself is harmless; it is not doubled).
+- The daily verse must contain `{verse}`, and is shortened automatically so it never exceeds two segments.
+- Changes apply to the next text sent. Texts already sent are unchanged, and every change is recorded in the audit log.
+- Needs migration `0007_message_templates.sql`. Without it the built-in wording is used and nothing breaks.
+- One-off announcements are still written on the Text messages page. WhatsApp wording is not covered (WhatsApp is not built yet).
+
 ## Test mode (the default)
 
 Until `SMS_PROVIDER` is set, nothing is sent and nothing is charged. Every screen works as

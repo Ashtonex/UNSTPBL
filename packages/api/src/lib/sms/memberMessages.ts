@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, messageLog, smsConsents, smsOptOuts, users, type
 import { cleanVerseText } from '@unstpbl/shared';
 import { normalizePhone } from './phone.js';
 import { sendSms, type SmsDeps } from './service.js';
+import { getTemplateBody } from './templateStore.js';
 import { birthdayGreetingMessage, dailyVerseMessage } from './templates.js';
 
 export interface SmsPreferences {
@@ -65,7 +66,7 @@ export async function sendBirthdayGreeting(database: Database, deps: SmsDeps, us
 
   return sendSms(deps, {
     to: row.phone,
-    body: birthdayGreetingMessage(row.name),
+    body: birthdayGreetingMessage(row.name, await getTemplateBody(database, 'birthday')),
     purpose: 'birthday',
     recipientUserId: userId,
   });
@@ -128,13 +129,14 @@ export async function sendDailyVerses(
     );
   const alreadySent = new Set(already.map((row) => row.userId));
 
+  const verseTemplate = await getTemplateBody(database, 'daily_verse');
   const messageByTranslation = new Map<string, string>();
   const messageFor = async (translation: string) => {
     const cached = messageByTranslation.get(translation);
     if (cached) return cached;
     const payload = await options.getVerse(translation);
     const reference = `${payload.book.name} ${payload.verse.chapter}:${payload.verse.verseNumber}`;
-    const message = dailyVerseMessage(reference, cleanVerseText(payload.verse.text));
+    const message = dailyVerseMessage(reference, cleanVerseText(payload.verse.text), verseTemplate);
     messageByTranslation.set(translation, message);
     return message;
   };

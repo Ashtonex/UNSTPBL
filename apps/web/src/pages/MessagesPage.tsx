@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type MessageAudience, type MessageLogEntry, type MessagePreview } from '../lib/api';
 import SmsModeBanner from '../components/SmsModeBanner';
@@ -144,6 +145,9 @@ export default function MessagesPage() {
       <section>
         <h2 className="text-2xl font-bold text-white mb-1">Text messages</h2>
         <p className="text-white/40 text-sm">Send an announcement to members or visitors who agreed to hear from the church.</p>
+        <Link to="/messages/wording" className="inline-block mt-2 text-xs text-brand-300 hover:text-brand-200">
+          Change what the thank-you, birthday and daily verse texts say &rarr;
+        </Link>
       </section>
 
       <SmsModeBanner />

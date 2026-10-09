@@ -23,7 +23,8 @@ import {
   type SmsDeps,
 } from '../lib/sms/service.js';
 import { createDbStore, defaultSmsDeps } from '../lib/sms/store.js';
-import { announcementMessage } from '../lib/sms/templates.js';
+import { listTemplates, resetTemplate, saveTemplate, buildTemplateView } from '../lib/sms/templateStore.js';
+import { announcementMessage, checkTemplateBody, isTemplateKey } from '../lib/sms/templates.js';
 import {
   validatePreviewBody,
   validateSendBody,
@@ -414,6 +415,74 @@ messagingRoutes.put('/me/sms-preferences', authMiddleware, async (c) => {
   } catch (err) {
     console.error('Error saving SMS preferences:', err);
     return c.json({ error: 'Could not save your text message settings.' }, 500);
+  }
+});
+
+// ── Editable wording for the standing texts ──────────────────────────────────
+
+messagingRoutes.get('/messages/templates', ...leaders, async (c) => {
+  try {
+    return c.json({ templates: await listTemplates(db) });
+  } catch (err) {
+    console.error('Error loading message templates:', err);
+    return c.json({ error: 'Could not load the message wording.' }, 500);
+  }
+});
+
+// Lets the editor show the finished text, length and cost as the leader types. Saves nothing.
+messagingRoutes.post('/messages/templates/preview', ...leaders, createRateLimit({ windowMs: 60_000, max: 90, keyPrefix: 'sms-template-preview' }), async (c) => {
+  try {
+    const input = (await jsonBody(c)) as { key?: unknown; body?: unknown } | null;
+    if (!input || !isTemplateKey(input.key)) return c.json({ error: 'Unknown message.' }, 400);
+
+    const checked = checkTemplateBody(input.key, input.body);
+    if (!checked.ok) return c.json({ valid: false, error: checked.error });
+
+    const view = buildTemplateView(input.key, { body: checked.body, updatedAt: new Date() });
+    const settings = readSmsSettings();
+    return c.json({
+      valid: true,
+      body: checked.body,
+      preview: view.preview,
+      costPerMessageUsd: settings.costPerSegmentUsd === null ? null : Number((settings.costPerSegmentUsd * view.preview.segments).toFixed(4)),
+    });
+  } catch (err) {
+    console.error('Error previewing message wording:', err);
+    return c.json({ error: 'Could not prepare the preview.' }, 500);
+  }
+});
+
+messagingRoutes.put('/messages/templates/:key', ...leaders, createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'sms-template-save' }), async (c) => {
+  try {
+    const key = c.req.param('key');
+    if (!isTemplateKey(key)) return c.json({ error: 'Unknown message.' }, 404);
+
+    const input = (await jsonBody(c)) as { body?: unknown } | null;
+    const checked = checkTemplateBody(key, input?.body);
+    if (!checked.ok) return c.json({ error: checked.error }, 400);
+
+    const actor = c.get('user');
+    const template = await saveTemplate(db, key, checked.body, actor.id);
+    await recordAuditLog({ actor, action: 'sms.template_updated', targetType: 'sms_template', targetId: key, metadata: { key } });
+    return c.json({ template });
+  } catch (err) {
+    console.error('Error saving message wording:', err);
+    return c.json({ error: 'Could not save the wording.' }, 500);
+  }
+});
+
+messagingRoutes.delete('/messages/templates/:key', ...leaders, async (c) => {
+  try {
+    const key = c.req.param('key');
+    if (!isTemplateKey(key)) return c.json({ error: 'Unknown message.' }, 404);
+
+    const actor = c.get('user');
+    const template = await resetTemplate(db, key);
+    await recordAuditLog({ actor, action: 'sms.template_reset', targetType: 'sms_template', targetId: key, metadata: { key } });
+    return c.json({ template });
+  } catch (err) {
+    console.error('Error resetting message wording:', err);
+    return c.json({ error: 'Could not reset the wording.' }, 500);
   }
 });
 

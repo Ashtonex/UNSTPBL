@@ -371,6 +371,10 @@ export default function BishopPage() {
             {messagingStatus?.dryRun ? 'Test mode: nothing is sent.' : 'Announcements and history.'}
           </p>
         </Link>
+        <Link to="/messages/wording" className="glass-card p-4 block hover:bg-white/5 transition-colors col-span-2">
+          <p className="text-white font-semibold text-sm">Message wording</p>
+          <p className="text-white/40 text-xs mt-1">Edit the thank-you, birthday and daily verse texts.</p>
+        </Link>
       </div>
 
       {/* Stats Grid */}

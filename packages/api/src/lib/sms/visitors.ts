@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql, visitorVisits, visitors, type Database } from '@unstpbl/db';
 import { sendSms, type SmsDeps, type SendFailureReason, type LogStatus } from './service.js';
+import { getTemplateBody } from './templateStore.js';
 import { visitorWelcomeMessage } from './templates.js';
 
 export type Visitor = typeof visitors.$inferSelect;
@@ -73,7 +74,7 @@ export async function sendVisitorWelcome(
   try {
     result = await sendSms(deps, {
       to: claimed.phone,
-      body: visitorWelcomeMessage(claimed.fullName),
+      body: visitorWelcomeMessage(claimed.fullName, await getTemplateBody(database, 'visitor_welcome')),
       purpose: 'visitor_welcome',
       recipientVisitorId: claimed.id,
       createdBy: actorId,

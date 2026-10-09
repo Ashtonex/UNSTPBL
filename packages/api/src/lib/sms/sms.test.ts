@@ -5,6 +5,7 @@ import {
   OPT_OUT_LINE,
   announcementMessage,
   birthdayGreetingMessage,
+  checkTemplateBody,
   dailyVerseMessage,
   firstName,
   visitorWelcomeMessage,
@@ -132,5 +133,55 @@ describe('message templates', () => {
     expect(message).toContain('Thy word is a lamp unto my feet, and a light unto my path.');
     expect(message).not.toContain('...');
     expect(analyzeSms(message).encoding).toBe('gsm7');
+  });
+});
+
+describe('editable message wording', () => {
+  afterEach(() => {
+    delete process.env.CHURCH_NAME;
+  });
+
+  it("uses a leader's own wording and still adds the opt-out line itself", () => {
+    process.env.CHURCH_NAME = 'Test Church';
+    const message = visitorWelcomeMessage('grace moyo', 'Welcome {first_name}! God bless you from all of us at {church}.');
+    expect(message).toBe(`Welcome Grace! God bless you from all of us at Test Church. ${OPT_OUT_LINE}`);
+  });
+
+  it('leaves out an unknown token rather than sending it as typed', () => {
+    const message = birthdayGreetingMessage('tendai', 'Hi {first_name}, {oops}God bless!');
+    expect(message).toBe(`Hi Tendai, God bless! ${OPT_OUT_LINE}`);
+    expect(message).not.toContain('{');
+  });
+
+  it('keeps a long verse inside two segments whatever the wording around it', () => {
+    const longVerse = 'For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. '.repeat(4);
+    const message = dailyVerseMessage('John 3:16', longVerse, "Today's Word from {church} - {reference}: {verse} Have a blessed day.");
+    expect(analyzeSms(message).segments).toBeLessThanOrEqual(2);
+    expect(message).toContain('Have a blessed day.');
+    expect(message.endsWith(OPT_OUT_LINE)).toBe(true);
+  });
+
+  it('accepts good wording and removes a hand-typed opt-out line', () => {
+    const checked = checkTemplateBody('visitor_welcome', 'Hi {first_name}, thanks for coming!  Reply STOP to opt out.');
+    expect(checked).toEqual({ ok: true, body: 'Hi {first_name}, thanks for coming!' });
+  });
+
+  it.each([
+    ['visitor_welcome', '', 'cannot be empty'],
+    ['visitor_welcome', '   ', 'cannot be empty'],
+    ['visitor_welcome', 'Hi {verse}', 'not available'],
+    ['birthday', 'Hi {surname}', 'not available'],
+    ['daily_verse', 'Here is a word from {church}', 'must include {verse}'],
+    ['visitor_welcome', 'x'.repeat(400), 'under 320'],
+    ['daily_verse', `${'y'.repeat(260)} {verse}`, 'too little room'],
+  ] as const)('rejects %s wording %#', (key, body, message) => {
+    const checked = checkTemplateBody(key, body);
+    expect(checked.ok).toBe(false);
+    if (!checked.ok) expect(checked.error).toContain(message);
+  });
+
+  it('rejects wording that is not text', () => {
+    expect(checkTemplateBody('birthday', 42).ok).toBe(false);
+    expect(checkTemplateBody('birthday', null).ok).toBe(false);
   });
 });

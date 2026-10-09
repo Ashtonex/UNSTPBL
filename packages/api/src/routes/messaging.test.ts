@@ -15,6 +15,9 @@ const clearOptOut = vi.fn();
 const applyDeliveryStatus = vi.fn();
 const recordAuditLog = vi.fn();
 const liveSegmentsSentSince = vi.fn();
+const listTemplates = vi.fn();
+const saveTemplate = vi.fn();
+const resetTemplate = vi.fn();
 const log: LogEntry[] = [];
 
 vi.mock('../lib/db.js', () => ({ db: {} }));
@@ -24,6 +27,12 @@ vi.mock('./verses.js', () => ({ churchToday: () => '2026-10-11' }));
 vi.mock('../lib/sms/audience.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/sms/audience.js')>()),
   resolveAudience,
+}));
+vi.mock('../lib/sms/templateStore.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/sms/templateStore.js')>()),
+  listTemplates,
+  saveTemplate,
+  resetTemplate,
 }));
 vi.mock('../lib/sms/visitors.js', () => ({ registerVisitor, recordVisit, sendVisitorWelcome }));
 vi.mock('../lib/sms/memberMessages.js', () => ({ getSmsPreferences, saveSmsPreferences }));
@@ -89,6 +98,10 @@ const GUARDED: Array<[string, string]> = [
   ['POST', '/messages/send'],
   ['POST', '/messages/test'],
   ['GET', '/messages/log'],
+  ['GET', '/messages/templates'],
+  ['POST', '/messages/templates/preview'],
+  ['PUT', '/messages/templates/birthday'],
+  ['DELETE', '/messages/templates/birthday'],
   ['GET', '/visitors'],
   ['POST', '/visitors'],
   ['PUT', `/visitors/${UUID}`],
@@ -412,5 +425,64 @@ describe('member text preferences', () => {
   it('rejects incomplete or non-boolean preferences', async () => {
     expect((await call('PUT', '/me/sms-preferences', { announcements: true })).status).toBe(400);
     expect((await call('PUT', '/me/sms-preferences', { announcements: 'yes', dailyVerse: false, birthday: false })).status).toBe(400);
+  });
+});
+
+describe('editable message wording', () => {
+  const view = { key: 'visitor_welcome', body: 'Hi {first_name}!', isCustom: true };
+
+  it('lists the templates for leaders', async () => {
+    asRole('bishop');
+    listTemplates.mockResolvedValue([view]);
+    const res = await call('GET', '/messages/templates');
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { templates: unknown[] }).templates).toHaveLength(1);
+  });
+
+  it('previews wording without saving anything', async () => {
+    asRole('admin');
+    const res = await call('POST', '/messages/templates/preview', { key: 'visitor_welcome', body: 'Hi {first_name}, welcome!' });
+    const json = (await res.json()) as { valid: boolean; preview: { text: string; segments: number } };
+    expect(res.status).toBe(200);
+    expect(json.valid).toBe(true);
+    expect(json.preview.text).toContain('Hi Grace, welcome!');
+    expect(json.preview.text.endsWith('Reply STOP to opt out.')).toBe(true);
+    expect(saveTemplate).not.toHaveBeenCalled();
+  });
+
+  it('explains what is wrong with bad wording instead of failing', async () => {
+    asRole('bishop');
+    const res = await call('POST', '/messages/templates/preview', { key: 'daily_verse', body: 'No verse here' });
+    const json = (await res.json()) as { valid: boolean; error: string };
+    expect(json.valid).toBe(false);
+    expect(json.error).toContain('{verse}');
+  });
+
+  it('saves cleaned wording, records who changed it, and audits it', async () => {
+    asRole('bishop');
+    saveTemplate.mockResolvedValue(view);
+    const res = await call('PUT', '/messages/templates/visitor_welcome', { body: '  Hi {first_name}!  Reply STOP to opt out.' });
+    expect(res.status).toBe(200);
+    expect(saveTemplate).toHaveBeenCalledWith({}, 'visitor_welcome', 'Hi {first_name}!', 'user-1');
+    expect(recordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'sms.template_updated', targetId: 'visitor_welcome' }));
+  });
+
+  it('refuses to save invalid wording', async () => {
+    asRole('bishop');
+    const res = await call('PUT', '/messages/templates/daily_verse', { body: 'No verse here' });
+    expect(res.status).toBe(400);
+    expect(saveTemplate).not.toHaveBeenCalled();
+  });
+
+  it('404s for an unknown message and resets a known one', async () => {
+    asRole('bishop');
+    expect((await call('PUT', '/messages/templates/nonsense', { body: 'x' })).status).toBe(404);
+    expect((await call('DELETE', '/messages/templates/nonsense')).status).toBe(404);
+
+    resetTemplate.mockResolvedValue({ ...view, isCustom: false });
+    const res = await call('DELETE', '/messages/templates/visitor_welcome');
+    expect(res.status).toBe(200);
+    expect(resetTemplate).toHaveBeenCalledWith({}, 'visitor_welcome');
+    expect(recordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'sms.template_reset' }));
   });
 });
