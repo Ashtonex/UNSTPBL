@@ -76,3 +76,26 @@ Sentry is enabled only when DSNs are configured:
 7. Deploy API.
 8. Deploy web.
 9. Verify `/health`, login, today's verse, and scheduled push dispatch.
+
+## Scheduled jobs and keeping the API awake
+
+The GitHub workflow `.github/workflows/keepalive.yml` pings the API and calls the scheduled endpoints, but GitHub does
+**not** run a `*/10` schedule on time: on a quiet repository it runs every few hours (measured in October 2026: roughly
+every 3 to 7 hours). Treat it as a best-effort backup. What that means in practice:
+
+- The free Render API sleeps after 15 minutes without traffic, so the first visitor after a quiet spell can wait up to a
+  minute or more for a cold start.
+- Birthday and daily-verse jobs cannot rely on an exact hour. The birthday call is safe on every run (one post per person
+  per year); the daily verse runs on the first run in a 05:00-11:00 UTC window and skips anyone already texted that day.
+
+For reliable timing use an external scheduler (free options include cron-job.org). Create these jobs, each with the header
+`x-cron-secret: <your CRON_SECRET>` where noted:
+
+| Job | URL | Method | When |
+| --- | --- | --- | --- |
+| Keep warm | `https://unstpbl-api.onrender.com/health` | GET | every 5 minutes |
+| Scheduled push | `https://unstpbl-api.onrender.com/cron/push/dispatch-due` | POST + secret header | every 5 minutes |
+| Birthdays | `https://unstpbl-api.onrender.com/cron/birthdays/dispatch-today` | POST + secret header | daily, 06:00 Harare |
+| Daily verse texts | `https://unstpbl-api.onrender.com/cron/sms/daily-verse` | POST + secret header | daily, 07:00 Harare |
+
+The other fix is to move the API to a paid instance (about $7 a month), which never sleeps.

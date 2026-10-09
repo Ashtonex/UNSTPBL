@@ -5,6 +5,12 @@ name: Keep API warm and run scheduled jobs
 # minutes keeps it awake. The same job triggers the scheduled push and birthday
 # endpoints, which otherwise have nothing calling them.
 #
+# IMPORTANT: GitHub does not run "*/10" schedules on time. On a quiet repository it runs them
+# every few hours (measured: roughly every 3 to 7 hours), so this is a best-effort backup,
+# not a clock. Do not rely on any job below firing at a particular hour. For a reliable
+# keep-warm ping and reliable daily jobs, point an external scheduler (for example
+# cron-job.org, which is free) at the same URLs; see docs/OPERATIONS.md.
+#
 # One-time setup: Render dashboard -> unstpbl-api -> Environment -> copy CRON_SECRET,
 # then GitHub -> Settings -> Secrets and variables -> Actions -> New secret named
 # CRON_SECRET. Without it only the keep-warm ping runs.
@@ -36,25 +42,24 @@ jobs:
             -H "x-cron-secret: $CRON_SECRET" \
             "$API_URL/cron/push/dispatch-due"
 
-      - name: Dispatch today's birthday announcements (06:00 Harare)
-        # Idempotent on the server (one post per person per year); once a day is enough.
-        if: env.CRON_SECRET != '' && github.event_name == 'schedule'
+      - name: Dispatch today's birthday announcements
+        # Idempotent on the server (one post per person per year), so it is safe on every run.
+        # It used to wait for the 04:00 UTC hour, but GitHub's schedule almost never fires then.
+        if: env.CRON_SECRET != ''
         run: |
-          if [ "$(date -u +%H)" = "04" ]; then
-            curl -fsS --max-time 60 -X POST \
-              -H "x-cron-secret: $CRON_SECRET" \
-              "$API_URL/cron/birthdays/dispatch-today"
-          else
-            echo "Not the daily birthday window, skipping."
-          fi
+          curl -fsS --max-time 60 -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "$API_URL/cron/birthdays/dispatch-today"
 
-      - name: Text today's verse to members who opted in (07:00 Harare)
+      - name: Text today's verse to members who opted in (morning, 07:00 to 13:00 Harare)
         # Only reaches members who switched on "Today's verse" texts. Safe to repeat: the
         # server skips anyone already messaged today. While SMS is in test mode it only records
-        # test entries in the message history; nothing is sent.
+        # test entries in the message history; nothing is sent. Runs on the first run inside
+        # the morning window, because GitHub's schedule cannot hit a single exact hour.
         if: env.CRON_SECRET != '' && github.event_name == 'schedule'
         run: |
-          if [ "$(date -u +%H)" = "05" ]; then
+          hour=$((10#$(date -u +%H)))
+          if [ "$hour" -ge 5 ] && [ "$hour" -lt 11 ]; then
             curl -fsS --max-time 90 -X POST \
               -H "x-cron-secret: $CRON_SECRET" \
               "$API_URL/cron/sms/daily-verse"
