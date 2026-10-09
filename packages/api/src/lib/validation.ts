@@ -1,9 +1,11 @@
+import { USER_ROLES, type UserRole } from '@unstpbl/shared';
+
 type ValidationResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
 const SUPPORTED_TRANSLATIONS = new Set(['KJV', 'ESV']);
-const SUPPORTED_ROLES = new Set(['member', 'bishop', 'admin']);
+const SUPPORTED_ROLES = new Set<string>(USER_ROLES);
 const BIRTHDAY_VISIBILITY = new Set(['members', 'private']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -87,12 +89,12 @@ function isoDate(value: unknown): ValidationResult<string> {
   return { ok: true, data: value };
 }
 
-export function validateRoleUpdateBody(body: unknown): ValidationResult<{ role: 'member' | 'bishop' | 'admin' }> {
+export function validateRoleUpdateBody(body: unknown): ValidationResult<{ role: UserRole }> {
   if (!isRecord(body)) return { ok: false, error: 'Request body must be an object' };
   if (typeof body.role !== 'string' || !SUPPORTED_ROLES.has(body.role)) {
-    return { ok: false, error: 'role must be one of: member, bishop, admin' };
+    return { ok: false, error: `role must be one of: ${USER_ROLES.join(', ')}` };
   }
-  return { ok: true, data: { role: body.role as 'member' | 'bishop' | 'admin' } };
+  return { ok: true, data: { role: body.role as UserRole } };
 }
 
 export function validateUuid(value: unknown, field: string): ValidationResult<string> {

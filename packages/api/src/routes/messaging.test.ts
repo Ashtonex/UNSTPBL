@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Hono } from 'hono';
+import { USER_ROLES, can, type Capability } from '@unstpbl/shared';
 import type { LogEntry, SmsDeps } from '../lib/sms/service.js';
 
 const resolveAuth = vi.fn();
@@ -605,5 +606,76 @@ describe('saved announcements', () => {
     expect((await call('DELETE', `/messages/saved/${UUID}`)).status).toBe(200);
     expect((await call('DELETE', `/messages/saved/${UUID}`)).status).toBe(404);
     expect((await call('DELETE', '/messages/saved/not-a-uuid')).status).toBe(400);
+  });
+});
+
+describe('staff roles', () => {
+  // Every guarded route with the capability that should unlock it.
+  const ROUTES: Array<[string, string, Capability]> = [
+    ['GET', '/messages/status', 'staff.hub'],
+    ['GET', '/visitors', 'visitors.view'],
+    ['POST', '/visitors', 'visitors.register'],
+    ['POST', `/visitors/${UUID}/visit`, 'visitors.register'],
+    ['POST', `/visitors/${UUID}/welcome`, 'visitors.register'],
+    ['PUT', `/visitors/${UUID}`, 'visitors.followup'],
+    ['GET', '/messages/log', 'messages.view'],
+    ['POST', '/messages/preview', 'messages.send'],
+    ['POST', '/messages/send', 'messages.send'],
+    ['POST', '/messages/test', 'messages.send'],
+    ['GET', '/messages/saved', 'messages.send'],
+    ['POST', '/messages/saved', 'messages.send'],
+    ['DELETE', `/messages/saved/${UUID}`, 'messages.send'],
+    ['GET', '/messages/templates', 'messages.wording'],
+    ['POST', '/messages/templates/preview', 'messages.wording'],
+    ['PUT', '/messages/templates/birthday', 'messages.wording'],
+    ['DELETE', '/messages/templates/birthday', 'messages.wording'],
+  ];
+
+  it.each(USER_ROLES.flatMap((role) => ROUTES.map(([method, path, capability]) => [role, method, path, capability] as const)))(
+    '%s on %s %s (needs %s) is allowed or refused exactly as the role table says',
+    async (role, method, path, capability) => {
+      asRole(role);
+      // Not-yet-valid bodies are fine: we only care whether the role gets past the guard (403) or not.
+      const res = await call(method, path, method === 'GET' ? undefined : {});
+      expect(res.status === 403).toBe(!can(role, capability));
+    },
+  );
+
+  it('an usher can register a guest but cannot read the message history or change follow-up notes', async () => {
+    asRole('usher');
+    registerVisitor.mockResolvedValue({ visitor: { id: UUID }, created: true, visitRecorded: true, welcome: { status: 'skipped' } });
+    const created = await call('POST', '/visitors', { fullName: 'Grace Moyo', phone: '0771234567', smsConsent: true });
+    expect(created.status).not.toBe(403);
+    expect((await call('GET', '/messages/log')).status).toBe(403);
+    expect((await call('PUT', `/visitors/${UUID}`, { followupStatus: 'contacted' })).status).toBe(403);
+  });
+
+  const audiences = [{ type: 'all_members' }, { type: 'leaders' }];
+  it.each(audiences)('a pastor may not text the whole church ($type), in preview or send', async (audience) => {
+    asRole('pastor');
+    const preview = await call('POST', '/messages/preview', { message: 'Hello', audience });
+    expect(preview.status).toBe(403);
+    expect(((await preview.json()) as { error: string }).error).toContain('congregation');
+    const sent = await call('POST', '/messages/send', { message: 'Hello', audience, confirmRecipients: 1 });
+    expect(sent.status).toBe(403);
+    expect(resolveAudience).not.toHaveBeenCalled();
+  });
+
+  it('a pastor may text a congregation, and communications may text everyone', async () => {
+    resolveAudience.mockResolvedValue({ recipients: [{ phone: '+263771111111', name: 'Ann' }], skippedInvalidPhone: 0, skippedOptedOut: 0 });
+
+    asRole('pastor');
+    expect((await call('POST', '/messages/preview', { message: 'Hello', audience: { type: 'congregation', congregation: 'Mutare Central' } })).status).toBe(200);
+
+    asRole('communications');
+    expect((await call('POST', '/messages/preview', { message: 'Hello', audience: { type: 'all_members' } })).status).toBe(200);
+  });
+
+  it('the Admin page can hand out every role, and rejects an unknown one', async () => {
+    const { validateRoleUpdateBody } = await import('../lib/validation.js');
+    for (const role of USER_ROLES) expect(validateRoleUpdateBody({ role })).toEqual({ ok: true, data: { role } });
+    const bad = validateRoleUpdateBody({ role: 'deacon' });
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error).toContain('usher');
   });
 });

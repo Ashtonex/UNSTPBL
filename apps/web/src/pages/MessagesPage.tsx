@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type MessageAudience, type MessageLogEntry, type MessagePreview } from '../lib/api';
+import { can } from '@unstpbl/shared';
 import SmsModeBanner from '../components/SmsModeBanner';
+import { useAuthStore } from '../stores/auth';
 
 const FIELD =
   'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none';
@@ -13,7 +15,7 @@ type AudienceType = MessageAudience['type'];
 
 const AUDIENCE_LABEL: Record<AudienceType, string> = {
   all_members: 'All members who opted in to announcements',
-  leaders: 'Bishops and admins (who opted in)',
+  leaders: 'Church leaders: pastors, communications, bishops, admins (who opted in)',
   visitors: 'Visitors who agreed to texts',
   congregation: 'One congregation',
   circle: 'One home circle',
@@ -58,10 +60,16 @@ const cleanError = (err: Error) => err.message.replace(/^API error: \d+ – /, '
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+// Pastors may text a congregation, a home circle or guests; only communications, bishops and admins may text everyone.
+const PASTOR_AUDIENCES: AudienceType[] = ['visitors', 'congregation', 'circle'];
+
 export default function MessagesPage() {
   const queryClient = useQueryClient();
+  const role = useAuthStore((state) => state.profile?.role);
+  const textsEveryone = can(role, 'messages.sendToAll');
+  const audienceChoices = (Object.keys(AUDIENCE_LABEL) as AudienceType[]).filter((type) => textsEveryone || PASTOR_AUDIENCES.includes(type));
   const [message, setMessage] = useState('');
-  const [audienceType, setAudienceType] = useState<AudienceType>('all_members');
+  const [audienceType, setAudienceType] = useState<AudienceType>(textsEveryone ? 'all_members' : 'visitors');
   const [congregation, setCongregation] = useState('');
   const [circleId, setCircleId] = useState('');
   const [preview, setPreview] = useState<MessagePreview | null>(null);
@@ -180,9 +188,11 @@ export default function MessagesPage() {
       <section>
         <h2 className="text-2xl font-bold text-white mb-1">Text messages</h2>
         <p className="text-white/40 text-sm">Send an announcement to members or visitors who agreed to hear from the church.</p>
-        <Link to="/messages/wording" className="inline-block mt-2 text-xs text-brand-300 hover:text-brand-200">
-          Change what the thank-you, birthday and daily verse texts say &rarr;
-        </Link>
+        {can(role, 'messages.wording') && (
+          <Link to="/messages/wording" className="inline-block mt-2 text-xs text-brand-300 hover:text-brand-200">
+            Change what the thank-you, birthday and daily verse texts say &rarr;
+          </Link>
+        )}
       </section>
 
       <SmsModeBanner />
@@ -285,7 +295,7 @@ export default function MessagesPage() {
               resetPreview();
             }}
           >
-            {(Object.keys(AUDIENCE_LABEL) as AudienceType[]).map((type) => (
+            {audienceChoices.map((type) => (
               <option key={type} value={type}>
                 {AUDIENCE_LABEL[type]}
               </option>

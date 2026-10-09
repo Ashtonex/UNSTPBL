@@ -18,7 +18,7 @@ import { relations } from 'drizzle-orm';
 
 // ── Enums ───────────────────────────────────────────────────────────────────
 
-export const userRoleEnum = pgEnum('user_role', ['member', 'bishop', 'admin']);
+export const userRoleEnum = pgEnum('user_role', ['member', 'usher', 'pastor', 'communications', 'bishop', 'admin']);
 export const testamentEnum = pgEnum('testament', ['old', 'new']);
 export const verseModeEnum = pgEnum('verse_mode', ['manual', 'sequential']);
 export const prayerStatusEnum = pgEnum('prayer_status', ['open', 'answered']);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ROLE_LABELS, USER_ROLES, isUserRole, type UserRole } from '@unstpbl/shared';
 import { api } from '../lib/api';
 
 export default function AdminPage() {
@@ -21,7 +22,7 @@ export default function AdminPage() {
 
   // 3. Mutation for updating user role
   const updateRoleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: 'member' | 'bishop' | 'admin' }) =>
+    mutationFn: ({ userId, role }: { userId: string; role: UserRole }) =>
       api.updateUserRole(userId, role),
     onSuccess: (data: any, variables) => {
       setSuccessMsg(`Successfully updated user to role: ${variables.role}`);
@@ -36,7 +37,7 @@ export default function AdminPage() {
     },
   });
 
-  const handleRoleChange = (userId: string, newRole: 'member' | 'bishop' | 'admin') => {
+  const handleRoleChange = (userId: string, newRole: UserRole) => {
     updateRoleMutation.mutate({ userId, role: newRole });
   };
 
@@ -198,9 +199,11 @@ export default function AdminPage() {
                           ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
                           : user.role === 'bishop' 
                             ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' 
-                            : 'bg-white/5 text-white/60'
+                            : isUserRole(user.role) && user.role !== 'member'
+                              ? 'bg-sky-500/10 text-sky-300 border border-sky-500/20'
+                              : 'bg-white/5 text-white/60'
                       }`}>
-                        {user.role}
+                        {isUserRole(user.role) ? ROLE_LABELS[user.role] : user.role}
                       </span>
                     </td>
                     <td className="py-4 text-right">
@@ -210,9 +213,11 @@ export default function AdminPage() {
                         disabled={updateRoleMutation.isPending}
                         className="bg-neutral-900 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"
                       >
-                        <option value="member">Make Member</option>
-                        <option value="bishop">Make Bishop</option>
-                        <option value="admin">Make Admin</option>
+                        {USER_ROLES.map((role) => (
+                          <option key={role} value={role}>
+                            Make {ROLE_LABELS[role]}
+                          </option>
+                        ))}
                       </select>
                     </td>
                   </tr>

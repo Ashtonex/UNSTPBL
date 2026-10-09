@@ -1,4 +1,6 @@
-export type UserRole = 'member' | 'bishop' | 'admin';
+import type { UserRole } from './roles.js';
+
+export type { UserRole };
 export type Testament = 'old' | 'new';
 export type VerseMode = 'manual' | 'sequential';
 

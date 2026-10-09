@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type RegisterVisitorResult, type Visitor } from '../lib/api';
+import { can } from '@unstpbl/shared';
 import SmsModeBanner from '../components/SmsModeBanner';
+import { useAuthStore } from '../stores/auth';
 
 const FIELD =
   'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none';
@@ -38,6 +40,7 @@ export default function VisitorsPage() {
   const [phone, setPhone] = useState('');
   const [invitedBy, setInvitedBy] = useState('');
   const [notes, setNotes] = useState('');
+  const canFollowUp = can(useAuthStore((state) => state.profile?.role), 'visitors.followup');
   const [smsConsent, setSmsConsent] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; good: boolean } | null>(null);
 
@@ -198,6 +201,7 @@ export default function VisitorsPage() {
                   Send welcome text
                 </button>
               )}
+              {canFollowUp && (
               <select
                 aria-label={`Follow-up status for ${visitor.fullName}`}
                 value={visitor.followupStatus}
@@ -209,6 +213,7 @@ export default function VisitorsPage() {
                 <option value="returning">Returning</option>
                 <option value="member">Now a member</option>
               </select>
+              )}
             </div>
           </article>
         ))}

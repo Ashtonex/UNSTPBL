@@ -8,6 +8,9 @@ export const DEFAULT_FALLBACK_VERSE = {
 
 export const ROLES = {
   MEMBER: 'member' as const,
+  USHER: 'usher' as const,
+  PASTOR: 'pastor' as const,
+  COMMUNICATIONS: 'communications' as const,
   BISHOP: 'bishop' as const,
   ADMIN: 'admin' as const,
 };

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { cleanVerseText } from '@unstpbl/shared';
-import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User } from '@unstpbl/shared';
+import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User, UserRole } from '@unstpbl/shared';
 
 // Bible APIs return text with translator braces, margin notes and hard line breaks;
 // clean it once here so every screen (card, search, history, favorites) reads well.
@@ -656,7 +656,7 @@ export const api = {
   },
   getAdminUsersList: () =>
     apiFetch<{ users: Array<{ id: string; email: string; role: string; displayName?: string; congregation?: string; createdAt: string }> }>('/admin/users'),
-  updateUserRole: (userId: string, role: 'member' | 'bishop' | 'admin') =>
+  updateUserRole: (userId: string, role: UserRole) =>
     apiFetch<{ success: boolean }>(`/admin/users/${userId}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),

@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 import { api } from './lib/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import RequireCapability from './components/RequireCapability';
 
 import HomePage from './pages/HomePage';
 
@@ -20,6 +21,7 @@ const BirthdaysPage = lazy(() => import('./pages/BirthdaysPage'));
 const VisitorsPage = lazy(() => import('./pages/VisitorsPage'));
 const MessagesPage = lazy(() => import('./pages/MessagesPage'));
 const MessageWordingPage = lazy(() => import('./pages/MessageWordingPage'));
+const TeamPage = lazy(() => import('./pages/TeamPage'));
 
 function RouteLoading() {
   return (
@@ -116,9 +118,31 @@ export default function App() {
           <Route path="search" element={<SearchPage />} />
           <Route path="bishop" element={<BishopPage />} />
           <Route path="admin" element={<AdminPage />} />
-          <Route path="visitors" element={<VisitorsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
-          <Route path="messages/wording" element={<MessageWordingPage />} />
+          <Route path="team" element={<TeamPage />} />
+          <Route
+            path="visitors"
+            element={
+              <RequireCapability capability="visitors.view">
+                <VisitorsPage />
+              </RequireCapability>
+            }
+          />
+          <Route
+            path="messages"
+            element={
+              <RequireCapability capability="messages.send">
+                <MessagesPage />
+              </RequireCapability>
+            }
+          />
+          <Route
+            path="messages/wording"
+            element={
+              <RequireCapability capability="messages.wording">
+                <MessageWordingPage />
+              </RequireCapability>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

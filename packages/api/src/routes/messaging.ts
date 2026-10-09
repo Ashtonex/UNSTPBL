@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
+import { can } from '@unstpbl/shared';
 import { desc, eq, ilike, messageLog, or, users, visitors } from '@unstpbl/db';
 import { db } from '../lib/db.js';
 import { recordAuditLog } from '../lib/audit.js';
 import { validateUuid } from '../lib/validation.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { bishopMiddleware } from '../middleware/bishop.js';
+import { guard } from '../middleware/capability.js';
 import { createRateLimit } from '../middleware/rateLimit.js';
 import { MAX_AUDIENCE_SIZE, resolveAudience, type Recipient } from '../lib/sms/audience.js';
 import { analyzeSms } from '../lib/sms/encoding.js';
@@ -43,7 +44,6 @@ export const messagingRoutes = new Hono();
 
 // Each route lists its guards explicitly. (A path-prefix `.use()` is merged into the
 // shared router and can leak onto unrelated routes; explicit is leak-proof.)
-const leaders = [authMiddleware, bishopMiddleware] as const;
 
 const SEND_CONCURRENCY = 8;
 const DUPLICATE_SEND_WINDOW_MS = 2 * 60_000;
@@ -61,6 +61,11 @@ function claimBatch(key: string, now = Date.now()): boolean {
 export function resetBatchGuardForTests(): void {
   recentBatches.clear();
 }
+
+/** Pastors may text a congregation, a home circle or guests; only communications, bishops and admins may text everyone. */
+const BROAD_AUDIENCES = new Set(['all_members', 'leaders']);
+const broadAudienceDenied = (role: string, audienceType: string) => BROAD_AUDIENCES.has(audienceType) && !can(role, 'messages.sendToAll');
+const BROAD_AUDIENCE_ERROR = 'Your role can text a congregation, a home circle or guests. Ask the Bishop or the communications team to message everyone.';
 
 const jsonBody = (c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => null);
 
@@ -109,7 +114,7 @@ async function pool<T>(items: T[], size: number, work: (item: T) => Promise<bool
 
 // ── Status, preview, send ────────────────────────────────────────────────────
 
-messagingRoutes.get('/messages/status', ...leaders, async (c) => {
+messagingRoutes.get('/messages/status', ...guard('staff.hub'), async (c) => {
   try {
     const settings = readSmsSettings();
     const provider = providerSummary();
@@ -137,10 +142,11 @@ messagingRoutes.get('/messages/status', ...leaders, async (c) => {
   }
 });
 
-messagingRoutes.post('/messages/preview', ...leaders, createRateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'sms-preview' }), async (c) => {
+messagingRoutes.post('/messages/preview', ...guard('messages.send'), createRateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'sms-preview' }), async (c) => {
   try {
     const parsed = validatePreviewBody(await jsonBody(c));
     if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+    if (broadAudienceDenied(c.get('user').role, parsed.data.audience.type)) return c.json({ error: BROAD_AUDIENCE_ERROR }, 403);
 
     const settings = readSmsSettings();
     const finalMessage = announcementMessage(parsed.data.message);
@@ -187,11 +193,12 @@ messagingRoutes.post('/messages/preview', ...leaders, createRateLimit({ windowMs
   }
 });
 
-messagingRoutes.post('/messages/send', ...leaders, createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'sms-send' }), async (c) => {
+messagingRoutes.post('/messages/send', ...guard('messages.send'), createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'sms-send' }), async (c) => {
   try {
     const actor = c.get('user');
     const parsed = validateSendBody(await jsonBody(c));
     if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+    if (broadAudienceDenied(actor.role, parsed.data.audience.type)) return c.json({ error: BROAD_AUDIENCE_ERROR }, 403);
 
     const settings = readSmsSettings();
     const finalMessage = announcementMessage(parsed.data.message);
@@ -306,7 +313,7 @@ export async function deliverAnnouncement(
   return summary;
 }
 
-messagingRoutes.post('/messages/test', ...leaders, createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'sms-test' }), async (c) => {
+messagingRoutes.post('/messages/test', ...guard('messages.send'), createRateLimit({ windowMs: 60_000, max: 5, keyPrefix: 'sms-test' }), async (c) => {
   try {
     const actor = c.get('user');
     const body = (await jsonBody(c)) as { message?: unknown } | null;
@@ -331,7 +338,7 @@ messagingRoutes.post('/messages/test', ...leaders, createRateLimit({ windowMs: 6
   }
 });
 
-messagingRoutes.get('/messages/log', ...leaders, async (c) => {
+messagingRoutes.get('/messages/log', ...guard('messages.view'), async (c) => {
   try {
     const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10) || 50, 1), 200);
     const purpose = c.req.query('purpose');
@@ -362,7 +369,7 @@ messagingRoutes.get('/messages/log', ...leaders, async (c) => {
 
 // ── Visitors ─────────────────────────────────────────────────────────────────
 
-messagingRoutes.get('/visitors', ...leaders, async (c) => {
+messagingRoutes.get('/visitors', ...guard('visitors.view'), async (c) => {
   try {
     const search = (c.req.query('search') || '').trim();
     const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '100', 10) || 100, 1), 300);
@@ -382,7 +389,7 @@ messagingRoutes.get('/visitors', ...leaders, async (c) => {
   }
 });
 
-messagingRoutes.post('/visitors', ...leaders, createRateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'visitor-create' }), async (c) => {
+messagingRoutes.post('/visitors', ...guard('visitors.register'), createRateLimit({ windowMs: 60_000, max: 40, keyPrefix: 'visitor-create' }), async (c) => {
   try {
     const actor = c.get('user');
     const parsed = validateVisitorBody(await jsonBody(c));
@@ -396,7 +403,7 @@ messagingRoutes.post('/visitors', ...leaders, createRateLimit({ windowMs: 60_000
   }
 });
 
-messagingRoutes.put('/visitors/:id', ...leaders, async (c) => {
+messagingRoutes.put('/visitors/:id', ...guard('visitors.followup'), async (c) => {
   try {
     const id = validateUuid(c.req.param('id'), 'id');
     if (!id.ok) return c.json({ error: id.error }, 400);
@@ -412,7 +419,7 @@ messagingRoutes.put('/visitors/:id', ...leaders, async (c) => {
   }
 });
 
-messagingRoutes.post('/visitors/:id/visit', ...leaders, async (c) => {
+messagingRoutes.post('/visitors/:id/visit', ...guard('visitors.register'), async (c) => {
   try {
     const id = validateUuid(c.req.param('id'), 'id');
     if (!id.ok) return c.json({ error: id.error }, 400);
@@ -429,7 +436,7 @@ messagingRoutes.post('/visitors/:id/visit', ...leaders, async (c) => {
   }
 });
 
-messagingRoutes.post('/visitors/:id/welcome', ...leaders, createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'visitor-welcome' }), async (c) => {
+messagingRoutes.post('/visitors/:id/welcome', ...guard('visitors.register'), createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'visitor-welcome' }), async (c) => {
   try {
     const actor = c.get('user');
     const id = validateUuid(c.req.param('id'), 'id');
@@ -484,7 +491,7 @@ messagingRoutes.put('/me/sms-preferences', authMiddleware, async (c) => {
 
 // ── Saved announcements (reuse instead of retyping) ──────────────────────────
 
-messagingRoutes.get('/messages/saved', ...leaders, async (c) => {
+messagingRoutes.get('/messages/saved', ...guard('messages.send'), async (c) => {
   try {
     return c.json({ saved: await listSavedAnnouncements(db), limit: MAX_SAVED_ANNOUNCEMENTS });
   } catch (err) {
@@ -493,7 +500,7 @@ messagingRoutes.get('/messages/saved', ...leaders, async (c) => {
   }
 });
 
-messagingRoutes.post('/messages/saved', ...leaders, createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'sms-saved-create' }), async (c) => {
+messagingRoutes.post('/messages/saved', ...guard('messages.send'), createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'sms-saved-create' }), async (c) => {
   try {
     const parsed = validateSavedAnnouncement(await jsonBody(c));
     if (!parsed.ok) return c.json({ error: parsed.error }, 400);
@@ -507,7 +514,7 @@ messagingRoutes.post('/messages/saved', ...leaders, createRateLimit({ windowMs: 
   }
 });
 
-messagingRoutes.delete('/messages/saved/:id', ...leaders, async (c) => {
+messagingRoutes.delete('/messages/saved/:id', ...guard('messages.send'), async (c) => {
   try {
     const id = validateUuid(c.req.param('id'), 'id');
     if (!id.ok) return c.json({ error: id.error }, 400);
@@ -522,7 +529,7 @@ messagingRoutes.delete('/messages/saved/:id', ...leaders, async (c) => {
 
 // ── Editable wording for the standing texts ──────────────────────────────────
 
-messagingRoutes.get('/messages/templates', ...leaders, async (c) => {
+messagingRoutes.get('/messages/templates', ...guard('messages.wording'), async (c) => {
   try {
     return c.json({ templates: await listTemplates(db) });
   } catch (err) {
@@ -532,7 +539,7 @@ messagingRoutes.get('/messages/templates', ...leaders, async (c) => {
 });
 
 // Lets the editor show the finished text, length and cost as the leader types. Saves nothing.
-messagingRoutes.post('/messages/templates/preview', ...leaders, createRateLimit({ windowMs: 60_000, max: 90, keyPrefix: 'sms-template-preview' }), async (c) => {
+messagingRoutes.post('/messages/templates/preview', ...guard('messages.wording'), createRateLimit({ windowMs: 60_000, max: 90, keyPrefix: 'sms-template-preview' }), async (c) => {
   try {
     const input = (await jsonBody(c)) as { key?: unknown; body?: unknown } | null;
     if (!input || !isTemplateKey(input.key)) return c.json({ error: 'Unknown message.' }, 400);
@@ -554,7 +561,7 @@ messagingRoutes.post('/messages/templates/preview', ...leaders, createRateLimit(
   }
 });
 
-messagingRoutes.put('/messages/templates/:key', ...leaders, createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'sms-template-save' }), async (c) => {
+messagingRoutes.put('/messages/templates/:key', ...guard('messages.wording'), createRateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'sms-template-save' }), async (c) => {
   try {
     const key = c.req.param('key');
     if (!isTemplateKey(key)) return c.json({ error: 'Unknown message.' }, 404);
@@ -573,7 +580,7 @@ messagingRoutes.put('/messages/templates/:key', ...leaders, createRateLimit({ wi
   }
 });
 
-messagingRoutes.delete('/messages/templates/:key', ...leaders, async (c) => {
+messagingRoutes.delete('/messages/templates/:key', ...guard('messages.wording'), async (c) => {
   try {
     const key = c.req.param('key');
     if (!isTemplateKey(key)) return c.json({ error: 'Unknown message.' }, 404);

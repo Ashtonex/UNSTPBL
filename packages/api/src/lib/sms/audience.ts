@@ -56,7 +56,7 @@ export async function resolveAudience(database: Database, audience: Audience): P
         rows = await base.where(eq(smsConsents.announcements, true));
         break;
       case 'leaders':
-        rows = await base.where(and(eq(smsConsents.announcements, true), inArray(users.role, ['bishop', 'admin'])));
+        rows = await base.where(and(eq(smsConsents.announcements, true), inArray(users.role, ['pastor', 'communications', 'bishop', 'admin'])));
         break;
       case 'congregation':
         rows = await base.where(and(eq(smsConsents.announcements, true), eq(users.congregation, audience.congregation)));
