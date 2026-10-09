@@ -16,6 +16,8 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const PrayersPage = lazy(() => import('./pages/PrayersPage'));
 const FamilyHubPage = lazy(() => import('./pages/FamilyHubPage'));
 const BirthdaysPage = lazy(() => import('./pages/BirthdaysPage'));
+const VisitorsPage = lazy(() => import('./pages/VisitorsPage'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
 
 function RouteLoading() {
   return (
@@ -111,6 +113,8 @@ export default function App() {
           <Route path="search" element={<SearchPage />} />
           <Route path="bishop" element={<BishopPage />} />
           <Route path="admin" element={<AdminPage />} />
+          <Route path="visitors" element={<VisitorsPage />} />
+          <Route path="messages" element={<MessagesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

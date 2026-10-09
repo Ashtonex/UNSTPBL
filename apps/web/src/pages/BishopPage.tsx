@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import {
@@ -123,6 +124,15 @@ export default function BishopPage() {
     queryKey: ['admin-stats'],
     queryFn: api.getAdminStats,
     refetchInterval: 15000,
+  });
+
+  // The outreach tools only appear once the messaging backend answers. Until its database
+  // tables exist this fails quietly and the links simply stay hidden: no dead-end pages.
+  const { data: messagingStatus } = useQuery({
+    queryKey: ['messaging-status'],
+    queryFn: api.getMessagingStatus,
+    retry: false,
+    staleTime: 60_000,
   });
 
   // Fetch Trends and Translation Breakdown
@@ -346,6 +356,20 @@ export default function BishopPage() {
       {statsError && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
           Could not load dashboard stats. {(statsError as Error).message}
+        </div>
+      )}
+
+      {/* Outreach tools (shown only when the messaging backend is ready) */}
+      {messagingStatus && (
+        <div className="grid grid-cols-2 gap-4">
+          <Link to="/visitors" className="glass-card p-4 block hover:bg-white/5 transition-colors">
+            <p className="text-white font-semibold text-sm">Visitors</p>
+            <p className="text-white/40 text-xs mt-1">Welcome guests and follow up.</p>
+          </Link>
+          <Link to="/messages" className="glass-card p-4 block hover:bg-white/5 transition-colors">
+            <p className="text-white font-semibold text-sm">Text messages</p>
+            <p className="text-white/40 text-xs mt-1">Announcements and history.</p>
+          </Link>
         </div>
       )}
 

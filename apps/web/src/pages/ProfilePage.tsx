@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../lib/api';
 import { usePWA } from '../lib/usePWA';
+import SmsPreferencesCard from '../components/SmsPreferencesCard';
 
 function initials(name?: string | null, email?: string) {
   const label = name?.trim() || email || 'Member';
@@ -424,6 +425,8 @@ export default function ProfilePage() {
           </form>
         )}
       </section>
+
+      <SmsPreferencesCard />
 
       {(isInstallable || isInstalled) && (
         <section className="glass-card p-5 border border-white/10">

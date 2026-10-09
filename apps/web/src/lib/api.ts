@@ -197,6 +197,93 @@ export interface BirthdayFeed {
   upcoming: UpcomingBirthday[];
 }
 
+export interface Visitor {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  invitedBy: string | null;
+  notes: string | null;
+  firstVisitDate: string;
+  lastVisitDate: string;
+  visitCount: number;
+  smsConsent: boolean;
+  welcomeSentAt: string | null;
+  followupStatus: 'new' | 'contacted' | 'returning' | 'member';
+  createdAt: string;
+}
+
+export interface NewVisitor {
+  fullName: string;
+  phone: string;
+  email?: string;
+  invitedBy?: string;
+  notes?: string;
+  smsConsent: boolean;
+}
+
+export interface RegisterVisitorResult {
+  visitor: Visitor;
+  created: boolean;
+  visitRecorded: boolean;
+  welcome: { status: string; reason?: string; detail?: string };
+}
+
+export type MessageAudience =
+  | { type: 'all_members' }
+  | { type: 'leaders' }
+  | { type: 'visitors' }
+  | { type: 'congregation'; congregation: string }
+  | { type: 'circle'; circleId: string };
+
+export interface MessagingStatus {
+  provider: { name: string; live: boolean } | null;
+  configError: string | null;
+  dryRun: boolean;
+  monthlySegmentCap: number;
+  liveSegmentsUsed: number;
+  costPerSegmentUsd: number | null;
+  maxAudienceSize: number;
+}
+
+export interface MessagePreview {
+  finalMessage: string;
+  encoding: 'gsm7' | 'ucs2';
+  characters: number;
+  segmentsPerMessage: number;
+  tooLong: boolean;
+  recipients: number;
+  tooManyRecipients: boolean;
+  sample: Array<{ name: string | null; phone: string }>;
+  skippedInvalidPhone: number;
+  skippedOptedOut: number;
+  totalSegments: number;
+  estimatedCostUsd: number | null;
+  dryRun: boolean;
+  willExceedCap: boolean;
+}
+
+export interface MessageLogEntry {
+  id: string;
+  purpose: string;
+  phone: string;
+  body: string;
+  segments: number;
+  status: 'sent' | 'delivered' | 'failed' | 'blocked' | 'dry_run';
+  provider: string;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface SmsPreferences {
+  announcements: boolean;
+  dailyVerse: boolean;
+  birthday: boolean;
+  phone: string | null;
+  phoneUsable: boolean;
+  optedOut: boolean;
+}
+
 export const api = {
   getVerseToday: () => apiFetch<DailyVerse>('/verses/today').then(cleanDailyVerse),
   getVerseHistory: (days = 7) =>
@@ -589,4 +676,33 @@ export const api = {
     }),
   getMilestones: () =>
     apiFetch<{ totalReads: number; milestones: any[] }>('/stats/milestones'),
+
+  // ── Visitors & text messages (bishops/admins; preferences are for every member) ──
+  getVisitors: (search = '') =>
+    apiFetch<{ visitors: Visitor[] }>(`/visitors${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  registerVisitor: (data: NewVisitor) =>
+    apiFetch<RegisterVisitorResult>('/visitors', { method: 'POST', body: JSON.stringify(data) }),
+  recordVisitorVisit: (id: string) =>
+    apiFetch<{ visitRecorded: boolean; visitor: Visitor }>(`/visitors/${id}/visit`, { method: 'POST' }),
+  updateVisitor: (id: string, data: { followupStatus?: Visitor['followupStatus']; notes?: string | null }) =>
+    apiFetch<{ visitor: Visitor }>(`/visitors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  sendVisitorWelcome: (id: string) =>
+    apiFetch<{ status: string; reason?: string; detail?: string }>(`/visitors/${id}/welcome`, { method: 'POST' }),
+  getMessagingStatus: () => apiFetch<MessagingStatus>('/messages/status'),
+  previewMessage: (message: string, audience: MessageAudience) =>
+    apiFetch<MessagePreview>('/messages/preview', { method: 'POST', body: JSON.stringify({ message, audience }) }),
+  sendMessage: (message: string, audience: MessageAudience, confirmRecipients: number) =>
+    apiFetch<{ accepted: boolean; recipients: number; dryRun: boolean }>('/messages/send', {
+      method: 'POST',
+      body: JSON.stringify({ message, audience, confirmRecipients }),
+    }),
+  sendTestMessage: (message: string) =>
+    apiFetch<{ status: string; reason: string | null; detail: string | null; segments: number }>('/messages/test', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
+  getMessageLog: () => apiFetch<{ messages: MessageLogEntry[] }>('/messages/log?limit=40'),
+  getSmsPreferences: () => apiFetch<{ preferences: SmsPreferences }>('/me/sms-preferences'),
+  saveSmsPreferences: (data: Pick<SmsPreferences, 'announcements' | 'dailyVerse' | 'birthday'>) =>
+    apiFetch<{ preferences: SmsPreferences }>('/me/sms-preferences', { method: 'PUT', body: JSON.stringify(data) }),
 };
