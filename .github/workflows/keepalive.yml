@@ -47,3 +47,17 @@ jobs:
           else
             echo "Not the daily birthday window, skipping."
           fi
+
+      - name: Text today's verse to members who opted in (07:00 Harare)
+        # Only reaches members who switched on "Today's verse" texts. Safe to repeat: the
+        # server skips anyone already messaged today. While SMS is in test mode it only records
+        # test entries in the message history; nothing is sent.
+        if: env.CRON_SECRET != '' && github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%H)" = "05" ]; then
+            curl -fsS --max-time 90 -X POST \
+              -H "x-cron-secret: $CRON_SECRET" \
+              "$API_URL/cron/sms/daily-verse"
+          else
+            echo "Not the daily verse window, skipping."
+          fi

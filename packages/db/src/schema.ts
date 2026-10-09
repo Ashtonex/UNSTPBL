@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   index,
   boolean,
+  numeric,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -400,3 +401,97 @@ export const scheduledPushNotificationsRelations = relations(scheduledPushNotifi
     references: [users.id],
   }),
 }));
+
+// ── SMS & visitors ──────────────────────────────────────────────────────────
+// New tables only (no columns added to `users`), so deploying the code before the
+// migration is applied cannot break any existing query.
+
+/** People who attended but are not (yet) app members. Phone is stored in E.164. */
+export const visitors = pgTable(
+  'visitors',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fullName: varchar('full_name', { length: 255 }).notNull(),
+    phone: varchar('phone', { length: 20 }).notNull(),
+    email: varchar('email', { length: 255 }),
+    invitedBy: varchar('invited_by', { length: 255 }),
+    notes: text('notes'),
+    firstVisitDate: date('first_visit_date').notNull(),
+    lastVisitDate: date('last_visit_date').notNull(),
+    visitCount: integer('visit_count').notNull().default(1),
+    smsConsent: boolean('sms_consent').notNull().default(false),
+    smsConsentAt: timestamp('sms_consent_at', { withTimezone: true }),
+    welcomeSentAt: timestamp('welcome_sent_at', { withTimezone: true }),
+    // new | contacted | returning | member
+    followupStatus: varchar('followup_status', { length: 20 }).notNull().default('new'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    phoneIdx: uniqueIndex('visitors_phone_idx').on(table.phone),
+    lastVisitIdx: index('visitors_last_visit_idx').on(table.lastVisitDate),
+  }),
+);
+
+/** One row per day a visitor attended; the unique index makes recording a visit idempotent. */
+export const visitorVisits = pgTable(
+  'visitor_visits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    visitorId: uuid('visitor_id')
+      .notNull()
+      .references(() => visitors.id, { onDelete: 'cascade' }),
+    visitDate: date('visit_date').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    visitorDayIdx: uniqueIndex('visitor_visits_visitor_day_idx').on(table.visitorId, table.visitDate),
+  }),
+);
+
+/** A member's own SMS opt-ins. Every topic defaults to off: nobody is texted without choosing it. */
+export const smsConsents = pgTable('sms_consents', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  announcements: boolean('announcements').notNull().default(false),
+  dailyVerse: boolean('daily_verse').notNull().default(false),
+  birthday: boolean('birthday').notNull().default(false),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Numbers that replied STOP. Checked before every send, whatever consent says. */
+export const smsOptOuts = pgTable('sms_opt_outs', {
+  phone: varchar('phone', { length: 20 }).primaryKey(),
+  source: varchar('source', { length: 30 }).notNull().default('stop_keyword'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Every message attempt (sent, dry-run, blocked or failed): the audit trail and the spend meter. */
+export const messageLog = pgTable(
+  'message_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    channel: varchar('channel', { length: 20 }).notNull().default('sms'),
+    // visitor_welcome | birthday | announcement | daily_verse | test
+    purpose: varchar('purpose', { length: 30 }).notNull(),
+    recipientPhone: varchar('recipient_phone', { length: 20 }).notNull(),
+    recipientUserId: uuid('recipient_user_id').references(() => users.id, { onDelete: 'set null' }),
+    recipientVisitorId: uuid('recipient_visitor_id').references(() => visitors.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    segments: integer('segments').notNull(),
+    // sent | delivered | failed | blocked | dry_run
+    status: varchar('status', { length: 20 }).notNull(),
+    provider: varchar('provider', { length: 20 }).notNull(),
+    providerMessageId: varchar('provider_message_id', { length: 100 }),
+    error: text('error'),
+    costEstimateUsd: numeric('cost_estimate_usd', { precision: 10, scale: 4 }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index('message_log_created_at_idx').on(table.createdAt),
+    providerMessageIdx: index('message_log_provider_message_idx').on(table.providerMessageId),
+    purposeUserIdx: index('message_log_purpose_user_idx').on(table.purpose, table.recipientUserId, table.createdAt),
+  }),
+);

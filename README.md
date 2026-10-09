@@ -63,6 +63,7 @@ See:
 
 - `docs/DEPLOYMENT.md`
 - `docs/OPERATIONS.md`
+- `docs/SMS.md` (text messages and visitor follow-up: how it works and how to go live)
 - `.env.production.example`
 
 Scheduled push dispatch can run as either:

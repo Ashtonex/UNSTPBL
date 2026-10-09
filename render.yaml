@@ -49,6 +49,24 @@ services:
         sync: false
       - key: SENTRY_TRACES_SAMPLE_RATE
         value: 0.1
+      # Text messages. All dashboard-managed (sync: false) so a blueprint sync can never reset
+      # a live setting. Unset SMS_PROVIDER means safe test mode. See docs/SMS.md.
+      - key: SMS_PROVIDER
+        sync: false
+      - key: SMS_MONTHLY_SEGMENT_CAP
+        sync: false
+      - key: SMS_COST_PER_SEGMENT_USD
+        sync: false
+      - key: CHURCH_NAME
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        sync: false
 
   - type: static
     name: unstpbl-web

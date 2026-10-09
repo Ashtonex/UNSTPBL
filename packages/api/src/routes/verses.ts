@@ -380,13 +380,21 @@ export async function warmTodayVerseCache(translations: string[] = ['KJV', 'ESV'
   }
 }
 
+/** Today's verse in the given translation, from the same cache the web app reads. */
+export async function getTodayVersePayload(translation = 'KJV') {
+  const today = todayInChurchTimezone();
+  return todayVerseCache.getOrLoad(`${today}:${translation}`, () => loadTodayVerse(today, translation));
+}
+
+/** Today's date (YYYY-MM-DD) in the church's timezone. */
+export function churchToday(): string {
+  return todayInChurchTimezone();
+}
+
 verseRoutes.get('/verses/today', async (c) => {
   try {
-    const today = todayInChurchTimezone();
     const translation = await getPreferredTranslation(c);
-    const payload = await todayVerseCache.getOrLoad(`${today}:${translation}`, () =>
-      loadTodayVerse(today, translation),
-    );
+    const payload = await getTodayVersePayload(translation);
     return c.json(payload);
   } catch (err: any) {
     console.error('Error fetching today\'s verse:', err);

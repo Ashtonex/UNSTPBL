@@ -2,6 +2,8 @@ import { and, desc, eq, sql } from '@unstpbl/db';
 import { birthdayWallPosts, users } from '@unstpbl/db';
 import { db } from './db.js';
 import { sendPushToSubscribers } from './pushDispatcher.js';
+import { sendBirthdayGreeting } from './sms/memberMessages.js';
+import { defaultSmsDeps } from './sms/store.js';
 
 function toDateKey(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -65,6 +67,15 @@ export async function dispatchTodaysBirthdayAnnouncements(now = new Date()) {
     if (!post) continue;
 
     created += 1;
+
+    // The wall post above exists at most once per person per year, so this greeting is
+    // sent at most once too. It only goes to members who opted in to birthday texts, and
+    // a failure here must never stop the push announcements below.
+    try {
+      await sendBirthdayGreeting(db, defaultSmsDeps(), birthdayUser.id);
+    } catch (err) {
+      console.error('Birthday SMS failed:', err);
+    }
     const result = await sendPushToSubscribers({
       title: `Today is ${name}'s birthday`,
       body: 'Open the birthday wall and send a blessing.',

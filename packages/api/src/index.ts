@@ -14,6 +14,7 @@ import { pushRoutes } from './routes/push.js';
 import { cronRoutes } from './routes/cron.js';
 import { communityRoutes } from './routes/community.js';
 import { birthdayRoutes } from './routes/birthdays.js';
+import { messagingRoutes } from './routes/messaging.js';
 
 export function createApp() {
   const app = new Hono();
@@ -43,6 +44,7 @@ export function createApp() {
   app.route('/', cronRoutes);
   app.route('/', communityRoutes);
   app.route('/', birthdayRoutes);
+  app.route('/', messagingRoutes);
 
   // ── Error Handling ────────────────────────────────────────────────────────
 
