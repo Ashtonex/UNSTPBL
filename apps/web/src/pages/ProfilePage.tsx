@@ -193,7 +193,7 @@ export default function ProfilePage() {
               {/* Quick camera upload button on top of avatar preview */}
               <label
                 htmlFor="avatar-file-upload"
-                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-white text-[10px] font-bold gap-1"
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-white text-xs font-bold gap-1"
                 title="Upload Photo"
               >
                 <span>📷</span>
@@ -288,7 +288,7 @@ export default function ProfilePage() {
                 rows={4}
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none resize-none"
               />
-              <span className="block text-[11px] text-white/30 mt-1">{bio.length}/500</span>
+              <span className="block text-xs text-white/30 mt-1">{bio.length}/500</span>
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -328,7 +328,7 @@ export default function ProfilePage() {
                       setAvatarUrl('');
                       setAvatarError(false);
                     }}
-                    className="text-[11px] text-rose-400 hover:text-rose-300 underline"
+                    className="text-xs text-rose-400 hover:text-rose-300 underline"
                   >
                     Remove Photo
                   </button>
@@ -355,7 +355,7 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-2 my-2">
                 <div className="h-px flex-1 bg-white/10" />
-                <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Or paste direct link</span>
+                <span className="text-xs text-white/40 uppercase tracking-widest font-bold">Or paste direct link</span>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
 
@@ -368,12 +368,12 @@ export default function ProfilePage() {
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-xs text-white outline-none font-mono"
                 />
                 {isResolvingUrl && (
-                  <p className="text-[11px] text-amber-300 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-amber-300 mt-1 flex items-center gap-1">
                     <span className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin inline-block" />
                     Converting webpage link to direct image...
                   </p>
                 )}
-                <p className="text-[10px] text-white/40 mt-1.5 leading-normal">
+                <p className="text-xs text-white/40 mt-1.5 leading-normal">
                   Tip: Webpage links (like Pinterest, Facebook, or Instagram pin links) are not image files. If linking an image online, right-click the image and choose <em>"Copy Image Address"</em> so it ends in <code>.jpg</code> or <code>.png</code>.
                 </p>
               </div>

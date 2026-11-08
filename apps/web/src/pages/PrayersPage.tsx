@@ -250,12 +250,12 @@ export default function PrayersPage() {
                       {prayer.user?.displayName || 'Family Member'}
                     </span>
                     {prayer.user?.congregation && (
-                      <span className="text-[10px] text-white/30 font-medium">
+                      <span className="text-xs text-white/30 font-medium">
                         • {prayer.user.congregation}
                       </span>
                     )}
                   </div>
-                  <span className="text-[9px] text-white/20">
+                  <span className="text-xs text-white/20">
                     {new Date(prayer.createdAt).toLocaleDateString(undefined, {
                       month: 'short',
                       day: 'numeric',
@@ -267,7 +267,7 @@ export default function PrayersPage() {
 
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                    className={`text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
                       prayer.status === 'answered'
                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         : prayer.type === 'praise'
@@ -317,7 +317,7 @@ export default function PrayersPage() {
                     </span>
                   )}
                   {prayer._count?.joins > 0 && (
-                    <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-[10px] font-bold border border-amber-400/30">
+                    <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-xs font-bold border border-amber-400/30">
                       {prayer._count.joins} praying
                     </span>
                   )}
@@ -327,7 +327,7 @@ export default function PrayersPage() {
                 {profile?.id === prayer.userId && prayer.status === 'open' && (
                   <button
                     onClick={() => markAnsweredMutation.mutate(prayer.id)}
-                    className="text-[10px] text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg font-semibold transition-all"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg font-semibold transition-all"
                   >
                     Mark Answered / Thanksgiving
                   </button>

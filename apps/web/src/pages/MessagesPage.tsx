@@ -212,14 +212,14 @@ export default function MessagesPage() {
               resetPreview();
             }}
           />
-          <p className="text-[11px] text-white/35 mt-1 text-right">
+          <p className="text-xs text-white/35 mt-1 text-right">
             {message.length}/{MAX_LENGTH} · the church name and an opt-out line are added automatically
           </p>
-          {blank && <p className="text-[11px] text-amber-300 mt-1">Fill in the [bracketed] parts before sending.</p>}
+          {blank && <p className="text-xs text-amber-300 mt-1">Fill in the [bracketed] parts before sending.</p>}
         </div>
 
         <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-wider text-white/30">Start from</p>
+          <p className="text-xs uppercase tracking-wider text-white/30">Start from</p>
           <div className="flex flex-wrap gap-2">
             {STARTER_IDEAS.map((idea) => (
               <button
@@ -363,7 +363,7 @@ export default function MessagesPage() {
 
           <div className="rounded-xl bg-white/5 border border-white/10 p-3">
             <p className="text-white/80 text-sm whitespace-pre-wrap break-words">{preview.finalMessage}</p>
-            <p className="text-[11px] text-white/35 mt-2">
+            <p className="text-xs text-white/35 mt-2">
               {preview.characters} characters · {preview.segmentsPerMessage} text {preview.segmentsPerMessage === 1 ? 'segment' : 'segments'} each
               {preview.encoding === 'ucs2' ? ' · contains special characters (costs more)' : ''}
             </p>
@@ -371,18 +371,18 @@ export default function MessagesPage() {
 
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <dt className="text-[11px] uppercase tracking-wide text-white/35">Will reach</dt>
+              <dt className="text-xs uppercase tracking-wide text-white/35">Will reach</dt>
               <dd className="text-2xl font-bold text-white">{preview.recipients}</dd>
-              <dd className="text-[11px] text-white/35">
+              <dd className="text-xs text-white/35">
                 people{preview.whatsappRecipients ? ` · ${preview.smsRecipients ?? 0} by SMS, ${preview.whatsappRecipients} by WhatsApp` : ''}
               </dd>
             </div>
             <div>
-              <dt className="text-[11px] uppercase tracking-wide text-white/35">Estimated cost</dt>
+              <dt className="text-xs uppercase tracking-wide text-white/35">Estimated cost</dt>
               <dd className="text-2xl font-bold text-white">
                 {preview.estimatedCostUsd === null ? '—' : `$${preview.estimatedCostUsd.toFixed(2)}`}
               </dd>
-              <dd className="text-[11px] text-white/35">
+              <dd className="text-xs text-white/35">
                 {preview.totalSegments} segments{preview.estimatedCostUsd === null ? ' · price per text not set' : ''}
               </dd>
             </div>
@@ -396,7 +396,7 @@ export default function MessagesPage() {
           )}
 
           {(preview.skippedInvalidPhone > 0 || preview.skippedOptedOut > 0) && (
-            <p className="text-[11px] text-white/35">
+            <p className="text-xs text-white/35">
               Left out: {preview.skippedInvalidPhone} without a usable mobile number, {preview.skippedOptedOut} who replied STOP.
             </p>
           )}
@@ -436,14 +436,14 @@ export default function MessagesPage() {
 
         {log.data?.messages.map((entry) => (
           <article key={entry.id} className="glass-card p-3 space-y-1.5">
-            <div className="flex items-center justify-between gap-2 text-[11px]">
+            <div className="flex items-center justify-between gap-2 text-xs">
               <span className="text-white/45">
                 {PURPOSE_LABEL[entry.purpose] ?? entry.purpose} · {entry.channel === 'whatsapp' ? 'WhatsApp · ' : ''}{entry.phone}
               </span>
               <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${STATUS_STYLE[entry.status]}`}>{STATUS_LABEL[entry.status]}</span>
             </div>
             <p className="text-white/70 text-xs line-clamp-2 break-words">{entry.body}</p>
-            <p className="text-[10px] text-white/30">
+            <p className="text-xs text-white/30">
               {formatTime(entry.createdAt)} · {entry.segments} {entry.segments === 1 ? 'segment' : 'segments'}
               {entry.error && entry.status !== 'sent' ? ` · ${entry.error}` : ''}
             </p>

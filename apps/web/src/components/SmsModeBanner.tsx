@@ -19,7 +19,7 @@ export default function SmsModeBanner() {
 
   const whatsapp = data.whatsapp;
   const whatsappNote = whatsapp && (
-    <p className="text-[11px] opacity-80">
+    <p className="text-xs opacity-80">
       {whatsapp.configError
         ? `WhatsApp is not set up correctly: ${whatsapp.configError}`
         : whatsapp.dryRun

@@ -62,7 +62,7 @@ export default function LoginPage() {
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-1">
             <span className="text-gradient">UNSTPBL</span>
           </h1>
-          <p className="text-white/40 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
+          <p className="text-white/40 text-xs font-semibold uppercase tracking-widest">
             Victory Tabernacle City Mutare
           </p>
           <p className="text-white/30 text-xs sm:text-sm mt-1">
@@ -122,7 +122,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-white/20 text-[10px] sm:text-xs mt-4 sm:mt-8 mb-2 mt-auto">
+        <p className="text-center text-white/20 text-xs mt-4 sm:mt-8 mb-2 mt-auto">
           &copy; {new Date().getFullYear()} UNSTPBL &middot; Victory Tabernacle
         </p>
       </div>

@@ -69,7 +69,7 @@ export default function IosInstallHint() {
         </li>
         <li>Open UNSTPBL from your Home Screen.</li>
       </ol>
-      <p className="mt-2 text-[11px] text-white/60">
+      <p className="mt-2 text-xs text-white/60">
         Installing also lets you get daily verse notifications on iPhone.
       </p>
     </section>

@@ -90,7 +90,7 @@ export default function AdminPage() {
       <div className="glass-card p-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-white">Recent Admin Activity</h3>
-          <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Audit Log</span>
+          <span className="text-xs text-white/30 uppercase font-bold tracking-widest">Audit Log</span>
         </div>
 
         {auditLoading ? (
@@ -170,61 +170,49 @@ export default function AdminPage() {
         ) : filteredUsers.length === 0 ? (
           <p className="text-center py-8 text-white/30 text-sm">No users found matching query.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/5 pb-2">
-                  <th className="pb-3 text-xs font-semibold text-white/40 uppercase tracking-wider">Member</th>
-                  <th className="pb-3 text-xs font-semibold text-white/40 uppercase tracking-wider">Role</th>
-                  <th className="pb-3 text-xs font-semibold text-white/40 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="py-4">
-                      <div className="font-semibold text-white text-sm">
-                        {user.displayName || 'Unnamed Member'}
-                      </div>
-                      <div className="text-xs text-white/40 mt-0.5">{user.email}</div>
-                      {user.congregation && (
-                        <div className="text-[10px] text-brand-400 font-medium uppercase mt-1">
-                          {user.congregation}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
-                        user.role === 'admin' 
-                          ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
-                          : user.role === 'bishop' 
-                            ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' 
-                            : isUserRole(user.role) && user.role !== 'member'
-                              ? 'bg-sky-500/10 text-sky-300 border border-sky-500/20'
-                              : 'bg-white/5 text-white/60'
-                      }`}>
-                        {isUserRole(user.role) ? ROLE_LABELS[user.role] : user.role}
-                      </span>
-                    </td>
-                    <td className="py-4 text-right">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
-                        disabled={updateRoleMutation.isPending}
-                        className="bg-neutral-900 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"
-                      >
-                        {USER_ROLES.map((role) => (
-                          <option key={role} value={role}>
-                            Make {ROLE_LABELS[role]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y divide-white/5">
+            {filteredUsers.map((user) => (
+              <li key={user.id} className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="font-semibold text-white text-sm break-words">
+                    {user.displayName || 'Unnamed Member'}
+                  </div>
+                  <div className="text-xs text-white/50 mt-0.5 break-all">{user.email}</div>
+                  {user.congregation && (
+                    <div className="text-xs text-brand-400 font-medium uppercase mt-1 break-words">
+                      {user.congregation}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                  <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
+                    user.role === 'admin'
+                      ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      : user.role === 'bishop'
+                        ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                        : isUserRole(user.role) && user.role !== 'member'
+                          ? 'bg-sky-500/10 text-sky-300 border border-sky-500/20'
+                          : 'bg-white/5 text-white/60'
+                  }`}>
+                    {isUserRole(user.role) ? ROLE_LABELS[user.role] : user.role}
+                  </span>
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
+                    disabled={updateRoleMutation.isPending}
+                    aria-label={`Change role for ${user.displayName || user.email}`}
+                    className="flex-1 sm:flex-none min-w-[11rem] bg-neutral-900 border border-white/10 rounded-xl px-3 py-2 min-h-[40px] text-white text-xs focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"
+                  >
+                    {USER_ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        Make {ROLE_LABELS[role]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>

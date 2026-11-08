@@ -306,7 +306,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="py-4 relative min-h-[calc(100vh-8rem)]">
+    <div className="py-4 relative min-h-[calc(100dvh-8rem)]">
       {/* Greeting */}
       <div className="mb-6 animate-fade-in flex justify-between items-end gap-4">
         <div>
@@ -380,7 +380,7 @@ export default function HomePage() {
             <span className="text-2xl">📲</span>
             <div>
               <p className="text-xs font-bold text-white">Add UNSTPBL to Home Screen</p>
-              <p className="text-[11px] text-white/70">1-Tap instant access, works offline with daily audio!</p>
+              <p className="text-xs text-white/70">1-Tap instant access, works offline with daily audio!</p>
             </div>
           </div>
           <button
@@ -408,7 +408,7 @@ export default function HomePage() {
             </div>
             <div>
               <h4 className="text-xs font-bold text-white/70 uppercase tracking-widest">Bishop's Devotional Note</h4>
-              <p className="text-[9px] text-brand-400 font-semibold">Victory Tabernacle</p>
+              <p className="text-xs text-brand-400 font-semibold">Victory Tabernacle</p>
             </div>
           </div>
           <p className="text-xs text-white/90 leading-relaxed italic pr-2 whitespace-pre-line">
@@ -424,7 +424,7 @@ export default function HomePage() {
             <span className="text-lg">🎯</span>
             <span className="text-xs font-bold uppercase tracking-wider text-brand-300">1-Minute Faith Trivia</span>
           </div>
-          <span className="text-[10px] font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+          <span className="text-xs font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
             Daily Challenge
           </span>
         </div>
@@ -525,7 +525,7 @@ export default function HomePage() {
                     {ref.user?.displayName || 'Family Member'}
                   </span>
                   {ref.user?.congregation && (
-                    <span className="text-[9px] text-white/30">
+                    <span className="text-xs text-white/30">
                       {ref.user.congregation}
                     </span>
                   )}
@@ -581,7 +581,7 @@ export default function HomePage() {
               <p className="text-white/70 text-sm font-semibold">{prayer.title}</p>
               <p className="text-white/40 text-xs mt-1 line-clamp-1">{prayer.content}</p>
             </div>
-            <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50">{prayer.user?.displayName || 'Family'}</span>
+            <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded text-white/50">{prayer.user?.displayName || 'Family'}</span>
           </div>
         ))}
       </div>
@@ -604,7 +604,7 @@ export default function HomePage() {
               />
             </svg>
             <h3 className="text-lg font-bold text-white tracking-wide">Inspired Connections</h3>
-            <span className="text-[10px] bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">
+            <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">
               AI Recommended
             </span>
           </div>
@@ -634,10 +634,10 @@ export default function HomePage() {
 
                   <div className="relative z-10 flex items-center gap-3 sm:flex-col sm:items-end shrink-0 sm:border-l sm:border-white/10 sm:pl-4 pt-2 sm:pt-0 border-t border-white/5 sm:border-t-0 mt-2 sm:mt-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 whitespace-nowrap">
+                      <span className="text-xs font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 whitespace-nowrap">
                         {Math.round(item.score * 100)}% Match
                       </span>
-                      <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest sm:hidden">
+                      <span className="text-xs text-white/30 uppercase font-bold tracking-widest sm:hidden">
                         {item.verse.translation}
                       </span>
                     </div>
@@ -686,7 +686,7 @@ export default function HomePage() {
           {/* Backdrop click closer */}
           <div className="absolute inset-0" onClick={() => setShowHistory(false)} />
 
-          <div className="relative w-full max-w-md bg-neutral-900 border-t border-white/10 rounded-t-3xl p-6 shadow-2xl z-10 animate-slide-up max-h-[85vh] overflow-y-auto">
+          <div className="relative w-full max-w-md bg-neutral-900 border-t border-white/10 rounded-t-3xl p-6 shadow-2xl z-10 animate-slide-up max-h-[85dvh] overflow-y-auto">
             {/* Handle bar */}
             <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
 

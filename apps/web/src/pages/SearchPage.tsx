@@ -92,7 +92,7 @@ export default function SearchPage() {
           <div className="space-y-4 animate-slide-up">
             <div className="flex justify-between items-center px-1">
               <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">Top Matching Scriptures</h3>
-              <span className="text-[10px] text-brand-400 font-semibold uppercase">{data.matches.length} Results</span>
+              <span className="text-xs text-brand-400 font-semibold uppercase">{data.matches.length} Results</span>
             </div>
 
             {data.matches.length === 0 ? (
@@ -115,7 +115,7 @@ export default function SearchPage() {
                       }`}
                     >
                       {/* Match Score Badge */}
-                      <div className="absolute top-0 right-0 px-3 py-1 bg-brand-500/10 rounded-bl-xl text-[10px] font-bold text-brand-400 border-l border-b border-brand-500/20">
+                      <div className="absolute top-0 right-0 px-3 py-1 bg-brand-500/10 rounded-bl-xl text-xs font-bold text-brand-400 border-l border-b border-brand-500/20">
                         {matchPercentage}% Match
                       </div>
 
@@ -127,7 +127,7 @@ export default function SearchPage() {
                         <span className="font-bold text-white group-hover:text-brand-400 transition-colors">
                           {match.book.name} {match.verse.chapter}:{match.verse.verseNumber}
                         </span>
-                        <span className="text-white/20 text-[10px] uppercase font-semibold">
+                        <span className="text-white/20 text-xs uppercase font-semibold">
                           {match.verse.translation}
                         </span>
                       </div>
@@ -153,7 +153,7 @@ export default function SearchPage() {
           </button>
           
           <div className="mb-4">
-            <span className="text-[10px] text-brand-400 font-bold uppercase tracking-wider">Passage Details</span>
+            <span className="text-xs text-brand-400 font-bold uppercase tracking-wider">Passage Details</span>
           </div>
 
           <VerseCard dailyVerse={activeVerse} isRead={true} />

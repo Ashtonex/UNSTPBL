@@ -89,7 +89,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-white">{template.label}</h3>
           {template.isCustom && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 whitespace-nowrap">Customised</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 whitespace-nowrap">Customised</span>
           )}
         </div>
         <p className="text-white/40 text-xs mt-0.5">{template.when}</p>
@@ -108,7 +108,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
           }}
           aria-label={`${template.label} wording`}
         />
-        <p className="text-[11px] text-white/35 mt-1 text-right">
+        <p className="text-xs text-white/35 mt-1 text-right">
           {draft.length}/{MAX_LENGTH}
         </p>
       </div>
@@ -133,16 +133,16 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
       )}
 
       <div className="rounded-xl bg-black/20 border border-white/5 p-3">
-        <p className="text-[10px] uppercase tracking-wider text-white/30 mb-1">
+        <p className="text-xs uppercase tracking-wider text-white/30 mb-1">
           {changed && shown?.valid ? 'Preview of your wording' : 'How it reads now'} (made-up name)
         </p>
         <p className="text-sm text-white/80 whitespace-pre-wrap break-words">{preview.text}</p>
-        <p className="text-[11px] text-white/35 mt-2">
+        <p className="text-xs text-white/35 mt-2">
           {preview.characters} characters · {preview.segments} text segment{preview.segments === 1 ? '' : 's'}
           {cost !== null && ` · about $${cost.toFixed(2)} per person`}
           {preview.encoding === 'ucs2' && ' · special characters make this cost more'}
         </p>
-        <p className="text-[11px] text-white/30 mt-1">&ldquo;{OPT_OUT_LINE}&rdquo; is always added automatically.</p>
+        <p className="text-xs text-white/30 mt-1">&ldquo;{OPT_OUT_LINE}&rdquo; is always added automatically.</p>
       </div>
 
       {feedback && <p className={`text-xs ${feedback.good ? 'text-emerald-300' : 'text-rose-300'}`}>{feedback.text}</p>}
@@ -175,7 +175,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
         )}
       </div>
 
-      {template.updatedAt && <p className="text-[11px] text-white/30">Last changed {formatTime(template.updatedAt)}</p>}
+      {template.updatedAt && <p className="text-xs text-white/30">Last changed {formatTime(template.updatedAt)}</p>}
     </section>
   );
 }
@@ -209,7 +209,7 @@ export default function MessageWordingPage() {
         <TemplateCard key={template.key} template={template} />
       ))}
 
-      <p className="text-[11px] text-white/30">
+      <p className="text-xs text-white/30">
         One-off announcements are written on the Text messages page. WhatsApp messages are not set up yet.
       </p>
     </div>

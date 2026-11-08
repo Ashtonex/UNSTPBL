@@ -113,7 +113,7 @@ export default function BirthdaysPage() {
                             <h4 className="font-bold text-white truncate">{name}</h4>
                             <p className="text-xs text-white/35 truncate">{post.user.congregation || 'UNSTPBL family'}</p>
                           </div>
-                          <span className="text-[11px] text-brand-200 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-1 whitespace-nowrap">
+                          <span className="text-xs text-brand-200 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-1 whitespace-nowrap">
                             {formatBirthday(post.birthdayDate)}
                           </span>
                         </div>
@@ -151,7 +151,7 @@ export default function BirthdaysPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs font-bold text-brand-200">{person.daysUntil === 0 ? 'Today' : `${person.daysUntil}d`}</p>
-                      <p className="text-[11px] text-white/35">{formatBirthday(person.birthday)}</p>
+                      <p className="text-xs text-white/35">{formatBirthday(person.birthday)}</p>
                     </div>
                   </div>
                 );

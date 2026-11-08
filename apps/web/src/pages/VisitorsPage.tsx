@@ -166,7 +166,7 @@ export default function VisitorsPage() {
                   {visitor.phone}
                 </a>
               </div>
-              <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${STATUS_STYLE[visitor.followupStatus]}`}>
+              <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${STATUS_STYLE[visitor.followupStatus]}`}>
                 {visitor.followupStatus}
               </span>
             </div>
@@ -177,7 +177,7 @@ export default function VisitorsPage() {
             </p>
             {visitor.notes && <p className="text-white/55 text-xs">{visitor.notes}</p>}
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className={visitor.smsConsent ? 'text-emerald-300' : 'text-white/35'}>
                 {visitor.smsConsent ? 'Texts OK' : 'No text consent'}
               </span>

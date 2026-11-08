@@ -6,6 +6,14 @@ import { useAuthStore } from '../stores/auth';
 import { api } from '../lib/api';
 import AmbientBackground from './AmbientBackground';
 
+// One column that grows with the screen: a phone-width column on phones, wider on tablets and
+// desktops so dashboards and tables have room instead of being squeezed into 512px.
+const CONTAINER = 'w-full max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto';
+const TAB_CLASS =
+  'flex-1 min-w-0 flex flex-col items-center justify-center min-h-[56px] px-1 py-2 rounded-xl transition-colors';
+const TAB_ACTIVE = 'text-brand-400';
+const TAB_IDLE = 'text-white/60 hover:text-white/90 active:bg-white/5';
+
 export default function Layout() {
   const { signOut, profile } = useAuthStore();
   const navigate = useNavigate();
@@ -17,9 +25,7 @@ export default function Layout() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const navRef = useRef<HTMLElement>(null);
-  const navScrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // Helper to register push subscription
   const setupPushNotifications = async () => {
@@ -174,61 +180,19 @@ export default function Layout() {
     };
   }, []);
 
-  const checkScrollState = () => {
-    const el = navScrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 6);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 6);
-  };
-
+  // Close the "More" sheet whenever the page changes, and on Escape.
   useEffect(() => {
-    checkScrollState();
-    window.addEventListener('resize', checkScrollState);
-    return () => window.removeEventListener('resize', checkScrollState);
-  }, [profile]);
-
-  // Auto-scroll active tab into center view when navigating
-  useEffect(() => {
-    const el = navScrollRef.current;
-    if (!el) return;
-    const timer = setTimeout(() => {
-      const activeEl = el.querySelector('[aria-current="page"]') as HTMLElement;
-      if (activeEl) {
-        activeEl.scrollIntoView({
-          behavior: 'smooth',
-          inline: 'center',
-          block: 'nearest',
-        });
-      }
-      checkScrollState();
-    }, 50);
-    return () => clearTimeout(timer);
+    setMoreOpen(false);
   }, [location.pathname]);
 
-  // Drag-to-swipe support for mouse / desktop emulation
-  const isDragging = useRef(false);
-  const dragStartX = useRef(0);
-  const dragScrollLeft = useRef(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!navScrollRef.current) return;
-    isDragging.current = true;
-    dragStartX.current = e.pageX - navScrollRef.current.offsetLeft;
-    dragScrollLeft.current = navScrollRef.current.scrollLeft;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !navScrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - navScrollRef.current.offsetLeft;
-    const walk = (x - dragStartX.current) * 1.5;
-    navScrollRef.current.scrollLeft = dragScrollLeft.current - walk;
-    checkScrollState();
-  };
-
-  const handleMouseUpOrLeave = () => {
-    isDragging.current = false;
-  };
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [moreOpen]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -247,7 +211,7 @@ export default function Layout() {
       label: 'Verse',
       end: true,
       icon: (
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -260,7 +224,7 @@ export default function Layout() {
       to: '/prayers',
       label: 'Prayers',
       icon: (
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -273,7 +237,7 @@ export default function Layout() {
       to: '/family',
       label: 'Family',
       icon: (
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -286,7 +250,7 @@ export default function Layout() {
       to: '/birthdays',
       label: 'Birthdays',
       icon: (
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -299,7 +263,7 @@ export default function Layout() {
       to: '/search',
       label: 'Search',
       icon: (
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -312,7 +276,7 @@ export default function Layout() {
       to: '/profile',
       label: 'Profile',
       icon: (
-        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -327,7 +291,7 @@ export default function Layout() {
             to: '/team',
             label: 'Team',
             icon: (
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -344,7 +308,7 @@ export default function Layout() {
             to: '/bishop',
             label: 'Bishop',
             icon: (
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -361,7 +325,7 @@ export default function Layout() {
             to: '/admin',
             label: 'Admin',
             icon: (
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-6 h-6" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -374,8 +338,16 @@ export default function Layout() {
       : []),
   ];
 
+  // Mobile apps show at most five tabs; everything else lives behind More.
+  const PRIMARY_PATHS = ['/', '/search', '/prayers', '/family'];
+  const primaryItems = PRIMARY_PATHS.map((to) => navItems.find((item) => item.to === to)).filter(
+    (item): item is (typeof navItems)[number] => Boolean(item),
+  );
+  const moreItems = navItems.filter((item) => !PRIMARY_PATHS.includes(item.to));
+  const moreActive = moreItems.some((item) => location.pathname.startsWith(item.to));
+
   return (
-    <div className="min-h-screen flex flex-col relative text-white bg-surface-950 overflow-x-hidden">
+    <div className="min-h-dvh flex flex-col relative text-white bg-surface-950 overflow-x-hidden">
       {/* Live 3D ambient layer: loads last, skipped on low-power devices, failures stay contained */}
       <AmbientBackground />
 
@@ -390,7 +362,7 @@ export default function Layout() {
       </div>
 
       {/* Main Content Layer */}
-      <div className="relative z-10 flex-1 flex flex-col min-h-screen">
+      <div className="relative z-10 flex-1 flex flex-col min-h-dvh">
         {isOffline && (
           <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-600/90 backdrop-blur-md text-white text-center py-2 text-xs font-semibold shadow-md flex items-center justify-center gap-2">
             <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -401,12 +373,17 @@ export default function Layout() {
         )}
         {/* Header - Hides on scroll down, shows on scroll up, shrinks logo */}
         <header
-          className={`fixed top-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10 px-4 transition-all duration-300 transform ${
+          className={`fixed top-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-lg border-b border-white/10 transition-all duration-300 transform ${
             visible ? 'translate-y-0' : '-translate-y-full'
-          } ${isScrolled ? 'py-1 bg-surface-950/80 shadow-lg' : 'py-2'}`}
-          style={{ marginTop: isOffline && visible ? '32px' : '0px' }}
+          } ${isScrolled ? 'pb-1 bg-surface-950/80 shadow-lg' : 'pb-2'}`}
+          style={{
+            marginTop: isOffline && visible ? '32px' : '0px',
+            paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))',
+            paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+            paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+          }}
         >
-          <div className="max-w-lg mx-auto flex items-center justify-between">
+          <div className={`${CONTAINER} flex items-center justify-between`}>
             <div className="flex items-center gap-3">
               <img
                 src="/church_logo.png"
@@ -419,77 +396,110 @@ export default function Layout() {
                 <span className="text-gradient">UNSTPBL</span>
               </h1>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="text-white/40 hover:text-white/70 text-sm transition-colors"
-            >
-              Sign Out
-            </button>
           </div>
         </header>
 
         {/* Main Content - Balanced padding for mobile and desktop */}
         <main
-          className="flex-1 px-4 pb-28 max-w-lg mx-auto w-full transition-all duration-300"
-          style={{ paddingTop: isOffline ? '120px' : '84px' }}
+          className={`flex-1 ${CONTAINER} transition-all duration-300`}
+          style={{
+            paddingTop: `calc(${isOffline ? 120 : 84}px + env(safe-area-inset-top, 0px))`,
+            paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))',
+            paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+            paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+          }}
         >
           <Outlet />
         </main>
 
-        {/* Bottom Navigation - Swipable on small screens, centered on desktop */}
+        {/* Bottom tab bar: five equal tabs, always visible (like a native app). */}
         <nav
           ref={navRef}
-          aria-label="Bottom Navigation"
-          className={`fixed bottom-0 left-0 right-0 z-50 bg-surface-950/95 backdrop-blur-md border-t border-white/10 pb-[env(safe-area-inset-bottom,0px)] transition-all duration-300 transform select-none ${
-            visible ? 'translate-y-0 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]' : 'translate-y-full'
-          }`}
+          aria-label="Main"
+          className="fixed bottom-0 left-0 right-0 z-50 bg-surface-950/95 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]"
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            paddingLeft: 'env(safe-area-inset-left, 0px)',
+            paddingRight: 'env(safe-area-inset-right, 0px)',
+          }}
         >
-          {/* Scroll fade edge indicators */}
-          {canScrollLeft && (
-            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-surface-950/95 via-surface-950/70 to-transparent z-20 flex items-center pl-1 text-white/50">
-              <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-              </svg>
-            </div>
-          )}
-          {canScrollRight && (
-            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-surface-950/95 via-surface-950/70 to-transparent z-20 flex items-center justify-end pr-1 text-white/50">
-              <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          )}
-
-          <div
-            ref={navScrollRef}
-            onScroll={checkScrollState}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUpOrLeave}
-            onMouseLeave={handleMouseUpOrLeave}
-            className="max-w-lg mx-auto flex items-center justify-start sm:justify-around gap-1.5 sm:gap-2 px-3 py-2 overflow-x-auto hide-scrollbar scroll-smooth touch-pan-x cursor-grab active:cursor-grabbing"
-          >
-            {navItems.map((item) => (
+          <div className={`${CONTAINER} flex items-stretch px-1`}>
+            {primaryItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center shrink-0 min-w-[66px] sm:min-w-[72px] px-2.5 py-1.5 rounded-xl transition-all duration-200 ${
-                    isActive
-                      ? 'text-brand-400 bg-brand-500/15 ring-1 ring-brand-500/30 font-semibold shadow-[0_0_12px_rgba(245,158,11,0.15)] scale-[1.02]'
-                      : 'text-white/60 hover:text-white/90 hover:bg-white/5 active:scale-95'
-                  }`
-                }
+                className={({ isActive }) => `${TAB_CLASS} ${isActive ? TAB_ACTIVE : TAB_IDLE}`}
               >
                 {item.icon}
-                <span className="text-[11px] sm:text-xs font-medium tracking-tight mt-0.5 whitespace-nowrap">
-                  {item.label}
-                </span>
+                <span className="text-xs font-medium mt-0.5 max-w-full truncate">{item.label}</span>
               </NavLink>
             ))}
+            <button
+              type="button"
+              onClick={() => setMoreOpen((open) => !open)}
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+              className={`${TAB_CLASS} ${moreActive || moreOpen ? TAB_ACTIVE : TAB_IDLE}`}
+            >
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.8" />
+                <circle cx="12" cy="12" r="1.8" />
+                <circle cx="19" cy="12" r="1.8" />
+              </svg>
+              <span className="text-xs font-medium mt-0.5">More</span>
+            </button>
           </div>
         </nav>
+
+        {moreOpen && (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center">
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => setMoreOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in cursor-default"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="More"
+              className="relative w-full max-w-lg md:max-w-2xl bg-surface-950 border-t border-white/10 rounded-t-3xl p-4 animate-slide-up max-h-[80dvh] overflow-y-auto"
+              style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+            >
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
+              <ul className="grid grid-cols-1 gap-1">
+                {moreItems.map((item) => (
+                  <li key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-4 rounded-xl px-4 py-3 text-base min-h-[48px] ${
+                          isActive ? 'bg-brand-500/15 text-brand-300 font-semibold' : 'text-white/80 hover:bg-white/5'
+                        }`
+                      }
+                    >
+                      {item.icon}
+                      {item.label}
+                    </NavLink>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-4 rounded-xl px-4 py-3 text-base min-h-[48px] text-white/60 hover:bg-white/5 text-left"
+                  >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign out
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -418,7 +418,7 @@ export default function BishopPage() {
       <div className="glass-card p-5 animate-slide-up">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white">Congregation Read Rates</h3>
-          <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Today</span>
+          <span className="text-xs text-white/30 uppercase font-bold tracking-widest">Today</span>
         </div>
         {congregationLoading ? (
           <div className="py-8 flex justify-center">

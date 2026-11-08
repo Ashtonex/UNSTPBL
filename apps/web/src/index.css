@@ -8,13 +8,18 @@
   }
 
   html {
+    /* Stop mobile browsers from silently inflating text sizes in landscape. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-surface text-white font-sans min-h-screen;
+    @apply bg-surface text-white font-sans min-h-dvh;
+    /* Long names, emails and URLs wrap instead of pushing the page wider than the screen. */
+    overflow-wrap: anywhere;
     background: linear-gradient(135deg, #070a0d 0%, #111822 50%, #070a0d 100%);
     background-attachment: fixed;
   }
@@ -176,5 +181,13 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Inputs under 16px make iOS Safari zoom the whole page when one is focused (and leave it
+   zoomed). Keep every text field at 16px on phones; the :not() chain outranks utility classes. */
+@media (max-width: 767px) {
+  :is(input, select, textarea):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']) {
+    font-size: 16px;
   }
 }

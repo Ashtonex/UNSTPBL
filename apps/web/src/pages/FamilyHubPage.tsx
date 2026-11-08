@@ -149,7 +149,7 @@ export default function FamilyHubPage() {
                 <div className="relative z-10 space-y-4">
                   <div className="flex justify-between items-end">
                     <div>
-                      <span className="text-[10px] text-brand-400 font-bold uppercase tracking-widest">Victory Tabernacle Family Progress</span>
+                      <span className="text-xs text-brand-400 font-bold uppercase tracking-widest">Victory Tabernacle Family Progress</span>
                       <h3 className="text-3xl font-extrabold text-white mt-1">
                         {milestonesData?.totalReads ?? 0}
                       </h3>
@@ -198,12 +198,12 @@ export default function FamilyHubPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
-                          <span className="text-[10px] font-bold">{m.target}</span>
+                          <span className="text-xs font-bold">{m.target}</span>
                         )}
                       </div>
                       <div>
                         <h5 className="text-xs font-bold text-white">{m.label}</h5>
-                        <p className="text-[11px] text-white/40 mt-0.5">{m.desc}</p>
+                        <p className="text-xs text-white/40 mt-0.5">{m.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -225,7 +225,7 @@ export default function FamilyHubPage() {
             triviaData.trivia.map((q: any) => (
               <div key={q.id} className="glass-card p-5 space-y-4">
                 <div>
-                  <span className="text-[9px] bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                  <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
                     Weekly Bible Challenge
                   </span>
                   <h4 className="text-sm font-bold text-white mt-2.5 leading-relaxed">{q.question}</h4>
@@ -284,7 +284,7 @@ export default function FamilyHubPage() {
                         <span className="text-red-400">❌ Incorrect</span>
                       )}
                     </div>
-                    {q.explanation && <p className="italic text-[11px] text-white/50">"{q.explanation}"</p>}
+                    {q.explanation && <p className="italic text-xs text-white/50">"{q.explanation}"</p>}
                   </div>
                 )}
               </div>
@@ -320,7 +320,7 @@ export default function FamilyHubPage() {
                       joinCircleMutation.mutate(c.id);
                     }
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide uppercase transition-all active:scale-[0.97] border ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide uppercase transition-all active:scale-[0.97] border ${
                     c.hasJoined
                       ? 'bg-brand-500/10 border-brand-500/30 text-brand-400'
                       : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/60'
@@ -356,7 +356,7 @@ export default function FamilyHubPage() {
                   <h4 className="text-sm font-bold text-white">{s.title}</h4>
                   <p className="text-xs text-white/40 mt-1">Preached by {s.preacher}</p>
                 </div>
-                <span className="text-[10px] text-brand-400 font-bold bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap">
+                <span className="text-xs text-brand-400 font-bold bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap">
                   {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </span>
               </div>
@@ -373,7 +373,7 @@ export default function FamilyHubPage() {
       {activeSermon && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end items-end transition-opacity duration-300">
           <div className="absolute inset-0" onClick={() => setActiveSermon(null)} />
-          <div className="relative w-full max-w-md bg-neutral-900 border-t border-white/10 rounded-t-3xl p-6 shadow-2xl z-10 animate-slide-up max-h-[85vh] overflow-y-auto flex flex-col space-y-6">
+          <div className="relative w-full max-w-md bg-neutral-900 border-t border-white/10 rounded-t-3xl p-6 shadow-2xl z-10 animate-slide-up max-h-[85dvh] overflow-y-auto flex flex-col space-y-6">
             <div className="w-12 h-1 bg-white/20 rounded-full mx-auto shrink-0" />
 
             <div className="flex justify-between items-start shrink-0">
@@ -408,7 +408,7 @@ export default function FamilyHubPage() {
                   <button
                     onClick={handleSaveNotes}
                     disabled={notesSaving}
-                    className="text-[10px] font-bold text-brand-400 bg-brand-500/10 border border-brand-500/25 px-2.5 py-1 rounded"
+                    className="text-xs font-bold text-brand-400 bg-brand-500/10 border border-brand-500/25 px-2.5 py-1 rounded"
                   >
                     {notesSaving ? 'Saving...' : 'Save Notes'}
                   </button>

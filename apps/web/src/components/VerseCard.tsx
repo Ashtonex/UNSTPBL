@@ -362,14 +362,14 @@ export default function VerseCard({
                       <span className="w-1 h-4 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '120ms' }} />
                       <span className="w-1 h-2.5 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '240ms' }} />
                     </span>
-                    <span className="text-[11px] font-bold">Listening...</span>
+                    <span className="text-xs font-bold">Listening...</span>
                   </>
                 ) : (
                   <>
                     <svg className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-[11px]">Listen</span>
+                    <span className="text-xs">Listen</span>
                   </>
                 )}
               </button>
@@ -383,11 +383,11 @@ export default function VerseCard({
                 e.stopPropagation();
                 cycleFontSize();
               }}
-              className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white active:scale-95 transition-all flex items-center gap-1"
+              className="px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white active:scale-95 transition-all flex items-center gap-1"
               title="Cycle font size (Normal, Large, Extra Large)"
             >
               <span>Aa</span>
-              <span className="text-[9px] text-brand-400">
+              <span className="text-xs text-brand-400">
                 {fontSize === 'normal' ? '1x' : fontSize === 'large' ? '2x' : '3x'}
               </span>
             </button>
@@ -418,7 +418,7 @@ export default function VerseCard({
               <p className="verse-reference">
                 {book.name} {verse.chapter}:{verse.verseNumber}
               </p>
-              <p className="text-[10px] text-white/60 font-medium uppercase tracking-wider mt-1 flex items-center gap-1.5">
+              <p className="text-xs text-white/60 font-medium uppercase tracking-wider mt-1 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
                 Victory Tabernacle City Mutare
               </p>
@@ -429,7 +429,7 @@ export default function VerseCard({
           </div>
 
           {/* Kid-friendly Double-Tap Hint */}
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[10px] text-white/40">
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-white/40">
             <span>✨ Double-tap to celebrate</span>
             {(hasPrev || hasNext) && <span>👈 Swipe to flip readings 👉</span>}
           </div>
@@ -499,7 +499,7 @@ export default function VerseCard({
 
       {/* Quick 1-Tap Family Reactions */}
       <div className="mt-6 flex flex-col items-center gap-2">
-        <p className="text-[11px] uppercase tracking-widest text-white/50 font-bold flex items-center gap-1.5">
+        <p className="text-xs uppercase tracking-widest text-white/50 font-bold flex items-center gap-1.5">
           <span>React to Today&apos;s Scripture</span>
         </p>
         <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -555,7 +555,7 @@ export default function VerseCard({
                   <span className="text-2xl">💬</span>
                   <div className="text-left">
                     <p className="font-extrabold text-white text-sm">Send to WhatsApp</p>
-                    <p className="text-[11px] text-emerald-300/80 font-normal">Opens WhatsApp with verse ready to send</p>
+                    <p className="text-xs text-emerald-300/80 font-normal">Opens WhatsApp with verse ready to send</p>
                   </div>
                 </div>
                 <span>→</span>
@@ -574,7 +574,7 @@ export default function VerseCard({
                   <span className="text-2xl">📸</span>
                   <div className="text-left">
                     <p className="font-extrabold text-white text-sm">Instagram / Status Card</p>
-                    <p className="text-[11px] text-white/60 font-normal">Generate styled 2x HD story image</p>
+                    <p className="text-xs text-white/60 font-normal">Generate styled 2x HD story image</p>
                   </div>
                 </div>
                 {sharing ? (
