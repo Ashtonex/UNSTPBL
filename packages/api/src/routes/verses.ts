@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db } from '../lib/db.js';
 import { resolveAuth } from '../lib/authCache.js';
 import { createMemoCache } from '../lib/memoCache.js';
+import { loadPrayerFeed } from '../lib/prayerFeed.js';
 import {
   verseSchedule,
   bibleVerses,
@@ -683,62 +684,8 @@ verseRoutes.post('/verses/reflections', authMiddleware, async (c) => {
 verseRoutes.get('/prayers', authMiddleware, async (c) => {
   try {
     const currentUser = c.get('user');
-    const allPrayers = await db
-      .select({
-        id: prayerRequests.id,
-        userId: prayerRequests.userId,
-        title: prayerRequests.title,
-        content: prayerRequests.content,
-        status: prayerRequests.status,
-        createdAt: prayerRequests.createdAt,
-        answeredAt: prayerRequests.answeredAt,
-        type: prayerRequests.type,
-        isAnonymous: prayerRequests.isAnonymous,
-        authorName: users.displayName,
-        authorCongregation: users.congregation,
-      })
-      .from(prayerRequests)
-      .innerJoin(users, eq(prayerRequests.userId, users.id))
-      .orderBy(desc(prayerRequests.createdAt))
-      .limit(100);
-
-    const formatted = await Promise.all(allPrayers.map(async (prayer) => {
-      const joinCountResult = await db
-        .select({ val: count() })
-        .from(prayerJoins)
-        .where(eq(prayerJoins.prayerRequestId, prayer.id));
-      const joinCount = joinCountResult[0]?.val ?? 0;
-
-      const userJoin = await db
-        .select()
-        .from(prayerJoins)
-        .where(and(eq(prayerJoins.prayerRequestId, prayer.id), eq(prayerJoins.userId, currentUser.id)))
-        .limit(1);
-
-      const hasJoined = userJoin.length > 0;
-
-      return {
-        id: prayer.id,
-        userId: prayer.userId,
-        title: prayer.title,
-        content: prayer.content,
-        status: prayer.status,
-        createdAt: prayer.createdAt,
-        answeredAt: prayer.answeredAt,
-        type: prayer.type || 'request',
-        isAnonymous: prayer.isAnonymous || false,
-        user: prayer.isAnonymous ? { displayName: 'Anonymous Member', congregation: null } : {
-          displayName: prayer.authorName || 'Family Member',
-          congregation: prayer.authorCongregation
-        },
-        _count: {
-          joins: joinCount
-        },
-        hasJoined
-      };
-    }));
-
-    return c.json({ prayers: formatted });
+    const prayers = await loadPrayerFeed(db, currentUser.id);
+    return c.json({ prayers });
   } catch (err: any) {
     console.error('Error fetching prayer requests:', err);
     return c.json({ error: err.message || 'Internal server error' }, 500);
