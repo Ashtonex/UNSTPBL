@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { chartColors } from '../lib/theme';
 import { useQueryKeys } from '../lib/queryKeys';
+import { Notice, PageHeader } from '../components/ui';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -350,32 +352,29 @@ export default function BishopPage() {
 
   return (
     <div className="py-4 animate-fade-in space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Bishop Dashboard</h2>
-        <p className="text-white/40 text-sm">Manage daily scripture reading schedules and track congregation completion trends.</p>
-      </div>
+      <PageHeader title="Bishop Dashboard" subtitle="Manage daily scripture reading schedules and track congregation completion trends." />
 
       {statsError && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+        <Notice tone="error">
           Could not load dashboard stats. {(statsError as Error).message}
-        </div>
+        </Notice>
       )}
 
       {/* Outreach tools */}
       <div className="grid grid-cols-2 gap-4">
         <Link to="/visitors" className="glass-card p-4 block hover:bg-white/5 transition-colors">
           <p className="text-white font-semibold text-sm">Visitors</p>
-          <p className="text-white/40 text-xs mt-1">Welcome guests and follow up.</p>
+          <p className="text-fg-muted text-xs mt-1">Welcome guests and follow up.</p>
         </Link>
         <Link to="/messages" className="glass-card p-4 block hover:bg-white/5 transition-colors">
           <p className="text-white font-semibold text-sm">Text messages</p>
-          <p className="text-white/40 text-xs mt-1">
+          <p className="text-fg-muted text-xs mt-1">
             {messagingStatus?.dryRun ? 'Test mode: nothing is sent.' : 'Announcements and history.'}
           </p>
         </Link>
         <Link to="/messages/wording" className="glass-card p-4 block hover:bg-white/5 transition-colors col-span-2">
           <p className="text-white font-semibold text-sm">Message wording</p>
-          <p className="text-white/40 text-xs mt-1">Edit the thank-you, birthday and daily verse texts.</p>
+          <p className="text-fg-muted text-xs mt-1">Edit the thank-you, birthday and daily verse texts.</p>
         </Link>
       </div>
 
@@ -387,7 +386,7 @@ export default function BishopPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </div>
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Total Members</p>
+          <p className="text-fg-muted text-xs font-semibold uppercase tracking-wider">Total Members</p>
           <p className="text-4xl font-bold text-gradient mt-2">
             {statsLoading ? (
               <span className="inline-block w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
@@ -406,7 +405,7 @@ export default function BishopPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Today&apos;s Read Rate</p>
+          <p className="text-fg-muted text-xs font-semibold uppercase tracking-wider">Today&apos;s Read Rate</p>
           <p className="text-4xl font-bold text-gradient mt-2">
             {statsLoading ? (
               <span className="inline-block w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
@@ -420,7 +419,7 @@ export default function BishopPage() {
       <div className="glass-card p-5 animate-slide-up">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white">Congregation Read Rates</h3>
-          <span className="text-xs text-white/30 uppercase font-bold tracking-widest">Today</span>
+          <span className="text-xs text-fg-muted uppercase font-bold tracking-widest">Today</span>
         </div>
         {congregationLoading ? (
           <div className="py-8 flex justify-center">
@@ -431,8 +430,8 @@ export default function BishopPage() {
             {(congregationData?.congregations || []).slice(0, 6).map((group) => (
               <div key={group.congregation}>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-white/70 font-semibold">{group.congregation}</span>
-                  <span className="text-white/40">{group.readsToday}/{group.members} · {group.readRate}%</span>
+                  <span className="text-fg-soft font-semibold">{group.congregation}</span>
+                  <span className="text-fg-muted">{group.readsToday}/{group.members} · {group.readRate}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                   <div
@@ -443,7 +442,7 @@ export default function BishopPage() {
               </div>
             ))}
             {(!congregationData?.congregations || congregationData.congregations.length === 0) && (
-              <p className="text-white/30 text-sm text-center py-6">No congregation data yet.</p>
+              <p className="text-fg-muted text-sm text-center py-6">No congregation data yet.</p>
             )}
           </div>
         )}
@@ -464,12 +463,12 @@ export default function BishopPage() {
                 <AreaChart data={trendsData?.trends || []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorReads" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#eab308" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={chartColors.primary} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={chartColors.primary} stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorSignups" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={chartColors.secondary} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={chartColors.secondary} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="date" tickFormatter={(tick) => tick.split('-')[2]} stroke="rgba(255,255,255,0.3)" fontSize={10} />
@@ -479,8 +478,8 @@ export default function BishopPage() {
                     labelStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}
                     itemStyle={{ fontSize: '12px' }}
                   />
-                  <Area type="monotone" dataKey="reads" name="Reads" stroke="#eab308" fillOpacity={1} fill="url(#colorReads)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="signups" name="Signups" stroke="#06b6d4" fillOpacity={1} fill="url(#colorSignups)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="reads" name="Reads" stroke={chartColors.primary} fillOpacity={1} fill="url(#colorReads)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="signups" name="Signups" stroke={chartColors.secondary} fillOpacity={1} fill="url(#colorSignups)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -506,7 +505,7 @@ export default function BishopPage() {
                     dataKey="value"
                   >
                     {(translationsData?.translations || []).map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#eab308' : '#06b6d4'} />
+                      <Cell key={`cell-${index}`} fill={index === 0 ? chartColors.primary : chartColors.secondary} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -563,9 +562,9 @@ export default function BishopPage() {
         </button>
         {scheduledPushData?.notifications?.[0] && (
           <div className="mt-4 border-t border-white/10 pt-4">
-            <p className="text-xs text-white/30 uppercase font-bold tracking-widest mb-2">Next Scheduled</p>
-            <p className="text-sm text-white/80 font-semibold">{scheduledPushData.notifications[0].title}</p>
-            <p className="text-xs text-white/40 mt-1">
+            <p className="text-xs text-fg-muted uppercase font-bold tracking-widest mb-2">Next Scheduled</p>
+            <p className="text-sm text-fg-soft font-semibold">{scheduledPushData.notifications[0].title}</p>
+            <p className="text-xs text-fg-muted mt-1">
               {new Date(scheduledPushData.notifications[0].scheduledFor).toLocaleString()}
             </p>
           </div>
@@ -601,14 +600,14 @@ export default function BishopPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Book Selection */}
             <div>
-              <label htmlFor="book-select" className="block text-white/50 text-xs font-semibold mb-2">BIBLE BOOK</label>
+              <label htmlFor="book-select" className="block text-fg-muted text-xs font-semibold mb-2">BIBLE BOOK</label>
               <select
                 id="book-select"
                 value={bookId}
                 onChange={(e) => setBookId(e.target.value ? Number(e.target.value) : '')}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"
               >
-                <option value="" className="bg-neutral-900 text-white/50">Select a book...</option>
+                <option value="" className="bg-neutral-900 text-fg-muted">Select a book...</option>
                 {books.map((book) => (
                   <option key={book.id} value={book.id} className="bg-neutral-900 text-white">
                     {book.name}
@@ -619,7 +618,7 @@ export default function BishopPage() {
 
             {/* Date Selection */}
             <div>
-              <label htmlFor="schedule-date" className="block text-white/50 text-xs font-semibold mb-2">PUBLISH DATE</label>
+              <label htmlFor="schedule-date" className="block text-fg-muted text-xs font-semibold mb-2">PUBLISH DATE</label>
               <input
                 id="schedule-date"
                 type="date"
@@ -633,7 +632,7 @@ export default function BishopPage() {
           <div className="grid grid-cols-2 gap-4">
             {/* Chapter */}
             <div>
-              <label htmlFor="chapter-input" className="block text-white/50 text-xs font-semibold mb-2">CHAPTER</label>
+              <label htmlFor="chapter-input" className="block text-fg-muted text-xs font-semibold mb-2">CHAPTER</label>
               <input
                 id="chapter-input"
                 type="number"
@@ -647,7 +646,7 @@ export default function BishopPage() {
 
             {/* Verse */}
             <div>
-              <label htmlFor="verse-input" className="block text-white/50 text-xs font-semibold mb-2">VERSE NUMBER</label>
+              <label htmlFor="verse-input" className="block text-fg-muted text-xs font-semibold mb-2">VERSE NUMBER</label>
               <input
                 id="verse-input"
                 type="number"
@@ -662,7 +661,7 @@ export default function BishopPage() {
 
           {/* Pastoral Note */}
           <div>
-            <label htmlFor="pastoral-note" className="block text-white/50 text-xs font-semibold mb-2">BISHOP'S PASTORAL NOTE / DEVOTIONAL</label>
+            <label htmlFor="pastoral-note" className="block text-fg-muted text-xs font-semibold mb-2">BISHOP'S PASTORAL NOTE / DEVOTIONAL</label>
             <textarea
               id="pastoral-note"
               rows={4}

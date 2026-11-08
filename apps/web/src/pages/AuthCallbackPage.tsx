@@ -51,7 +51,7 @@ export default function AuthCallbackPage() {
       <div className="h-[100dvh] flex flex-col items-center justify-center px-6 bg-surface-950 text-center">
         <div className="text-4xl mb-4">⚠️</div>
         <h2 className="text-white font-bold text-lg mb-2">Link Expired</h2>
-        <p className="text-white/50 text-sm mb-6 max-w-xs">{error}</p>
+        <p className="text-fg-muted text-sm mb-6 max-w-xs">{error}</p>
         <button
           onClick={() => navigate('/login', { replace: true })}
           className="px-6 py-3 rounded-xl bg-brand-500 text-white font-semibold text-sm hover:bg-brand-400 transition-colors"
@@ -65,7 +65,7 @@ export default function AuthCallbackPage() {
   return (
     <div className="h-[100dvh] flex flex-col items-center justify-center bg-surface-950">
       <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-white/50 text-sm">Verifying your account…</p>
+      <p className="text-fg-muted text-sm">Verifying your account…</p>
     </div>
   );
 }

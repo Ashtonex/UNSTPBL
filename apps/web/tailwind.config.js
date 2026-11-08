@@ -13,13 +13,30 @@ export default {
           500: '#f59e0b',
           600: '#d97706',
           700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
+          950: '#451a03',
         },
+        // Backgrounds, from the page itself (950) up to raised panels (300).
         surface: {
           DEFAULT: '#0b0f13',
           50: '#131920',
           100: '#1d2630',
           200: '#2a3644',
           300: '#38485a',
+          900: '#0b0f13',
+          950: '#070a0d',
+        },
+        // Text on the dark theme: three levels, all readable on the app's backgrounds
+        // (4.5:1 or better, the WCAG minimum for small text). Use these instead of text-white/NN.
+        //   text-fg        headings and main content
+        //   text-fg-soft   supporting text
+        //   text-fg-muted  captions, hints and timestamps
+        // They read --fg (index.css), so a light theme only has to change that one value.
+        fg: {
+          DEFAULT: 'rgb(var(--fg) / 0.95)',
+          soft: 'rgb(var(--fg) / 0.75)',
+          muted: 'rgb(var(--fg) / 0.6)',
         },
       },
       fontFamily: {

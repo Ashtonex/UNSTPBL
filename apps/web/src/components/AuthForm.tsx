@@ -13,7 +13,7 @@ const MIN_PASSWORD_LENGTH = 6;
 const inputClass =
   // 16px text on purpose: anything smaller makes iOS Safari zoom the page on focus.
   'w-full rounded-xl bg-white/[0.03] border border-white/10 px-4 py-3 text-base text-white ' +
-  'placeholder:text-white/25 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/30 ' +
+  'placeholder:text-fg-muted focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/30 ' +
   'disabled:opacity-60';
 
 const linkClass =
@@ -106,7 +106,7 @@ export default function AuthForm({ recovering = false }: Props) {
     <form onSubmit={onSubmit} className="space-y-4" noValidate={false}>
       {showEmail && (
         <div>
-          <label htmlFor="auth-email" className="block text-xs font-medium text-white/60 mb-1.5">
+          <label htmlFor="auth-email" className="block text-xs font-medium text-fg-muted mb-1.5">
             Email address
           </label>
           <input
@@ -126,7 +126,7 @@ export default function AuthForm({ recovering = false }: Props) {
 
       {showPassword && (
         <div>
-          <label htmlFor="auth-password" className="block text-xs font-medium text-white/60 mb-1.5">
+          <label htmlFor="auth-password" className="block text-xs font-medium text-fg-muted mb-1.5">
             {view === 'update_password' ? 'New password' : 'Your password'}
           </label>
           <input

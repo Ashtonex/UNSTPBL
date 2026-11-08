@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PrayerRequest } from '@unstpbl/shared';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { PageHeader, PendingState } from '../components/ui';
 import { useAuthStore } from '../stores/auth';
 
 export default function PrayersPage() {
@@ -96,10 +97,7 @@ export default function PrayersPage() {
   return (
     <div className="py-4 animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-1">Family Prayer Wall</h2>
-          <p className="text-white/40 text-sm">Share burdens and praises with your church family.</p>
-        </div>
+        <PageHeader title="Family Prayer Wall" subtitle="Share burdens and praises with your church family." />
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="bg-brand-500 hover:bg-brand-400 active:scale-[0.98] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md shadow-brand-500/10 flex items-center gap-1.5"
@@ -118,7 +116,7 @@ export default function PrayersPage() {
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Share on the Wall</h3>
             <button
               onClick={() => setShowAddForm(false)}
-              className="text-white/40 hover:text-white/70"
+              className="text-fg-muted hover:text-fg-soft"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -127,7 +125,7 @@ export default function PrayersPage() {
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-xs font-semibold text-white/70 cursor-pointer">
+              <label className="flex items-center gap-2 text-xs font-semibold text-fg-soft cursor-pointer">
                 <input
                   type="radio"
                   name="type"
@@ -137,7 +135,7 @@ export default function PrayersPage() {
                 />
                 Prayer Request
               </label>
-              <label className="flex items-center gap-2 text-xs font-semibold text-white/70 cursor-pointer">
+              <label className="flex items-center gap-2 text-xs font-semibold text-fg-soft cursor-pointer">
                 <input
                   type="radio"
                   name="type"
@@ -170,7 +168,7 @@ export default function PrayersPage() {
             />
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-xs text-white/50 cursor-pointer select-none">
+              <label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={isAnonymous}
@@ -199,7 +197,7 @@ export default function PrayersPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
             filter === 'all'
               ? 'bg-white/10 text-white font-bold'
-              : 'text-white/40 hover:text-white/70'
+              : 'text-fg-muted hover:text-fg-soft'
           }`}
         >
           All Shared
@@ -209,7 +207,7 @@ export default function PrayersPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
             filter === 'request'
               ? 'bg-brand-500/10 text-brand-400 font-bold border border-brand-500/20'
-              : 'text-white/40 hover:text-white/70'
+              : 'text-fg-muted hover:text-fg-soft'
           }`}
         >
           🙏 Requests
@@ -219,7 +217,7 @@ export default function PrayersPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
             filter === 'praise'
               ? 'bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20'
-              : 'text-white/40 hover:text-white/70'
+              : 'text-fg-muted hover:text-fg-soft'
           }`}
         >
           🙌 praises
@@ -228,10 +226,7 @@ export default function PrayersPage() {
 
       {/* List Feed */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-white/40 text-xs">Loading prayer wall...</p>
-        </div>
+        <PendingState label="Loading prayers" />
       ) : filteredPrayers.length > 0 ? (
         <div className="space-y-4">
           {filteredPrayers.map((prayer: PrayerRequest) => (
@@ -249,16 +244,16 @@ export default function PrayersPage() {
               <div className="flex justify-between items-start mb-2 relative z-10">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white/80">
+                    <span className="text-xs font-bold text-fg-soft">
                       {prayer.user?.displayName || 'Family Member'}
                     </span>
                     {prayer.user?.congregation && (
-                      <span className="text-xs text-white/30 font-medium">
+                      <span className="text-xs text-fg-muted font-medium">
                         • {prayer.user.congregation}
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-white/20">
+                  <span className="text-xs text-fg-muted">
                     {new Date(prayer.createdAt).toLocaleDateString(undefined, {
                       month: 'short',
                       day: 'numeric',
@@ -286,7 +281,7 @@ export default function PrayersPage() {
               {/* Title & Body */}
               <div className="mb-4 relative z-10">
                 <h4 className="text-sm font-bold text-white mb-1.5">{prayer.title}</h4>
-                <p className="text-xs text-white/70 leading-relaxed whitespace-pre-line">{prayer.content}</p>
+                <p className="text-xs text-fg-soft leading-relaxed whitespace-pre-line">{prayer.content}</p>
               </div>
 
               {/* Bottom Row: Actions */}
@@ -305,7 +300,7 @@ export default function PrayersPage() {
                   className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] border ${
                     prayer.hasJoined
                       ? 'bg-amber-500/20 border-amber-400/40 text-amber-200 ring-2 ring-amber-400/25 shadow-lg shadow-amber-500/15'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70 hover:text-white'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft hover:text-white'
                   }`}
                 >
                   {prayer.hasJoined ? (
@@ -340,9 +335,9 @@ export default function PrayersPage() {
           ))}
         </div>
       ) : (
-        <div className="glass-card p-10 text-center text-white/30 space-y-2">
+        <div className="glass-card p-10 text-center text-fg-muted space-y-2">
           <p className="text-sm font-semibold">The prayer wall is empty.</p>
-          <p className="text-xs text-white/20">Click "Share Something" above to post your request or praise.</p>
+          <p className="text-xs text-fg-muted">Click "Share Something" above to post your request or praise.</p>
         </div>
       )}
     </div>

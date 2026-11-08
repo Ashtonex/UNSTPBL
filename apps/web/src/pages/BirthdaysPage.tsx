@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { PendingState } from '../components/ui';
 import { useAuthStore } from '../stores/auth';
 
 function nameFor(user: { displayName?: string | null; id?: string }) {
@@ -42,12 +43,12 @@ export default function BirthdaysPage() {
   });
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">
+    <div className="py-4 animate-fade-in space-y-5">
       <section>
         <h2 className="text-3xl font-extrabold tracking-tight mb-2">
           <span className="text-gradient">Birthday Wall</span>
         </h2>
-        <p className="text-white/45 text-sm">
+        <p className="text-fg-muted text-sm">
           Celebrate members automatically from the birthdays saved on their profiles.
         </p>
       </section>
@@ -57,7 +58,7 @@ export default function BirthdaysPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-white">Today&apos;s automation</h3>
-            <p className="text-xs text-white/45 mt-1">Creates wall posts and pushes birthday alerts to other subscribers.</p>
+            <p className="text-xs text-fg-muted mt-1">Creates wall posts and pushes birthday alerts to other subscribers.</p>
           </div>
           <button
             type="button"
@@ -79,12 +80,7 @@ export default function BirthdaysPage() {
       </section>
       )}
 
-      {isLoading && (
-        <div className="flex flex-col items-center py-12">
-          <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-white/40 text-xs">Loading birthday wall...</p>
-        </div>
-      )}
+      {isLoading && <PendingState count={2} label="Loading birthdays" />}
 
       {error && (
         <div className="glass-card p-5 border border-rose-500/20 text-rose-300 text-sm">
@@ -95,7 +91,7 @@ export default function BirthdaysPage() {
       {!isLoading && !error && (
         <>
           <section className="space-y-3">
-            <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">Wall Posts</h3>
+            <h3 className="text-sm font-bold text-fg-soft uppercase tracking-wider">Wall Posts</h3>
             {data?.wall.length ? (
               data.wall.map((post) => {
                 const name = nameFor(post.user);
@@ -113,13 +109,13 @@ export default function BirthdaysPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h4 className="font-bold text-white truncate">{name}</h4>
-                            <p className="text-xs text-white/35 truncate">{post.user.congregation || 'UNSTPBL family'}</p>
+                            <p className="text-xs text-fg-muted truncate">{post.user.congregation || 'UNSTPBL family'}</p>
                           </div>
                           <span className="text-xs text-brand-200 bg-brand-500/10 border border-brand-500/20 rounded-full px-2 py-1 whitespace-nowrap">
                             {formatBirthday(post.birthdayDate)}
                           </span>
                         </div>
-                        <p className="text-sm text-white/75 leading-relaxed mt-3">{post.message}</p>
+                        <p className="text-sm text-fg-soft leading-relaxed mt-3">{post.message}</p>
                       </div>
                     </div>
                   </article>
@@ -128,13 +124,13 @@ export default function BirthdaysPage() {
             ) : (
               <div className="glass-card p-6 border border-white/10 text-center">
                 <p className="text-sm font-semibold text-white">No birthday posts yet.</p>
-                <p className="text-xs text-white/40 mt-1">Posts appear automatically on each visible member birthday.</p>
+                <p className="text-xs text-fg-muted mt-1">Posts appear automatically on each visible member birthday.</p>
               </div>
             )}
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">Upcoming</h3>
+            <h3 className="text-sm font-bold text-fg-soft uppercase tracking-wider">Upcoming</h3>
             {data?.upcoming.length ? (
               data.upcoming.map((person) => {
                 const name = nameFor(person);
@@ -144,22 +140,22 @@ export default function BirthdaysPage() {
                       {person.avatarUrl ? (
                         <img src={person.avatarUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs font-black text-white/80">{initials(name)}</span>
+                        <span className="text-xs font-black text-fg-soft">{initials(name)}</span>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-white truncate">{name}</p>
-                      <p className="text-xs text-white/40 truncate">{person.congregation || 'UNSTPBL family'}</p>
+                      <p className="text-xs text-fg-muted truncate">{person.congregation || 'UNSTPBL family'}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs font-bold text-brand-200">{person.daysUntil === 0 ? 'Today' : `${person.daysUntil}d`}</p>
-                      <p className="text-xs text-white/35">{formatBirthday(person.birthday)}</p>
+                      <p className="text-xs text-fg-muted">{formatBirthday(person.birthday)}</p>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="glass-card p-5 border border-white/10 text-center text-sm text-white/45">
+              <div className="glass-card p-5 border border-white/10 text-center text-sm text-fg-muted">
                 No visible birthdays in the next 45 days.
               </div>
             )}

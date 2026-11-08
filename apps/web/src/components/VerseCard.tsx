@@ -263,7 +263,7 @@ export default function VerseCard({
         {onSwipeRight ? (
           <button
             onClick={onSwipeRight}
-            className={`p-1 text-white/50 hover:text-brand-300 active:scale-95 transition-all ${
+            className={`p-1 text-fg-muted hover:text-brand-300 active:scale-95 transition-all ${
               !hasNext ? 'opacity-30 pointer-events-none' : ''
             }`}
             title="Next reading"
@@ -278,7 +278,7 @@ export default function VerseCard({
 
         <div className="flex items-center gap-2 flex-1 justify-center">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <span className="text-white/60 text-xs font-semibold tracking-widest uppercase truncate max-w-[220px]">
+          <span className="text-fg-muted text-xs font-semibold tracking-widest uppercase truncate max-w-[220px]">
             {formattedDate}
           </span>
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -287,7 +287,7 @@ export default function VerseCard({
         {onSwipeLeft ? (
           <button
             onClick={onSwipeLeft}
-            className={`p-1 text-white/50 hover:text-brand-300 active:scale-95 transition-all ${
+            className={`p-1 text-fg-muted hover:text-brand-300 active:scale-95 transition-all ${
               !hasPrev ? 'opacity-30 pointer-events-none' : ''
             }`}
             title="Previous reading"
@@ -352,7 +352,7 @@ export default function VerseCard({
                 className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all border shadow-sm active:scale-95 ${
                   isSpeaking
                     ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 ring-2 ring-amber-400/30'
-                    : 'bg-white/10 hover:bg-white/20 border-white/15 text-white/80 hover:text-white'
+                    : 'bg-white/10 hover:bg-white/20 border-white/15 text-fg-soft hover:text-white'
                 }`}
               >
                 {isSpeaking ? (
@@ -383,7 +383,7 @@ export default function VerseCard({
                 e.stopPropagation();
                 cycleFontSize();
               }}
-              className="px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white active:scale-95 transition-all flex items-center gap-1"
+              className="px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/15 text-fg-soft hover:text-white active:scale-95 transition-all flex items-center gap-1"
               title="Cycle font size (Normal, Large, Extra Large)"
             >
               <span>Aa</span>
@@ -418,18 +418,18 @@ export default function VerseCard({
               <p className="verse-reference">
                 {book.name} {verse.chapter}:{verse.verseNumber}
               </p>
-              <p className="text-xs text-white/60 font-medium uppercase tracking-wider mt-1 flex items-center gap-1.5">
+              <p className="text-xs text-fg-muted font-medium uppercase tracking-wider mt-1 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
                 Victory Tabernacle City Mutare
               </p>
             </div>
-            <span className="text-white/70 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 border border-white/15 shadow-sm backdrop-blur-md">
+            <span className="text-fg-soft text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 border border-white/15 shadow-sm backdrop-blur-md">
               {verse.translation}
             </span>
           </div>
 
           {/* Kid-friendly Double-Tap Hint */}
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-white/40">
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-fg-muted">
             <span>✨ Double-tap to celebrate</span>
             {(hasPrev || hasNext) && <span>👈 Swipe to flip readings 👉</span>}
           </div>
@@ -499,7 +499,7 @@ export default function VerseCard({
 
       {/* Quick 1-Tap Family Reactions */}
       <div className="mt-6 flex flex-col items-center gap-2">
-        <p className="text-xs uppercase tracking-widest text-white/50 font-bold flex items-center gap-1.5">
+        <p className="text-xs uppercase tracking-widest text-fg-muted font-bold flex items-center gap-1.5">
           <span>React to Today&apos;s Scripture</span>
         </p>
         <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -513,7 +513,7 @@ export default function VerseCard({
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 flex items-center gap-1.5 border shadow-sm ${
                   isSelected
                     ? 'bg-brand-500/25 border-brand-400 text-brand-300 ring-2 ring-brand-400/40 shadow-lg shadow-brand-500/20 scale-105'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80 hover:text-white'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft hover:text-white'
                 }`}
               >
                 <span className="text-sm">{r.emoji}</span>
@@ -535,13 +535,13 @@ export default function VerseCard({
               </div>
               <button
                 onClick={() => setShowShareModal(false)}
-                className="p-1.5 rounded-full bg-white/5 text-white/60 hover:text-white"
+                className="p-1.5 rounded-full bg-white/5 text-fg-muted hover:text-white"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-white/70 mb-5 leading-relaxed">
+            <p className="text-xs text-fg-soft mb-5 leading-relaxed">
               Spread God's word with family and friends across WhatsApp, Instagram, or download a card.
             </p>
 
@@ -574,7 +574,7 @@ export default function VerseCard({
                   <span className="text-2xl">📸</span>
                   <div className="text-left">
                     <p className="font-extrabold text-white text-sm">Instagram / Status Card</p>
-                    <p className="text-xs text-white/60 font-normal">Generate styled 2x HD story image</p>
+                    <p className="text-xs text-fg-muted font-normal">Generate styled 2x HD story image</p>
                   </div>
                 </div>
                 {sharing ? (
@@ -588,7 +588,7 @@ export default function VerseCard({
             <div className="mt-5 pt-3 border-t border-white/10 text-center">
               <button
                 onClick={() => setShowShareModal(false)}
-                className="text-xs text-white/50 hover:text-white transition-colors"
+                className="text-xs text-fg-muted hover:text-white transition-colors"
               >
                 Close
               </button>

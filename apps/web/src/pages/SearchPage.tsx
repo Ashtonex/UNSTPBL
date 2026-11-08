@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { DailyVerse } from '@unstpbl/shared';
 import { api } from '../lib/api';
+import { CLICKABLE_FOCUS, clickableProps } from '../lib/clickable';
 import { useQueryKeys } from '../lib/queryKeys';
+import { Notice, PageHeader } from '../components/ui';
 import VerseCard from '../components/VerseCard';
 
 export default function SearchPage() {
@@ -33,10 +35,7 @@ export default function SearchPage() {
 
   return (
     <div className="py-4 animate-fade-in space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Spiritual Semantic Search</h2>
-        <p className="text-white/40 text-sm">Search scriptures using natural language. Try searching for feelings, topics, or life situations (e.g., &quot;finding peace in anxiety&quot;, &quot;gratitude&quot;, &quot;forgiveness&quot;).</p>
-      </div>
+      <PageHeader title="Spiritual Semantic Search" subtitle="Search scriptures using natural language. Try searching for feelings, topics, or life situations (e.g., &quot;finding peace in anxiety&quot;, &quot;gratitude&quot;, &quot;forgiveness&quot;)." />
 
       {/* Search Input Box */}
       <form onSubmit={handleSearchSubmit} className="flex gap-2">
@@ -48,7 +47,7 @@ export default function SearchPage() {
             onChange={handleInputChange}
             className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors"
           />
-          <svg className="w-5 h-5 text-white/30 absolute left-3.5 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-fg-muted absolute left-3.5 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
@@ -66,25 +65,25 @@ export default function SearchPage() {
         {isLoading && (
           <div className="py-12 flex flex-col items-center gap-3">
             <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
-            <p className="text-white/30 text-xs">Computing query embedding & querying vector database...</p>
+            <p className="text-fg-muted text-xs">Computing query embedding & querying vector database...</p>
           </div>
         )}
 
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+          <Notice tone="error">
             Failed to complete semantic search. {(error as Error).message}
-          </div>
+          </Notice>
         )}
 
         {searchTriggered && !isLoading && data && (
           <div className="space-y-4 animate-slide-up">
             <div className="flex justify-between items-center px-1">
-              <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest">Top Matching Scriptures</h3>
+              <h3 className="text-xs font-bold text-fg-muted uppercase tracking-widest">Top Matching Scriptures</h3>
               <span className="text-xs text-brand-400 font-semibold uppercase">{data.matches.length} Results</span>
             </div>
 
             {data.matches.length === 0 ? (
-              <p className="text-center py-12 text-white/30 text-sm">No scriptures matched your query closely. Try different terms.</p>
+              <p className="text-center py-12 text-fg-muted text-sm">No scriptures matched your query closely. Try different terms.</p>
             ) : (
               <div className="space-y-3">
                 {data.matches.map((match) => {
@@ -93,7 +92,7 @@ export default function SearchPage() {
                   return (
                     <div 
                       key={match.verse.id} 
-                      onClick={() => setActiveVerse({
+                      {...clickableProps(() => setActiveVerse({
                         verse: match.verse,
                         book: match.book,
                         schedule: {
@@ -102,8 +101,8 @@ export default function SearchPage() {
                           verseId: match.verse.id,
                           mode: 'manual',
                         },
-                      })}
-                      className={`glass-card p-5 cursor-pointer hover:bg-white/[0.04] transition-colors border border-white/5 relative overflow-hidden group ${
+                      }))}
+                      className={`glass-card p-5 cursor-pointer hover:bg-white/[0.04] transition-colors border border-white/5 relative overflow-hidden group ${CLICKABLE_FOCUS} ${
                         activeVerse?.verse?.id === match.verse.id ? 'border-brand-500/40 ring-1 ring-brand-500/20' : ''
                       }`}
                     >
@@ -112,7 +111,7 @@ export default function SearchPage() {
                         {matchPercentage}% Match
                       </div>
 
-                      <blockquote className="text-sm text-white/80 pr-12 line-clamp-3 italic mb-3">
+                      <blockquote className="text-sm text-fg-soft pr-12 line-clamp-3 italic mb-3">
                         &ldquo;{match.verse.text}&rdquo;
                       </blockquote>
 
@@ -120,7 +119,7 @@ export default function SearchPage() {
                         <span className="font-bold text-white group-hover:text-brand-400 transition-colors">
                           {match.book.name} {match.verse.chapter}:{match.verse.verseNumber}
                         </span>
-                        <span className="text-white/20 text-xs uppercase font-semibold">
+                        <span className="text-fg-muted text-xs uppercase font-semibold">
                           {match.verse.translation}
                         </span>
                       </div>
@@ -138,7 +137,7 @@ export default function SearchPage() {
         <div className="glass-card p-6 border border-brand-500/30 animate-fade-in relative">
           <button 
             onClick={() => setActiveVerse(null)}
-            className="absolute top-4 right-4 text-white/40 hover:text-white/70"
+            className="absolute top-4 right-4 text-fg-muted hover:text-fg-soft"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

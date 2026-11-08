@@ -33,7 +33,7 @@ function CrashScreen() {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-surface-950 text-white p-6 text-center">
       <h1 className="text-xl font-semibold">Something went wrong</h1>
-      <p className="text-white/50 text-sm max-w-xs">
+      <p className="text-fg-muted text-sm max-w-xs">
         Please reload the page. If it keeps happening, let your church admin know.
       </p>
       <button

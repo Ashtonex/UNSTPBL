@@ -36,7 +36,7 @@ export default function UpdatePrompt() {
           <button
             type="button"
             onClick={() => setNeedRefresh(false)}
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white/70 hover:text-white"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-fg-soft hover:text-white"
           >
             Later
           </button>

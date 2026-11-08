@@ -48,8 +48,8 @@ export default function SmsPreferencesCard() {
     <section className="glass-card p-5 border border-white/10 space-y-4">
       <div>
         <h3 className="text-sm font-bold text-white">Text messages</h3>
-        <p className="text-xs text-white/45 mt-1">
-          Choose what the church may text to {saved.phone ? <strong className="text-white/70">{saved.phone}</strong> : 'your phone'}. All of it is off unless you turn it on, and you can reply STOP to any text to opt out.
+        <p className="text-xs text-fg-muted mt-1">
+          Choose what the church may text to {saved.phone ? <strong className="text-fg-soft">{saved.phone}</strong> : 'your phone'}. All of it is off unless you turn it on, and you can reply STOP to any text to opt out.
         </p>
       </div>
 
@@ -81,14 +81,14 @@ export default function SmsPreferencesCard() {
             />
             <span>
               <span className="block text-sm text-white font-medium">{title}</span>
-              <span className="block text-xs text-white/40">{detail}</span>
+              <span className="block text-xs text-fg-muted">{detail}</span>
             </span>
           </label>
         ))}
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="text-xs font-semibold text-white/60 mb-1">How should we send them?</legend>
+        <legend className="text-xs font-semibold text-fg-muted mb-1">How should we send them?</legend>
         {(
           [
             { key: 'sms', title: 'Text message (SMS)', detail: 'Works on any phone, with no data or app needed.' },
@@ -108,7 +108,7 @@ export default function SmsPreferencesCard() {
             />
             <span>
               <span className="block text-sm text-white font-medium">{title}</span>
-              <span className="block text-xs text-white/40">{detail}</span>
+              <span className="block text-xs text-fg-muted">{detail}</span>
             </span>
           </label>
         ))}

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Sermon } from '@unstpbl/shared';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { CLICKABLE_FOCUS, clickableProps } from '../lib/clickable';
+import { PageHeader, PendingState, Sheet } from '../components/ui';
 
 export default function FamilyHubPage() {
   const queryClient = useQueryClient();
@@ -86,10 +88,7 @@ export default function FamilyHubPage() {
   return (
     <div className="py-4 animate-fade-in space-y-6">
       {/* Title */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Family Hub</h2>
-        <p className="text-white/40 text-sm">Grow, learn, and coordinate with the church body.</p>
-      </div>
+      <PageHeader title="Family Hub" subtitle="Grow, learn, and coordinate with the church body." />
 
       {/* Tabs Selector */}
       <div className="flex gap-2 overflow-x-auto pb-1 border-b border-white/5 no-scrollbar">
@@ -98,7 +97,7 @@ export default function FamilyHubPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
             activeTab === 'milestones'
               ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-white/40 border-transparent hover:text-white/70'
+              : 'text-fg-muted border-transparent hover:text-fg-soft'
           }`}
         >
           🏆 Congregation Goals
@@ -108,7 +107,7 @@ export default function FamilyHubPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
             activeTab === 'trivia'
               ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-white/40 border-transparent hover:text-white/70'
+              : 'text-fg-muted border-transparent hover:text-fg-soft'
           }`}
         >
           🧠 Weekly Trivia
@@ -118,7 +117,7 @@ export default function FamilyHubPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
             activeTab === 'circles'
               ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-white/40 border-transparent hover:text-white/70'
+              : 'text-fg-muted border-transparent hover:text-fg-soft'
           }`}
         >
           👥 Home Circles
@@ -128,7 +127,7 @@ export default function FamilyHubPage() {
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
             activeTab === 'sermons'
               ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-white/40 border-transparent hover:text-white/70'
+              : 'text-fg-muted border-transparent hover:text-fg-soft'
           }`}
         >
           📖 Sermon Notes
@@ -139,9 +138,7 @@ export default function FamilyHubPage() {
       {activeTab === 'milestones' && (
         <div className="space-y-6">
           {milestonesLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <PendingState count={2} />
           ) : (
             <>
               {/* Progress Summary Card */}
@@ -156,15 +153,15 @@ export default function FamilyHubPage() {
                       <h3 className="text-3xl font-extrabold text-white mt-1">
                         {milestonesData?.totalReads ?? 0}
                       </h3>
-                      <p className="text-white/40 text-xs mt-0.5">Total scripture readings this month</p>
+                      <p className="text-fg-muted text-xs mt-0.5">Total scripture readings this month</p>
                     </div>
                   </div>
 
                   {/* Circular/Linear progress representation */}
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs text-white/50">
+                    <div className="flex justify-between text-xs text-fg-muted">
                       <span>Monthly Milestone Journey</span>
-                      <span className="font-semibold text-white/80">
+                      <span className="font-semibold text-fg-soft">
                         {Math.min(100, Math.round(((milestonesData?.totalReads ?? 0) / 1000) * 100))}% towards 1,000 target
                       </span>
                     </div>
@@ -180,7 +177,7 @@ export default function FamilyHubPage() {
 
               {/* Milestones Checklist */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest px-1">Collective Family Goals</h4>
+                <h4 className="text-xs font-bold text-fg-muted uppercase tracking-widest px-1">Collective Family Goals</h4>
                 <div className="space-y-3">
                   {milestonesData?.milestones?.map((m) => (
                     <div
@@ -193,7 +190,7 @@ export default function FamilyHubPage() {
                         className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 ${
                           m.achieved
                             ? 'bg-brand-500/10 border-brand-500 text-brand-400'
-                            : 'bg-white/5 border-white/10 text-white/20'
+                            : 'bg-white/5 border-white/10 text-fg-muted'
                         }`}
                       >
                         {m.achieved ? (
@@ -206,7 +203,7 @@ export default function FamilyHubPage() {
                       </div>
                       <div>
                         <h5 className="text-xs font-bold text-white">{m.label}</h5>
-                        <p className="text-xs text-white/40 mt-0.5">{m.desc}</p>
+                        <p className="text-xs text-fg-muted mt-0.5">{m.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -221,9 +218,7 @@ export default function FamilyHubPage() {
       {activeTab === 'trivia' && (
         <div className="space-y-4 animate-fade-in">
           {triviaLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <PendingState count={2} />
           ) : triviaData?.trivia && triviaData.trivia.length > 0 ? (
             triviaData.trivia.map((q) => (
               <div key={q.id} className="glass-card p-5 space-y-4">
@@ -247,13 +242,13 @@ export default function FamilyHubPage() {
                       } else if (q.selectedOptionIndex === idx && !q.isCorrect) {
                         buttonClass += 'bg-red-500/15 border-red-500/40 text-red-300';
                       } else {
-                        buttonClass += 'bg-white/5 border-white/5 text-white/40';
+                        buttonClass += 'bg-white/5 border-white/5 text-fg-muted';
                       }
                     } else {
                       if (isSelected) {
                         buttonClass += 'bg-brand-500/15 border-brand-500/50 text-white font-semibold';
                       } else {
-                        buttonClass += 'bg-white/5 border-white/5 hover:bg-white/10 text-white/70';
+                        buttonClass += 'bg-white/5 border-white/5 hover:bg-white/10 text-fg-soft';
                       }
                     }
 
@@ -279,7 +274,7 @@ export default function FamilyHubPage() {
                     Submit Answer
                   </button>
                 ) : (
-                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-white/70 leading-relaxed space-y-2">
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs text-fg-soft leading-relaxed space-y-2">
                     <div className="flex items-center gap-1.5 font-bold">
                       {q.isCorrect ? (
                         <span className="text-emerald-400">🎉 Correct!</span>
@@ -287,13 +282,13 @@ export default function FamilyHubPage() {
                         <span className="text-red-400">❌ Incorrect</span>
                       )}
                     </div>
-                    {q.explanation && <p className="italic text-xs text-white/50">"{q.explanation}"</p>}
+                    {q.explanation && <p className="italic text-xs text-fg-muted">"{q.explanation}"</p>}
                   </div>
                 )}
               </div>
             ))
           ) : (
-            <div className="glass-card p-10 text-center text-white/30 italic text-xs">
+            <div className="glass-card p-10 text-center text-fg-muted italic text-xs">
               No weekly trivia scheduled for this week. Check back later!
             </div>
           )}
@@ -304,15 +299,13 @@ export default function FamilyHubPage() {
       {activeTab === 'circles' && (
         <div className="space-y-4 animate-fade-in">
           {circlesLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <PendingState count={2} />
           ) : circlesData?.circles && circlesData.circles.length > 0 ? (
             circlesData.circles.map((c) => (
               <div key={c.id} className="glass-card p-5 flex justify-between items-start gap-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-white">{c.name}</h4>
-                  {c.description && <p className="text-xs text-white/40 leading-relaxed">{c.description}</p>}
+                  {c.description && <p className="text-xs text-fg-muted leading-relaxed">{c.description}</p>}
                 </div>
 
                 <button
@@ -326,7 +319,7 @@ export default function FamilyHubPage() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide uppercase transition-all active:scale-[0.97] border ${
                     c.hasJoined
                       ? 'bg-brand-500/10 border-brand-500/30 text-brand-400'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/60'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-muted'
                   }`}
                 >
                   {c.hasJoined ? 'Joined' : 'Join'}
@@ -334,7 +327,7 @@ export default function FamilyHubPage() {
               </div>
             ))
           ) : (
-            <div className="glass-card p-10 text-center text-white/30 italic text-xs">
+            <div className="glass-card p-10 text-center text-fg-muted italic text-xs">
               No Home Circles configured yet. Contact your administration.
             </div>
           )}
@@ -345,19 +338,17 @@ export default function FamilyHubPage() {
       {activeTab === 'sermons' && (
         <div className="space-y-4 animate-fade-in">
           {sermonsLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <PendingState count={2} />
           ) : sermonsData?.sermons && sermonsData.sermons.length > 0 ? (
             sermonsData.sermons.map((s) => (
               <div
                 key={s.id}
-                onClick={() => handleOpenSermon(s)}
-                className="glass-card-hover p-5 flex justify-between items-center cursor-pointer border-l-2 border-l-brand-500"
+                {...clickableProps(() => handleOpenSermon(s))}
+                className={`glass-card-hover p-5 flex justify-between items-center cursor-pointer border-l-2 border-l-brand-500 ${CLICKABLE_FOCUS}`}
               >
                 <div>
                   <h4 className="text-sm font-bold text-white">{s.title}</h4>
-                  <p className="text-xs text-white/40 mt-1">Preached by {s.preacher}</p>
+                  <p className="text-xs text-fg-muted mt-1">Preached by {s.preacher}</p>
                 </div>
                 <span className="text-xs text-brand-400 font-bold bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded uppercase tracking-wider whitespace-nowrap">
                   {new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -365,7 +356,7 @@ export default function FamilyHubPage() {
               </div>
             ))
           ) : (
-            <div className="glass-card p-10 text-center text-white/30 italic text-xs">
+            <div className="glass-card p-10 text-center text-fg-muted italic text-xs">
               No Sunday sermon outlines posted yet.
             </div>
           )}
@@ -374,59 +365,61 @@ export default function FamilyHubPage() {
 
       {/* ── Sermon Drawer Modal ────────────────────────────────────────────── */}
       {activeSermon && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end items-end transition-opacity duration-300">
-          <div className="absolute inset-0" onClick={() => setActiveSermon(null)} />
-          <div className="relative w-full max-w-md bg-neutral-900 border-t border-white/10 rounded-t-3xl p-6 shadow-2xl z-10 animate-slide-up max-h-[85dvh] overflow-y-auto flex flex-col space-y-6">
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto shrink-0" />
+        <Sheet
+          open
+          onClose={() => setActiveSermon(null)}
+          label="Sermon notes"
+          className="p-6 flex flex-col space-y-6"
+        >
+          <div className="w-12 h-1 bg-white/20 rounded-full mx-auto shrink-0" />
 
-            <div className="flex justify-between items-start shrink-0">
-              <div>
-                <h3 className="text-lg font-bold text-white">{activeSermon.title}</h3>
-                <p className="text-xs text-white/40 mt-0.5">Preacher: {activeSermon.preacher} • {new Date(activeSermon.date).toLocaleDateString()}</p>
-              </div>
-              <button
-                onClick={() => setActiveSermon(null)}
-                className="text-white/40 hover:text-white bg-white/5 rounded-full p-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+          <div className="flex justify-between items-start shrink-0">
+            <div>
+              <h3 className="text-lg font-bold text-white">{activeSermon.title}</h3>
+              <p className="text-xs text-fg-muted mt-0.5">Preacher: {activeSermon.preacher} • {new Date(activeSermon.date).toLocaleDateString()}</p>
+            </div>
+            <button
+              onClick={() => setActiveSermon(null)}
+              className="text-fg-muted hover:text-white bg-white/5 rounded-full p-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content area */}
+          <div className="space-y-6 overflow-y-auto flex-1 pr-1">
+            {/* Outline card */}
+            <div className="glass-card p-4 space-y-2 border border-white/5 bg-white/5">
+              <h4 className="text-xs font-bold text-brand-400 uppercase tracking-widest border-b border-white/5 pb-2">Sermon Outline</h4>
+              <p className="text-xs text-fg-soft leading-relaxed whitespace-pre-line font-medium pr-1">
+                {activeSermon.outline}
+              </p>
             </div>
 
-            {/* Content area */}
-            <div className="space-y-6 overflow-y-auto flex-1 pr-1">
-              {/* Outline card */}
-              <div className="glass-card p-4 space-y-2 border border-white/5 bg-white/5">
-                <h4 className="text-xs font-bold text-brand-400 uppercase tracking-widest border-b border-white/5 pb-2">Sermon Outline</h4>
-                <p className="text-xs text-white/80 leading-relaxed whitespace-pre-line font-medium pr-1">
-                  {activeSermon.outline}
-                </p>
+            {/* Personal notes textbox */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-bold text-fg-muted uppercase tracking-widest">My Personal Study Notes</h4>
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={notesSaving}
+                  className="text-xs font-bold text-brand-400 bg-brand-500/10 border border-brand-500/25 px-2.5 py-1 rounded"
+                >
+                  {notesSaving ? 'Saving...' : 'Save Notes'}
+                </button>
               </div>
-
-              {/* Personal notes textbox */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest">My Personal Study Notes</h4>
-                  <button
-                    onClick={handleSaveNotes}
-                    disabled={notesSaving}
-                    className="text-xs font-bold text-brand-400 bg-brand-500/10 border border-brand-500/25 px-2.5 py-1 rounded"
-                  >
-                    {notesSaving ? 'Saving...' : 'Save Notes'}
-                  </button>
-                </div>
-                <textarea
-                  value={sermonNotes || notesData?.notes || ''}
-                  onChange={(e) => setSermonNotes(e.target.value)}
-                  rows={6}
-                  placeholder="Capture key scriptures, thoughts, or application notes from this message..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none resize-none transition-colors"
-                />
-              </div>
+              <textarea
+                value={sermonNotes || notesData?.notes || ''}
+                onChange={(e) => setSermonNotes(e.target.value)}
+                rows={6}
+                placeholder="Capture key scriptures, thoughts, or application notes from this message..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none resize-none transition-colors"
+              />
             </div>
           </div>
-        </div>
+        </Sheet>
       )}
     </div>
   );

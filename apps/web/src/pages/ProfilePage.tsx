@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../lib/api';
+import {  } from '../components/ui';
 import { usePWA } from '../lib/usePWA';
 import SmsPreferencesCard from '../components/SmsPreferencesCard';
 
@@ -173,7 +174,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">
+    <div className="py-4 animate-fade-in space-y-5">
       <section className="glass-card border border-white/10 overflow-hidden">
         <div className="h-28 bg-gradient-to-r from-brand-500/40 via-amber-500/30 to-emerald-500/30" />
         <div className="px-5 pb-5 -mt-12">
@@ -202,16 +203,16 @@ export default function ProfilePage() {
             </div>
             <div className="min-w-0 pb-2">
               <h2 className="text-2xl font-extrabold text-white truncate">{displayName || 'Your name'}</h2>
-              <p className="text-sm text-white/50 truncate">{congregation || 'Congregation not set'}</p>
+              <p className="text-sm text-fg-muted truncate">{congregation || 'Congregation not set'}</p>
             </div>
           </div>
 
-          <p className="text-white/70 text-sm mt-4 leading-relaxed">
+          <p className="text-fg-soft text-sm mt-4 leading-relaxed">
             {bio || 'Add a short bio so church family members know how to connect with you.'}
           </p>
 
           <div className="mt-5">
-            <div className="flex justify-between text-xs text-white/50 mb-2">
+            <div className="flex justify-between text-xs text-fg-muted mb-2">
               <span>Profile completion</span>
               <span>{completion}%</span>
             </div>
@@ -226,7 +227,7 @@ export default function ProfilePage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="text-white/40 text-xs">Loading profile details...</p>
+            <p className="text-fg-muted text-xs">Loading profile details...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -256,7 +257,7 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="block">
-                <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Display Name</span>
+                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Display Name</span>
                 <input
                   type="text"
                   value={displayName}
@@ -267,7 +268,7 @@ export default function ProfilePage() {
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Congregation</span>
+                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Congregation</span>
                 <input
                   type="text"
                   value={congregation}
@@ -279,7 +280,7 @@ export default function ProfilePage() {
             </div>
 
             <label className="block">
-              <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Bio</span>
+              <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Bio</span>
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
@@ -288,12 +289,12 @@ export default function ProfilePage() {
                 rows={4}
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none resize-none"
               />
-              <span className="block text-xs text-white/30 mt-1">{bio.length}/500</span>
+              <span className="block text-xs text-fg-muted mt-1">{bio.length}/500</span>
             </label>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="block">
-                <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Phone</span>
+                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Phone</span>
                 <input
                   type="tel"
                   value={phone}
@@ -304,7 +305,7 @@ export default function ProfilePage() {
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Location</span>
+                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Location</span>
                 <input
                   type="text"
                   value={location}
@@ -318,7 +319,7 @@ export default function ProfilePage() {
             {/* Profile Avatar Section: Direct Upload & URL */}
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="block text-xs font-bold text-white/80 uppercase tracking-wider">
+                <span className="block text-xs font-bold text-fg-soft uppercase tracking-wider">
                   Profile Photo / Avatar
                 </span>
                 {avatarUrl && (
@@ -355,7 +356,7 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-2 my-2">
                 <div className="h-px flex-1 bg-white/10" />
-                <span className="text-xs text-white/40 uppercase tracking-widest font-bold">Or paste direct link</span>
+                <span className="text-xs text-fg-muted uppercase tracking-widest font-bold">Or paste direct link</span>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
 
@@ -373,7 +374,7 @@ export default function ProfilePage() {
                     Converting webpage link to direct image...
                   </p>
                 )}
-                <p className="text-xs text-white/40 mt-1.5 leading-normal">
+                <p className="text-xs text-fg-muted mt-1.5 leading-normal">
                   Tip: Webpage links (like Pinterest, Facebook, or Instagram pin links) are not image files. If linking an image online, right-click the image and choose <em>"Copy Image Address"</em> so it ends in <code>.jpg</code> or <code>.png</code>.
                 </p>
               </div>
@@ -381,7 +382,7 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="block">
-                <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Birthday</span>
+                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Birthday</span>
                 <input
                   type="date"
                   value={birthday}
@@ -391,7 +392,7 @@ export default function ProfilePage() {
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Birthday Visibility</span>
+                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Birthday Visibility</span>
                 <select
                   value={birthdayVisibility}
                   onChange={(e) => setBirthdayVisibility(e.target.value as 'members' | 'private')}
@@ -404,7 +405,7 @@ export default function ProfilePage() {
             </div>
 
             <label className="block">
-              <span className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Preferred Bible Translation</span>
+              <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Preferred Bible Translation</span>
               <select
                 value={translation}
                 onChange={(e) => setTranslation(e.target.value)}
@@ -431,7 +432,7 @@ export default function ProfilePage() {
       {(isInstallable || isInstalled) && (
         <section className="glass-card p-5 border border-white/10">
           <h3 className="text-sm font-bold text-white mb-2">{isInstalled ? 'Installed on Device' : 'Install UNSTPBL App'}</h3>
-          <p className="text-white/50 text-xs mb-4">
+          <p className="text-fg-muted text-xs mb-4">
             {isInstalled
               ? 'Running standalone as an installed web app with automatic updates.'
               : 'Install the app for quick access, offline reading, and birthday push notifications.'}

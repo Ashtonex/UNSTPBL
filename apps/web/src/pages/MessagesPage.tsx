@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type MessageAudience, type MessageLogEntry, type MessagePreview } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import {  } from '../components/ui';
 import { can } from '@unstpbl/shared';
 import SmsModeBanner from '../components/SmsModeBanner';
 import { useAuthStore } from '../stores/auth';
@@ -26,7 +27,7 @@ const STATUS_STYLE: Record<MessageLogEntry['status'], string> = {
   sent: 'bg-emerald-500/15 text-emerald-300',
   delivered: 'bg-emerald-500/20 text-emerald-200',
   dry_run: 'bg-amber-500/15 text-amber-300',
-  blocked: 'bg-white/10 text-white/50',
+  blocked: 'bg-white/10 text-fg-muted',
   failed: 'bg-rose-500/15 text-rose-300',
 };
 
@@ -186,10 +187,10 @@ export default function MessagesPage() {
     : [];
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">
+    <div className="py-4 animate-fade-in space-y-5">
       <section>
         <h2 className="text-2xl font-bold text-white mb-1">Text messages</h2>
-        <p className="text-white/40 text-sm">Send an announcement to members or visitors who agreed to hear from the church.</p>
+        <p className="text-fg-muted text-sm">Send an announcement to members or visitors who agreed to hear from the church.</p>
         {can(role, 'messages.wording') && (
           <Link to="/messages/wording" className="inline-block mt-2 text-xs text-brand-300 hover:text-brand-200">
             Change what the thank-you, birthday and daily verse texts say &rarr;
@@ -214,21 +215,21 @@ export default function MessagesPage() {
               resetPreview();
             }}
           />
-          <p className="text-xs text-white/35 mt-1 text-right">
+          <p className="text-xs text-fg-muted mt-1 text-right">
             {message.length}/{MAX_LENGTH} · the church name and an opt-out line are added automatically
           </p>
           {blank && <p className="text-xs text-amber-300 mt-1">Fill in the [bracketed] parts before sending.</p>}
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wider text-white/30">Start from</p>
+          <p className="text-xs uppercase tracking-wider text-fg-muted">Start from</p>
           <div className="flex flex-wrap gap-2">
             {STARTER_IDEAS.map((idea) => (
               <button
                 key={idea.title}
                 type="button"
                 onClick={() => useText(idea.body)}
-                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:bg-white/10"
+                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-fg-soft hover:bg-white/10"
               >
                 {idea.title}
               </button>
@@ -245,7 +246,7 @@ export default function MessagesPage() {
                   onClick={() => {
                     if (window.confirm(`Delete the saved message "${item.title}"?`)) deleteSavedMutation.mutate(item.id);
                   }}
-                  className="pr-2 py-1.5 text-white/35 hover:text-rose-300"
+                  className="pr-2 py-1.5 text-fg-muted hover:text-rose-300"
                 >
                   &times;
                 </button>
@@ -280,14 +281,14 @@ export default function MessagesPage() {
               >
                 {saveMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" onClick={() => setSaveTitle(null)} className="px-2 text-xs text-white/40 hover:text-white">
+              <button type="button" onClick={() => setSaveTitle(null)} className="px-2 text-xs text-fg-muted hover:text-white">
                 Cancel
               </button>
             </div>
           )}
         </div>
 
-        <label className="block text-xs text-white/50">
+        <label className="block text-xs text-fg-muted">
           Send to
           <select
             className={`${FIELD} mt-1`}
@@ -364,8 +365,8 @@ export default function MessagesPage() {
           <h3 className="text-sm font-bold text-white">Check before sending</h3>
 
           <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-            <p className="text-white/80 text-sm whitespace-pre-wrap break-words">{preview.finalMessage}</p>
-            <p className="text-xs text-white/35 mt-2">
+            <p className="text-fg-soft text-sm whitespace-pre-wrap break-words">{preview.finalMessage}</p>
+            <p className="text-xs text-fg-muted mt-2">
               {preview.characters} characters · {preview.segmentsPerMessage} text {preview.segmentsPerMessage === 1 ? 'segment' : 'segments'} each
               {preview.encoding === 'ucs2' ? ' · contains special characters (costs more)' : ''}
             </p>
@@ -373,32 +374,32 @@ export default function MessagesPage() {
 
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-white/35">Will reach</dt>
+              <dt className="text-xs uppercase tracking-wide text-fg-muted">Will reach</dt>
               <dd className="text-2xl font-bold text-white">{preview.recipients}</dd>
-              <dd className="text-xs text-white/35">
+              <dd className="text-xs text-fg-muted">
                 people{preview.whatsappRecipients ? ` · ${preview.smsRecipients ?? 0} by SMS, ${preview.whatsappRecipients} by WhatsApp` : ''}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wide text-white/35">Estimated cost</dt>
+              <dt className="text-xs uppercase tracking-wide text-fg-muted">Estimated cost</dt>
               <dd className="text-2xl font-bold text-white">
                 {preview.estimatedCostUsd === null ? '—' : `$${preview.estimatedCostUsd.toFixed(2)}`}
               </dd>
-              <dd className="text-xs text-white/35">
+              <dd className="text-xs text-fg-muted">
                 {preview.totalSegments} segments{preview.estimatedCostUsd === null ? ' · price per text not set' : ''}
               </dd>
             </div>
           </dl>
 
           {preview.sample.length > 0 && (
-            <p className="text-xs text-white/45">
+            <p className="text-xs text-fg-muted">
               Including: {preview.sample.map((p) => `${p.name ?? 'Member'} (${p.phone})`).join(', ')}
               {preview.recipients > preview.sample.length ? ` and ${preview.recipients - preview.sample.length} more` : ''}
             </p>
           )}
 
           {(preview.skippedInvalidPhone > 0 || preview.skippedOptedOut > 0) && (
-            <p className="text-xs text-white/35">
+            <p className="text-xs text-fg-muted">
               Left out: {preview.skippedInvalidPhone} without a usable mobile number, {preview.skippedOptedOut} who replied STOP.
             </p>
           )}
@@ -411,7 +412,7 @@ export default function MessagesPage() {
 
           {blockers.length === 0 && (
             <>
-              <label className="flex items-start gap-3 text-xs text-white/70 cursor-pointer">
+              <label className="flex items-start gap-3 text-xs text-fg-soft cursor-pointer">
                 <input type="checkbox" className="mt-0.5 accent-amber-400" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
                 <span>
                   I have read the message and checked who it is going to.
@@ -432,20 +433,20 @@ export default function MessagesPage() {
 
       <section className="space-y-2">
         <h3 className="text-sm font-bold text-white px-1">Recent texts</h3>
-        {log.isLoading && <p className="text-white/40 text-xs text-center py-4">Loading history...</p>}
+        {log.isLoading && <p className="text-fg-muted text-xs text-center py-4">Loading history...</p>}
         {log.error && <p className="text-xs text-rose-300">Could not load history. {(log.error as Error).message}</p>}
-        {log.data && log.data.messages.length === 0 && <p className="text-white/35 text-xs text-center py-6">Nothing sent yet.</p>}
+        {log.data && log.data.messages.length === 0 && <p className="text-fg-muted text-xs text-center py-6">Nothing sent yet.</p>}
 
         {log.data?.messages.map((entry) => (
           <article key={entry.id} className="glass-card p-3 space-y-1.5">
             <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="text-white/45">
+              <span className="text-fg-muted">
                 {PURPOSE_LABEL[entry.purpose] ?? entry.purpose} · {entry.channel === 'whatsapp' ? 'WhatsApp · ' : ''}{entry.phone}
               </span>
               <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${STATUS_STYLE[entry.status]}`}>{STATUS_LABEL[entry.status]}</span>
             </div>
-            <p className="text-white/70 text-xs line-clamp-2 break-words">{entry.body}</p>
-            <p className="text-xs text-white/30">
+            <p className="text-fg-soft text-xs line-clamp-2 break-words">{entry.body}</p>
+            <p className="text-xs text-fg-muted">
               {formatTime(entry.createdAt)} · {entry.segments} {entry.segments === 1 ? 'segment' : 'segments'}
               {entry.error && entry.status !== 'sent' ? ` · ${entry.error}` : ''}
             </p>

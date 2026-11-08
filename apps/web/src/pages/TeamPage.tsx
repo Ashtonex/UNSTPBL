@@ -22,12 +22,12 @@ function TeamHub() {
   const tools = TOOLS.filter((tool) => can(role, tool.needs));
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">
+    <div className="py-4 animate-fade-in space-y-5">
       <section>
         <h2 className="text-2xl font-bold text-white mb-1">Church team</h2>
         {isUserRole(role) && (
-          <p className="text-white/45 text-sm">
-            You are signed in as <strong className="text-white/75">{ROLE_LABELS[role]}</strong>. {ROLE_DESCRIPTIONS[role]}
+          <p className="text-fg-muted text-sm">
+            You are signed in as <strong className="text-fg-soft">{ROLE_LABELS[role]}</strong>. {ROLE_DESCRIPTIONS[role]}
           </p>
         )}
       </section>
@@ -38,7 +38,7 @@ function TeamHub() {
           className="block rounded-2xl bg-brand-500 hover:bg-brand-600 transition-colors p-5 text-white shadow-lg shadow-brand-500/20"
         >
           <p className="text-lg font-bold">Register a guest</p>
-          <p className="text-white/85 text-sm mt-0.5">Name, phone number and a tick to say they agree to be texted.</p>
+          <p className="text-fg text-sm mt-0.5">Name, phone number and a tick to say they agree to be texted.</p>
         </Link>
       )}
 
@@ -46,7 +46,7 @@ function TeamHub() {
         {tools.map((tool) => (
           <Link key={tool.to} to={tool.to} className="glass-card p-4 block hover:bg-white/5 transition-colors">
             <p className="text-white font-semibold text-sm">{tool.title}</p>
-            <p className="text-white/40 text-xs mt-1">{tool.detail}</p>
+            <p className="text-fg-muted text-xs mt-1">{tool.detail}</p>
           </Link>
         ))}
       </div>

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { CLICKABLE_FOCUS, clickableProps } from '../lib/clickable';
+import { Sheet } from '../components/ui';
 import IosInstallHint from '../components/IosInstallHint';
 import { usePWA } from '../lib/usePWA';
 import { readCachedVerse, saveCachedVerse } from '../lib/verseCache';
@@ -23,9 +25,9 @@ function VerseLoading() {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
       <div className="w-12 h-12 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-white/40 text-sm">Fetching today&apos;s verse...</p>
+      <p className="text-fg-muted text-sm">Fetching today&apos;s verse...</p>
       {slow && (
-        <p className="text-white/30 text-xs mt-3 max-w-xs animate-fade-in">
+        <p className="text-fg-muted text-xs mt-3 max-w-xs animate-fade-in">
           The server is waking up after a quiet period. This can take up to a minute the first time, then it&apos;s instant.
         </p>
       )}
@@ -313,14 +315,14 @@ export default function HomePage() {
       <div className="mb-6 animate-fade-in flex justify-between items-end gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">Today&apos;s Verse</h2>
-          <p className="text-white/70 text-xs sm:text-sm">Take a moment to reflect on God&apos;s word.</p>
+          <p className="text-fg-soft text-xs sm:text-sm">Take a moment to reflect on God&apos;s word.</p>
         </div>
         <button
           onClick={handleSpeak}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
             isSpeaking
               ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse-soft'
-              : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70 hover:text-white/90'
+              : 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft hover:text-fg'
           }`}
         >
           {isSpeaking ? (
@@ -382,7 +384,7 @@ export default function HomePage() {
             <span className="text-2xl">📲</span>
             <div>
               <p className="text-xs font-bold text-white">Add UNSTPBL to Home Screen</p>
-              <p className="text-xs text-white/70">1-Tap instant access, works offline with daily audio!</p>
+              <p className="text-xs text-fg-soft">1-Tap instant access, works offline with daily audio!</p>
             </div>
           </div>
           <button
@@ -409,11 +411,11 @@ export default function HomePage() {
               Bp
             </div>
             <div>
-              <h4 className="text-xs font-bold text-white/70 uppercase tracking-widest">Bishop's Devotional Note</h4>
+              <h4 className="text-xs font-bold text-fg-soft uppercase tracking-widest">Bishop's Devotional Note</h4>
               <p className="text-xs text-brand-400 font-semibold">Victory Tabernacle</p>
             </div>
           </div>
-          <p className="text-xs text-white/90 leading-relaxed italic pr-2 whitespace-pre-line">
+          <p className="text-xs text-fg leading-relaxed italic pr-2 whitespace-pre-line">
             "{currentVerse.schedule.pastoralNote}"
           </p>
         </div>
@@ -431,7 +433,7 @@ export default function HomePage() {
           </span>
         </div>
 
-        <p className="text-xs sm:text-sm text-white/90 font-medium mb-3">
+        <p className="text-xs sm:text-sm text-fg font-medium mb-3">
           Where is today&apos;s scripture from: <span className="text-brand-300 font-bold">{currentVerse.book.name}</span>?
         </p>
 
@@ -441,7 +443,7 @@ export default function HomePage() {
             { id: 1, label: 'New Testament', correct: currentVerse.book.testament === 'new' },
           ].map((opt) => {
             const isSelected = triviaAnswered === opt.id;
-            let btnStyle = 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80';
+            let btnStyle = 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft';
             if (isSelected) {
               btnStyle = opt.correct
                 ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 ring-2 ring-emerald-400/40'
@@ -483,14 +485,14 @@ export default function HomePage() {
 
       <div className="grid grid-cols-2 gap-3 mt-6">
         <div className="glass-card p-4">
-          <p className="text-white/60 text-xs uppercase font-semibold tracking-wider">Current Streak</p>
+          <p className="text-fg-muted text-xs uppercase font-semibold tracking-wider">Current Streak</p>
           <p className="text-3xl font-bold text-gradient mt-1">{progress?.currentStreak ?? 0}</p>
-          <p className="text-white/50 text-xs mt-1">days</p>
+          <p className="text-fg-muted text-xs mt-1">days</p>
         </div>
         <div className="glass-card p-4">
-          <p className="text-white/60 text-xs uppercase font-semibold tracking-wider">Saved Verses</p>
+          <p className="text-fg-muted text-xs uppercase font-semibold tracking-wider">Saved Verses</p>
           <p className="text-3xl font-bold text-gradient mt-1">{progress?.favoriteCount ?? 0}</p>
-          <p className="text-white/50 text-xs mt-1">{progress?.openPrayerCount ?? 0} active prayers</p>
+          <p className="text-fg-muted text-xs mt-1">{progress?.openPrayerCount ?? 0} active prayers</p>
         </div>
       </div>
 
@@ -498,7 +500,7 @@ export default function HomePage() {
       <div className="glass-card p-5 mt-6 space-y-4">
         <div>
           <h3 className="text-white font-bold text-sm">Family Reflections</h3>
-          <p className="text-white/60 text-xs mt-1">Capture and share what today&apos;s scripture speaks to your heart.</p>
+          <p className="text-fg-muted text-xs mt-1">Capture and share what today&apos;s scripture speaks to your heart.</p>
         </div>
         <div className="flex gap-2">
           <textarea
@@ -527,12 +529,12 @@ export default function HomePage() {
                     {ref.user?.displayName || 'Family Member'}
                   </span>
                   {ref.user?.congregation && (
-                    <span className="text-xs text-white/30">
+                    <span className="text-xs text-fg-muted">
                       {ref.user.congregation}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-white/80 leading-relaxed">
+                <p className="text-xs text-fg-soft leading-relaxed">
                   {ref.content}
                 </p>
               </div>
@@ -546,7 +548,7 @@ export default function HomePage() {
         <div className="flex justify-between items-center">
           <div>
             <h3 className="text-white font-bold text-sm">Prayer Wall</h3>
-            <p className="text-white/30 text-xs mt-1">Post a prayer request or thanksgiving praise to the family wall.</p>
+            <p className="text-fg-muted text-xs mt-1">Post a prayer request or thanksgiving praise to the family wall.</p>
           </div>
           <button
             onClick={() => navigate('/prayers')}
@@ -580,10 +582,10 @@ export default function HomePage() {
         {prayersData?.prayers?.filter((prayer) => prayer.status === 'open').slice(0, 2).map((prayer) => (
           <div key={prayer.id} className="border-t border-white/10 pt-3 flex justify-between items-start">
             <div>
-              <p className="text-white/70 text-sm font-semibold">{prayer.title}</p>
-              <p className="text-white/40 text-xs mt-1 line-clamp-1">{prayer.content}</p>
+              <p className="text-fg-soft text-sm font-semibold">{prayer.title}</p>
+              <p className="text-fg-muted text-xs mt-1 line-clamp-1">{prayer.content}</p>
             </div>
-            <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded text-white/50">{prayer.user?.displayName || 'Family'}</span>
+            <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded text-fg-muted">{prayer.user?.displayName || 'Family'}</span>
           </div>
         ))}
       </div>
@@ -614,7 +616,7 @@ export default function HomePage() {
           {relatedLoading ? (
             <div className="flex items-center justify-center py-10 glass-card">
               <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mr-3" />
-              <p className="text-white/40 text-xs">Finding related scriptures...</p>
+              <p className="text-fg-muted text-xs">Finding related scriptures...</p>
             </div>
           ) : relatedData?.related && relatedData.related.length > 0 ? (
             <div className="flex flex-col gap-3">
@@ -629,7 +631,7 @@ export default function HomePage() {
                   </div>
 
                   <div className="relative z-10 flex-1 min-w-0 pr-2">
-                    <p className="text-sm text-white/80 leading-relaxed italic break-words">
+                    <p className="text-sm text-fg-soft leading-relaxed italic break-words">
                       &ldquo;{item.verse.text}&rdquo;
                     </p>
                   </div>
@@ -639,11 +641,11 @@ export default function HomePage() {
                       <span className="text-xs font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 whitespace-nowrap">
                         {Math.round(item.score * 100)}% Match
                       </span>
-                      <span className="text-xs text-white/30 uppercase font-bold tracking-widest sm:hidden">
+                      <span className="text-xs text-fg-muted uppercase font-bold tracking-widest sm:hidden">
                         {item.verse.translation}
                       </span>
                     </div>
-                    <span className="text-xs font-semibold text-white/60 whitespace-nowrap">
+                    <span className="text-xs font-semibold text-fg-muted whitespace-nowrap">
                       {item.book.name} {item.verse.chapter}:{item.verse.verseNumber}
                     </span>
                   </div>
@@ -652,8 +654,8 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="glass-card p-6 text-center">
-              <p className="text-white/30 text-sm">No related scriptures found in cache yet.</p>
-              <p className="text-white/20 text-xs mt-1">Read more scriptures to populate AI connections!</p>
+              <p className="text-fg-muted text-sm">No related scriptures found in cache yet.</p>
+              <p className="text-fg-muted text-xs mt-1">Read more scriptures to populate AI connections!</p>
             </div>
           )}
         </div>
@@ -661,17 +663,17 @@ export default function HomePage() {
 
       {/* History Teaser */}
       <div
-        className="mt-10 glass-card-hover p-5 animate-slide-up cursor-pointer"
+        className={`mt-10 glass-card-hover p-5 animate-slide-up cursor-pointer ${CLICKABLE_FOCUS}`}
         style={{ animationDelay: '0.2s' }}
-        onClick={() => setShowHistory(true)}
+        {...clickableProps(() => setShowHistory(true))}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-white/70 font-semibold text-sm">Past Verses</h3>
-            <p className="text-white/30 text-xs mt-0.5">Revisit recent readings</p>
+            <h3 className="text-fg-soft font-semibold text-sm">Past Verses</h3>
+            <p className="text-fg-muted text-xs mt-0.5">Revisit recent readings</p>
           </div>
           <svg
-            className="w-5 h-5 text-white/30 transition-transform group-hover:translate-x-1"
+            className="w-5 h-5 text-fg-muted transition-transform group-hover:translate-x-1"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -683,68 +685,66 @@ export default function HomePage() {
       </div>
 
       {/* History Drawer/Modal */}
-      {showHistory && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end items-end transition-opacity duration-300">
-          {/* Backdrop click closer */}
-          <div className="absolute inset-0" onClick={() => setShowHistory(false)} />
+      <Sheet
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        label="Verse history"
+        className="p-6"
+      >
+        {/* Handle bar */}
+        <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
 
-          <div className="relative w-full max-w-md bg-neutral-900 border-t border-white/10 rounded-t-3xl p-6 shadow-2xl z-10 animate-slide-up max-h-[85dvh] overflow-y-auto">
-            {/* Handle bar */}
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white">Verse History</h3>
-              <button 
-                onClick={() => setShowHistory(false)}
-                className="text-white/50 hover:text-white bg-white/5 rounded-full p-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {historyLoading ? (
-              <div className="flex flex-col items-center justify-center py-10">
-                <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
-                <p className="text-white/40 text-xs">Loading history...</p>
-              </div>
-            ) : historyData?.verses && historyData.verses.length > 0 ? (
-              <div className="space-y-4 pr-1">
-                {historyData.verses.map((pastVerse) => (
-                  <div 
-                    key={pastVerse.schedule.id}
-                    className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-semibold text-brand-400">
-                        {new Date(pastVerse.schedule.date).toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
-                      <span className="text-xs text-white/30 uppercase font-bold tracking-widest">
-                        {pastVerse.verse.translation}
-                      </span>
-                    </div>
-                    <p className="text-sm text-white/80 leading-relaxed italic mb-2">
-                      &ldquo;{pastVerse.verse.text}&rdquo;
-                    </p>
-                    <p className="text-xs font-medium text-white/50 text-right">
-                      {pastVerse.book.name} {pastVerse.verse.chapter}:{pastVerse.verse.verseNumber}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10">
-                <p className="text-white/30 text-sm">No recent verse history found.</p>
-              </div>
-            )}
-          </div>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-white">Verse History</h3>
+          <button 
+            onClick={() => setShowHistory(false)}
+            className="text-fg-muted hover:text-white bg-white/5 rounded-full p-2"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-      )}
+
+        {historyLoading ? (
+          <div className="flex flex-col items-center justify-center py-10">
+            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-fg-muted text-xs">Loading history...</p>
+          </div>
+        ) : historyData?.verses && historyData.verses.length > 0 ? (
+          <div className="space-y-4 pr-1">
+            {historyData.verses.map((pastVerse) => (
+              <div 
+                key={pastVerse.schedule.id}
+                className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-semibold text-brand-400">
+                    {new Date(pastVerse.schedule.date).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
+                  <span className="text-xs text-fg-muted uppercase font-bold tracking-widest">
+                    {pastVerse.verse.translation}
+                  </span>
+                </div>
+                <p className="text-sm text-fg-soft leading-relaxed italic mb-2">
+                  &ldquo;{pastVerse.verse.text}&rdquo;
+                </p>
+                <p className="text-xs font-medium text-fg-muted text-right">
+                  {pastVerse.book.name} {pastVerse.verse.chapter}:{pastVerse.verse.verseNumber}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10">
+            <p className="text-fg-muted text-sm">No recent verse history found.</p>
+          </div>
+        )}
+      </Sheet>
 
       {/* Kid-friendly Streak Celebration Modal */}
       {showStreakModal && (
@@ -761,7 +761,7 @@ export default function HomePage() {
             <p className="text-brand-400 font-bold text-sm mb-2">
               🔥 {Math.max(1, (progress?.currentStreak ?? 0) + 1)} Day Reading Streak!
             </p>
-            <p className="text-white/70 text-xs leading-relaxed mb-6">
+            <p className="text-fg-soft text-xs leading-relaxed mb-6">
               &ldquo;Thy word is a lamp unto my feet, and a light unto my path.&rdquo; Keep shining your light bright!
             </p>
             <button

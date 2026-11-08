@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type RegisterVisitorResult, type Visitor } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { PageHeader } from '../components/ui';
 import { can } from '@unstpbl/shared';
 import SmsModeBanner from '../components/SmsModeBanner';
 import { useAuthStore } from '../stores/auth';
@@ -104,11 +105,8 @@ export default function VisitorsPage() {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">
-      <section>
-        <h2 className="text-2xl font-bold text-white mb-1">Visitors</h2>
-        <p className="text-white/40 text-sm">Welcome our guests, send a thank-you, and follow up so they feel at home.</p>
-      </section>
+    <div className="py-4 animate-fade-in space-y-5">
+      <PageHeader title="Visitors" subtitle="Welcome our guests, send a thank-you, and follow up so they feel at home." />
 
       <SmsModeBanner />
 
@@ -126,10 +124,10 @@ export default function VisitorsPage() {
         <input className={FIELD} placeholder="Invited by (optional)" value={invitedBy} onChange={(e) => setInvitedBy(e.target.value)} />
         <textarea className={`${FIELD} resize-none`} rows={2} placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
-        <label className="flex items-start gap-3 text-xs text-white/70 cursor-pointer">
+        <label className="flex items-start gap-3 text-xs text-fg-soft cursor-pointer">
           <input type="checkbox" className="mt-0.5 accent-amber-400" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} />
           <span>
-            They agreed to receive text messages from the church. <span className="text-white/40">Only tick this if they ticked the box on their visitor card.</span>
+            They agreed to receive text messages from the church. <span className="text-fg-muted">Only tick this if they ticked the box on their visitor card.</span>
           </span>
         </label>
 
@@ -151,13 +149,13 @@ export default function VisitorsPage() {
       <section className="space-y-3">
         <input className={FIELD} placeholder="Search by name or number" value={search} onChange={(e) => setSearch(e.target.value)} />
 
-        {isLoading && <p className="text-white/40 text-xs text-center py-6">Loading visitors...</p>}
+        {isLoading && <p className="text-fg-muted text-xs text-center py-6">Loading visitors...</p>}
         {error && (
           <p className="text-xs text-rose-300 p-3 rounded-xl border border-rose-500/30 bg-rose-500/10">
             Could not load visitors. {(error as Error).message}
           </p>
         )}
-        {data && data.visitors.length === 0 && <p className="text-white/40 text-sm text-center py-8">No visitors yet. Add the first one above.</p>}
+        {data && data.visitors.length === 0 && <p className="text-fg-muted text-sm text-center py-8">No visitors yet. Add the first one above.</p>}
 
         {data?.visitors.map((visitor) => (
           <article key={visitor.id} className="glass-card p-4 space-y-3">
@@ -173,17 +171,17 @@ export default function VisitorsPage() {
               </span>
             </div>
 
-            <p className="text-white/40 text-xs">
+            <p className="text-fg-muted text-xs">
               {visitor.visitCount} {visitor.visitCount === 1 ? 'visit' : 'visits'} · last on {formatDate(visitor.lastVisitDate)}
               {visitor.invitedBy ? ` · invited by ${visitor.invitedBy}` : ''}
             </p>
-            {visitor.notes && <p className="text-white/55 text-xs">{visitor.notes}</p>}
+            {visitor.notes && <p className="text-fg-muted text-xs">{visitor.notes}</p>}
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className={visitor.smsConsent ? 'text-emerald-300' : 'text-white/35'}>
+              <span className={visitor.smsConsent ? 'text-emerald-300' : 'text-fg-muted'}>
                 {visitor.smsConsent ? 'Texts OK' : 'No text consent'}
               </span>
-              {visitor.welcomeSentAt && <span className="text-white/35">· welcome sent</span>}
+              {visitor.welcomeSentAt && <span className="text-fg-muted">· welcome sent</span>}
             </div>
 
             <div className="flex flex-wrap gap-2">

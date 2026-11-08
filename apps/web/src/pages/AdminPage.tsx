@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABELS, USER_ROLES, isUserRole, type UserRole } from '@unstpbl/shared';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { Notice, PageHeader } from '../components/ui';
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
@@ -55,21 +56,18 @@ export default function AdminPage() {
 
   return (
     <div className="py-4 animate-fade-in space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-1">System Administration</h2>
-        <p className="text-white/40 text-sm">Manage user roles, platform permissions, and monitor system metrics.</p>
-      </div>
+      <PageHeader title="System Administration" subtitle="Manage user roles, platform permissions, and monitor system metrics." />
 
       {usersError && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+        <Notice tone="error">
           Could not load users. {(usersError as Error).message}
-        </div>
+        </Notice>
       )}
 
       {/* Stats Summary Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="glass-card p-5 animate-slide-up relative overflow-hidden">
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Total Registered Users</p>
+          <p className="text-fg-muted text-xs font-semibold uppercase tracking-wider">Total Registered Users</p>
           <p className="text-4xl font-bold text-gradient mt-2">
             {usersLoading ? (
               <span className="inline-block w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
@@ -80,19 +78,19 @@ export default function AdminPage() {
         </div>
 
         <div className="glass-card p-5 animate-slide-up relative overflow-hidden" style={{ animationDelay: '0.1s' }}>
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Sentry Error Monitoring</p>
+          <p className="text-fg-muted text-xs font-semibold uppercase tracking-wider">Sentry Error Monitoring</p>
           <div className="flex items-center gap-2 mt-3">
             <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
             <span className="text-sm font-bold text-white">Active & Connected</span>
           </div>
-          <p className="text-xs text-white/30 mt-1">DSN: ingest.de.sentry.io</p>
+          <p className="text-xs text-fg-muted mt-1">DSN: ingest.de.sentry.io</p>
         </div>
       </div>
 
       <div className="glass-card p-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-white">Recent Admin Activity</h3>
-          <span className="text-xs text-white/30 uppercase font-bold tracking-widest">Audit Log</span>
+          <span className="text-xs text-fg-muted uppercase font-bold tracking-widest">Audit Log</span>
         </div>
 
         {auditLoading ? (
@@ -105,12 +103,12 @@ export default function AdminPage() {
               <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <div>
                   <p className="text-sm font-semibold text-white">{log.action.replaceAll('.', ' ')}</p>
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-fg-muted">
                     {log.actorDisplayName || log.actorEmail} · {log.targetType}
                     {log.targetId ? `:${log.targetId}` : ''}
                   </p>
                 </div>
-                <time className="text-xs text-white/30 whitespace-nowrap">
+                <time className="text-xs text-fg-muted whitespace-nowrap">
                   {new Date(log.createdAt).toLocaleString(undefined, {
                     month: 'short',
                     day: 'numeric',
@@ -122,7 +120,7 @@ export default function AdminPage() {
             ))}
           </div>
         ) : (
-          <p className="text-center py-8 text-white/30 text-sm">No admin activity has been recorded yet.</p>
+          <p className="text-center py-8 text-fg-muted text-sm">No admin activity has been recorded yet.</p>
         )}
       </div>
 
@@ -137,12 +135,12 @@ export default function AdminPage() {
       )}
 
       {errorMsg && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl flex items-center gap-2">
+        <Notice tone="error" className="flex items-center gap-2">
           <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           {errorMsg}
-        </div>
+        </Notice>
       )}
 
       {/* User Directory Table Card */}
@@ -159,7 +157,7 @@ export default function AdminPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-white text-sm focus:border-brand-500 focus:outline-none transition-colors w-full sm:w-64"
             />
-            <svg className="w-4 h-4 text-white/30 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-fg-muted absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -170,7 +168,7 @@ export default function AdminPage() {
             <span className="w-8 h-8 border-2 border-white/20 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredUsers.length === 0 ? (
-          <p className="text-center py-8 text-white/30 text-sm">No users found matching query.</p>
+          <p className="text-center py-8 text-fg-muted text-sm">No users found matching query.</p>
         ) : (
           <ul className="divide-y divide-white/5">
             {filteredUsers.map((user) => (
@@ -179,7 +177,7 @@ export default function AdminPage() {
                   <div className="font-semibold text-white text-sm break-words">
                     {user.displayName || 'Unnamed Member'}
                   </div>
-                  <div className="text-xs text-white/50 mt-0.5 break-all">{user.email}</div>
+                  <div className="text-xs text-fg-muted mt-0.5 break-all">{user.email}</div>
                   {user.congregation && (
                     <div className="text-xs text-brand-400 font-medium uppercase mt-1 break-words">
                       {user.congregation}
@@ -194,7 +192,7 @@ export default function AdminPage() {
                         ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                         : isUserRole(user.role) && user.role !== 'member'
                           ? 'bg-sky-500/10 text-sky-300 border border-sky-500/20'
-                          : 'bg-white/5 text-white/60'
+                          : 'bg-white/5 text-fg-muted'
                   }`}>
                     {isUserRole(user.role) ? ROLE_LABELS[user.role] : user.role}
                   </span>

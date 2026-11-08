@@ -14,7 +14,7 @@ export default function RequireCapability({ capability, children }: { capability
   return (
     <div className="w-full max-w-lg mx-auto py-10 text-center space-y-3 animate-fade-in">
       <h2 className="text-xl font-bold text-white">This page is for the church team</h2>
-      <p className="text-white/45 text-sm">Your account does not have access to this. If you should, ask an admin to update your role.</p>
+      <p className="text-fg-muted text-sm">Your account does not have access to this. If you should, ask an admin to update your role.</p>
       <Link to="/" className="inline-block text-sm text-brand-300 hover:text-brand-200">
         Back to today&apos;s verse
       </Link>

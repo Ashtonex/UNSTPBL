@@ -32,7 +32,7 @@ function RouteLoading() {
   return (
     <div className="flex flex-col items-center justify-center py-20">
       <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-white/40 text-sm">Loading...</p>
+      <p className="text-fg-muted text-sm">Loading...</p>
     </div>
   );
 }

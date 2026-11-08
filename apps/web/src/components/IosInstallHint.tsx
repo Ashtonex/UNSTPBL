@@ -42,14 +42,14 @@ export default function IosInstallHint() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss install tip"
-          className="-mt-1 -mr-1 p-2 text-white/60 hover:text-white"
+          className="-mt-1 -mr-1 p-2 text-fg-muted hover:text-white"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
-      <ol className="mt-2 space-y-1.5 text-[12px] text-white/80 list-decimal list-inside">
+      <ol className="mt-2 space-y-1.5 text-[12px] text-fg-soft list-decimal list-inside">
         <li>
           Tap the{' '}
           <svg
@@ -69,7 +69,7 @@ export default function IosInstallHint() {
         </li>
         <li>Open UNSTPBL from your Home Screen.</li>
       </ol>
-      <p className="mt-2 text-xs text-white/60">
+      <p className="mt-2 text-xs text-fg-muted">
         Installing also lets you get daily verse notifications on iPhone.
       </p>
     </section>

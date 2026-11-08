@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type MessageTemplate, type TemplatePreview } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { Notice } from '../components/ui';
 import SmsModeBanner from '../components/SmsModeBanner';
 
 const FIELD =
@@ -94,7 +95,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
             <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 whitespace-nowrap">Customised</span>
           )}
         </div>
-        <p className="text-white/40 text-xs mt-0.5">{template.when}</p>
+        <p className="text-fg-muted text-xs mt-0.5">{template.when}</p>
       </div>
 
       <div>
@@ -110,7 +111,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
           }}
           aria-label={`${template.label} wording`}
         />
-        <p className="text-xs text-white/35 mt-1 text-right">
+        <p className="text-xs text-fg-muted mt-1 text-right">
           {draft.length}/{MAX_LENGTH}
         </p>
       </div>
@@ -122,10 +123,10 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
             type="button"
             onClick={() => insert(p.token)}
             title={`Inserts ${p.meaning}`}
-            className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 hover:bg-white/10"
+            className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-fg-soft hover:bg-white/10"
           >
             {p.token}
-            <span className="text-white/35"> · {p.meaning}</span>
+            <span className="text-fg-muted"> · {p.meaning}</span>
           </button>
         ))}
       </div>
@@ -135,16 +136,16 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
       )}
 
       <div className="rounded-xl bg-black/20 border border-white/5 p-3">
-        <p className="text-xs uppercase tracking-wider text-white/30 mb-1">
+        <p className="text-xs uppercase tracking-wider text-fg-muted mb-1">
           {changed && shown?.valid ? 'Preview of your wording' : 'How it reads now'} (made-up name)
         </p>
-        <p className="text-sm text-white/80 whitespace-pre-wrap break-words">{preview.text}</p>
-        <p className="text-xs text-white/35 mt-2">
+        <p className="text-sm text-fg-soft whitespace-pre-wrap break-words">{preview.text}</p>
+        <p className="text-xs text-fg-muted mt-2">
           {preview.characters} characters · {preview.segments} text segment{preview.segments === 1 ? '' : 's'}
           {cost !== null && ` · about $${cost.toFixed(2)} per person`}
           {preview.encoding === 'ucs2' && ' · special characters make this cost more'}
         </p>
-        <p className="text-xs text-white/30 mt-1">&ldquo;{OPT_OUT_LINE}&rdquo; is always added automatically.</p>
+        <p className="text-xs text-fg-muted mt-1">&ldquo;{OPT_OUT_LINE}&rdquo; is always added automatically.</p>
       </div>
 
       {feedback && <p className={`text-xs ${feedback.good ? 'text-emerald-300' : 'text-rose-300'}`}>{feedback.text}</p>}
@@ -159,7 +160,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
           {save.isPending ? 'Saving…' : 'Save wording'}
         </button>
         {changed && (
-          <button type="button" onClick={() => setDraft(template.body)} className="px-3 py-2 text-xs text-white/50 hover:text-white">
+          <button type="button" onClick={() => setDraft(template.body)} className="px-3 py-2 text-xs text-fg-muted hover:text-white">
             Undo changes
           </button>
         )}
@@ -170,14 +171,14 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
             onClick={() => {
               if (window.confirm('Go back to the original wording for this message?')) reset.mutate();
             }}
-            className="px-3 py-2 text-xs text-white/50 hover:text-white disabled:opacity-40"
+            className="px-3 py-2 text-xs text-fg-muted hover:text-white disabled:opacity-40"
           >
             Reset to original
           </button>
         )}
       </div>
 
-      {template.updatedAt && <p className="text-xs text-white/30">Last changed {formatTime(template.updatedAt)}</p>}
+      {template.updatedAt && <p className="text-xs text-fg-muted">Last changed {formatTime(template.updatedAt)}</p>}
     </section>
   );
 }
@@ -187,13 +188,13 @@ export default function MessageWordingPage() {
   const templates = useQuery({ queryKey: keys.messageTemplates(), queryFn: api.getMessageTemplates });
 
   return (
-    <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">
+    <div className="py-4 animate-fade-in space-y-5">
       <section>
-        <Link to="/messages" className="text-xs text-white/40 hover:text-white">
+        <Link to="/messages" className="text-xs text-fg-muted hover:text-white">
           &larr; Text messages
         </Link>
         <h2 className="text-2xl font-bold text-white mb-1 mt-2">Message wording</h2>
-        <p className="text-white/40 text-sm">
+        <p className="text-fg-muted text-sm">
           Change what the standing texts say. Use the buttons to drop in a name or the verse. Short texts cost less: one segment is 160
           plain characters.
         </p>
@@ -201,18 +202,18 @@ export default function MessageWordingPage() {
 
       <SmsModeBanner />
 
-      {templates.isLoading && <p className="text-white/40 text-sm">Loading…</p>}
+      {templates.isLoading && <p className="text-fg-muted text-sm">Loading…</p>}
       {templates.isError && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl">
+        <Notice tone="error">
           Could not load the wording. {cleanError(templates.error as Error)}
-        </div>
+        </Notice>
       )}
 
       {templates.data?.templates.map((template) => (
         <TemplateCard key={template.key} template={template} />
       ))}
 
-      <p className="text-xs text-white/30">
+      <p className="text-xs text-fg-muted">
         One-off announcements are written on the Text messages page. WhatsApp messages are not set up yet.
       </p>
     </div>
