@@ -6,3 +6,5 @@ export { default as PageHeader } from './PageHeader';
 export { default as Sheet } from './Sheet';
 export { Skeleton, SkeletonCard, SkeletonList } from './Skeleton';
 export { default as Spinner } from './Spinner';
+export { Tabs, TabPanel } from './Tabs';
+export type { TabItem } from './Tabs';

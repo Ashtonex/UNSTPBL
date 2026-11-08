@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
+import { useTabParam } from '../hooks/useTabParam';
 import { CLICKABLE_FOCUS, clickableProps } from '../lib/clickable';
-import { Sheet } from '../components/ui';
+import { Sheet, TabItem, TabPanel, Tabs } from '../components/ui';
 import IosInstallHint from '../components/IosInstallHint';
 import { usePWA } from '../lib/usePWA';
 import { readCachedVerse, saveCachedVerse } from '../lib/verseCache';
@@ -35,9 +36,18 @@ function VerseLoading() {
   );
 }
 
+const HOME_TAB_IDS = ['reflect', 'pray', 'explore'] as const;
+type HomeTab = (typeof HOME_TAB_IDS)[number];
+const HOME_TABS: TabItem[] = [
+  { id: 'reflect', label: 'Reflect', icon: '💭' },
+  { id: 'pray', label: 'Pray', icon: '🙏' },
+  { id: 'explore', label: 'Explore', icon: '✨' },
+];
+
 export default function HomePage() {
   const queryClient = useQueryClient();
   const keys = useQueryKeys();
+  const [tab, setTab] = useTabParam(HOME_TAB_IDS, 'reflect');
   const navigate = useNavigate();
   const userId = useAuthStore((state) => state.user?.id);
   // Today's verse from this device (same user, same day), shown instantly while
@@ -421,68 +431,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 1-Minute Scripture Trivia (Kid- & Family-Friendly) */}
-      <div className="mt-6 glass-card p-5 border border-brand-500/20 relative overflow-hidden">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🎯</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-brand-300">1-Minute Faith Trivia</span>
-          </div>
-          <span className="text-xs font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
-            Daily Challenge
-          </span>
-        </div>
-
-        <p className="text-xs sm:text-sm text-fg font-medium mb-3">
-          Where is today&apos;s scripture from: <span className="text-brand-300 font-bold">{currentVerse.book.name}</span>?
-        </p>
-
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { id: 0, label: 'Old Testament', correct: currentVerse.book.testament === 'old' },
-            { id: 1, label: 'New Testament', correct: currentVerse.book.testament === 'new' },
-          ].map((opt) => {
-            const isSelected = triviaAnswered === opt.id;
-            let btnStyle = 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft';
-            if (isSelected) {
-              btnStyle = opt.correct
-                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 ring-2 ring-emerald-400/40'
-                : 'bg-rose-500/25 border-rose-400 text-rose-200 ring-2 ring-rose-400/40';
-            }
-
-            return (
-              <button
-                key={opt.id}
-                onClick={() => {
-                  setTriviaAnswered(opt.id);
-                  if (opt.correct) {
-                    setTriviaCelebration(true);
-                    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                      try {
-                        navigator.vibrate([25, 40, 25]);
-                      } catch {
-                        /* haptics are optional */
-                      }
-                    }
-                  }
-                }}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center justify-center gap-2 ${btnStyle}`}
-              >
-                <span>{opt.label}</span>
-                {isSelected && (opt.correct ? '⭐' : '❌')}
-              </button>
-            );
-          })}
-        </div>
-
-        {triviaCelebration && (
-          <p className="mt-3 text-xs text-emerald-300 font-semibold text-center animate-fade-in flex items-center justify-center gap-1.5">
-            <span>🎉 Excellent! You earned today&apos;s Faith Star!</span>
-            <span>⭐</span>
-          </p>
-        )}
-      </div>
-
       <div className="grid grid-cols-2 gap-3 mt-6">
         <div className="glass-card p-4">
           <p className="text-fg-muted text-xs uppercase font-semibold tracking-wider">Current Streak</p>
@@ -496,193 +444,263 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* reflections block */}
-      <div className="glass-card p-5 mt-6 space-y-4">
-        <div>
-          <h3 className="text-white font-bold text-sm">Family Reflections</h3>
-          <p className="text-fg-muted text-xs mt-1">Capture and share what today&apos;s scripture speaks to your heart.</p>
-        </div>
-        <div className="flex gap-2">
-          <textarea
-            value={reflection}
-            onChange={(event) => setReflection(event.target.value)}
-            rows={2}
-            maxLength={250}
-            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none resize-none"
-            placeholder="Share your reflection with the church family..."
-          />
-          <button
-            onClick={handleSaveReflection}
-            disabled={!reflection.trim() || reflectionMutation.isPending}
-            className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold px-4 rounded-xl text-xs active:scale-[0.98] transition-all whitespace-nowrap self-stretch flex items-center justify-center"
-          >
-            {reflectionMutation.isPending ? 'Sharing...' : 'Share'}
-          </button>
-        </div>
+      <Tabs tabs={HOME_TABS} value={tab} onChange={(id) => setTab(id as HomeTab)} label="Home sections" className="mt-6">
+        <TabPanel id="reflect" className="flex flex-col gap-6 [&>*]:!mt-0">
+          {/* reflections block */}
+          <div className="glass-card p-5 mt-6 space-y-4">
+            <div>
+              <h3 className="text-white font-bold text-sm">Family Reflections</h3>
+              <p className="text-fg-muted text-xs mt-1">Capture and share what today&apos;s scripture speaks to your heart.</p>
+            </div>
+            <div className="flex gap-2">
+              <textarea
+                value={reflection}
+                onChange={(event) => setReflection(event.target.value)}
+                rows={2}
+                maxLength={250}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none resize-none"
+                placeholder="Share your reflection with the church family..."
+              />
+              <button
+                onClick={handleSaveReflection}
+                disabled={!reflection.trim() || reflectionMutation.isPending}
+                className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold px-4 rounded-xl text-xs active:scale-[0.98] transition-all whitespace-nowrap self-stretch flex items-center justify-center"
+              >
+                {reflectionMutation.isPending ? 'Sharing...' : 'Share'}
+              </button>
+            </div>
 
-        {reflectionsData?.reflections && reflectionsData.reflections.length > 0 && (
-          <div className="space-y-3 border-t border-white/10 pt-4 mt-2 max-h-[220px] overflow-y-auto pr-1">
-            {reflectionsData.reflections.map((ref) => (
-              <div key={ref.id} className="p-3 rounded-xl bg-white/5 border border-white/5 relative">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-semibold text-brand-400">
-                    {ref.user?.displayName || 'Family Member'}
-                  </span>
-                  {ref.user?.congregation && (
-                    <span className="text-xs text-fg-muted">
-                      {ref.user.congregation}
-                    </span>
-                  )}
+            {reflectionsData?.reflections && reflectionsData.reflections.length > 0 && (
+              <div className="space-y-3 border-t border-white/10 pt-4 mt-2 max-h-[220px] overflow-y-auto pr-1">
+                {reflectionsData.reflections.map((ref) => (
+                  <div key={ref.id} className="p-3 rounded-xl bg-white/5 border border-white/5 relative">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-semibold text-brand-400">
+                        {ref.user?.displayName || 'Family Member'}
+                      </span>
+                      {ref.user?.congregation && (
+                        <span className="text-xs text-fg-muted">
+                          {ref.user.congregation}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-fg-soft leading-relaxed">
+                      {ref.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabPanel>
+        <TabPanel id="pray" className="flex flex-col gap-6 [&>*]:!mt-0">
+          {/* prayer block */}
+          <div className="glass-card p-5 mt-6 space-y-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-white font-bold text-sm">Prayer Wall</h3>
+                <p className="text-fg-muted text-xs mt-1">Post a prayer request or thanksgiving praise to the family wall.</p>
+              </div>
+              <button
+                onClick={() => navigate('/prayers')}
+                className="text-brand-400 hover:text-brand-300 text-xs font-semibold"
+              >
+                View Wall →
+              </button>
+            </div>
+            <input
+              value={prayerTitle}
+              onChange={(event) => setPrayerTitle(event.target.value)}
+              maxLength={120}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none"
+              placeholder="Prayer title"
+            />
+            <textarea
+              value={prayerContent}
+              onChange={(event) => setPrayerContent(event.target.value)}
+              rows={2}
+              maxLength={2000}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none resize-none"
+              placeholder="What are you praying about?"
+            />
+            <button
+              onClick={handleSavePrayer}
+              disabled={!prayerTitle.trim() || !prayerContent.trim() || prayerMutation.isPending}
+              className="btn-secondary w-full text-sm disabled:opacity-50"
+            >
+              Add to Wall
+            </button>
+            {prayersData?.prayers?.filter((prayer) => prayer.status === 'open').slice(0, 2).map((prayer) => (
+              <div key={prayer.id} className="border-t border-white/10 pt-3 flex justify-between items-start">
+                <div>
+                  <p className="text-fg-soft text-sm font-semibold">{prayer.title}</p>
+                  <p className="text-fg-muted text-xs mt-1 line-clamp-1">{prayer.content}</p>
                 </div>
-                <p className="text-xs text-fg-soft leading-relaxed">
-                  {ref.content}
-                </p>
+                <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded text-fg-muted">{prayer.user?.displayName || 'Family'}</span>
               </div>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* prayer block */}
-      <div className="glass-card p-5 mt-6 space-y-3">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-white font-bold text-sm">Prayer Wall</h3>
-            <p className="text-fg-muted text-xs mt-1">Post a prayer request or thanksgiving praise to the family wall.</p>
-          </div>
-          <button
-            onClick={() => navigate('/prayers')}
-            className="text-brand-400 hover:text-brand-300 text-xs font-semibold"
-          >
-            View Wall →
-          </button>
-        </div>
-        <input
-          value={prayerTitle}
-          onChange={(event) => setPrayerTitle(event.target.value)}
-          maxLength={120}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none"
-          placeholder="Prayer title"
-        />
-        <textarea
-          value={prayerContent}
-          onChange={(event) => setPrayerContent(event.target.value)}
-          rows={2}
-          maxLength={2000}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand-500 focus:outline-none resize-none"
-          placeholder="What are you praying about?"
-        />
-        <button
-          onClick={handleSavePrayer}
-          disabled={!prayerTitle.trim() || !prayerContent.trim() || prayerMutation.isPending}
-          className="btn-secondary w-full text-sm disabled:opacity-50"
-        >
-          Add to Wall
-        </button>
-        {prayersData?.prayers?.filter((prayer) => prayer.status === 'open').slice(0, 2).map((prayer) => (
-          <div key={prayer.id} className="border-t border-white/10 pt-3 flex justify-between items-start">
-            <div>
-              <p className="text-fg-soft text-sm font-semibold">{prayer.title}</p>
-              <p className="text-fg-muted text-xs mt-1 line-clamp-1">{prayer.content}</p>
+        </TabPanel>
+        <TabPanel id="explore" className="flex flex-col gap-6 [&>*]:!mt-0">
+          {/* 1-Minute Scripture Trivia (Kid- & Family-Friendly) */}
+          <div className="mt-6 glass-card p-5 border border-brand-500/20 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-brand-300">1-Minute Faith Trivia</span>
+              </div>
+              <span className="text-xs font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                Daily Challenge
+              </span>
             </div>
-            <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded text-fg-muted">{prayer.user?.displayName || 'Family'}</span>
-          </div>
-        ))}
-      </div>
 
-      {/* Related Scriptures (NLP Recommendations) */}
-      {showRelated && (
-        <div className="mt-12 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-center gap-2 mb-6">
-            <svg
-              className="w-5 h-5 text-brand-400 animate-pulse-soft"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              />
-            </svg>
-            <h3 className="text-lg font-bold text-white tracking-wide">Inspired Connections</h3>
-            <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">
-              AI Recommended
-            </span>
-          </div>
+            <p className="text-xs sm:text-sm text-fg font-medium mb-3">
+              Where is today&apos;s scripture from: <span className="text-brand-300 font-bold">{currentVerse.book.name}</span>?
+            </p>
 
-          {relatedLoading ? (
-            <div className="flex items-center justify-center py-10 glass-card">
-              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mr-3" />
-              <p className="text-fg-muted text-xs">Finding related scriptures...</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 0, label: 'Old Testament', correct: currentVerse.book.testament === 'old' },
+                { id: 1, label: 'New Testament', correct: currentVerse.book.testament === 'new' },
+              ].map((opt) => {
+                const isSelected = triviaAnswered === opt.id;
+                let btnStyle = 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft';
+                if (isSelected) {
+                  btnStyle = opt.correct
+                    ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 ring-2 ring-emerald-400/40'
+                    : 'bg-rose-500/25 border-rose-400 text-rose-200 ring-2 ring-rose-400/40';
+                }
+
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setTriviaAnswered(opt.id);
+                      if (opt.correct) {
+                        setTriviaCelebration(true);
+                        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                          try {
+                            navigator.vibrate([25, 40, 25]);
+                          } catch {
+                            /* haptics are optional */
+                          }
+                        }
+                      }
+                    }}
+                    className={`p-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center justify-center gap-2 ${btnStyle}`}
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected && (opt.correct ? '⭐' : '❌')}
+                  </button>
+                );
+              })}
             </div>
-          ) : relatedData?.related && relatedData.related.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {relatedData.related.map((item) => (
-                <div
-                  key={item.verse.id}
-                  className="glass-card-hover p-4 relative overflow-hidden flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between sm:items-center group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
+
+            {triviaCelebration && (
+              <p className="mt-3 text-xs text-emerald-300 font-semibold text-center animate-fade-in flex items-center justify-center gap-1.5">
+                <span>🎉 Excellent! You earned today&apos;s Faith Star!</span>
+                <span>⭐</span>
+              </p>
+            )}
+          </div>
+
+
+          {/* Related Scriptures (NLP Recommendations) */}
+          {showRelated && (
+            <div className="mt-12 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              <div className="flex items-center gap-2 mb-6">
+                <svg
+                  className="w-5 h-5 text-brand-400 animate-pulse-soft"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
                 >
-                  {/* Subtle PAOZ Watermark behind each recommendations card */}
-                  <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center p-4">
-                    <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
-                  </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+                <h3 className="text-lg font-bold text-white tracking-wide">Inspired Connections</h3>
+                <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">
+                  AI Recommended
+                </span>
+              </div>
 
-                  <div className="relative z-10 flex-1 min-w-0 pr-2">
-                    <p className="text-sm text-fg-soft leading-relaxed italic break-words">
-                      &ldquo;{item.verse.text}&rdquo;
-                    </p>
-                  </div>
-
-                  <div className="relative z-10 flex items-center gap-3 sm:flex-col sm:items-end shrink-0 sm:border-l sm:border-white/10 sm:pl-4 pt-2 sm:pt-0 border-t border-white/5 sm:border-t-0 mt-2 sm:mt-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 whitespace-nowrap">
-                        {Math.round(item.score * 100)}% Match
-                      </span>
-                      <span className="text-xs text-fg-muted uppercase font-bold tracking-widest sm:hidden">
-                        {item.verse.translation}
-                      </span>
-                    </div>
-                    <span className="text-xs font-semibold text-fg-muted whitespace-nowrap">
-                      {item.book.name} {item.verse.chapter}:{item.verse.verseNumber}
-                    </span>
-                  </div>
+              {relatedLoading ? (
+                <div className="flex items-center justify-center py-10 glass-card">
+                  <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mr-3" />
+                  <p className="text-fg-muted text-xs">Finding related scriptures...</p>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="glass-card p-6 text-center">
-              <p className="text-fg-muted text-sm">No related scriptures found in cache yet.</p>
-              <p className="text-fg-muted text-xs mt-1">Read more scriptures to populate AI connections!</p>
+              ) : relatedData?.related && relatedData.related.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {relatedData.related.map((item) => (
+                    <div
+                      key={item.verse.id}
+                      className="glass-card-hover p-4 relative overflow-hidden flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between sm:items-center group border-l-2 border-l-brand-500/50 hover:border-l-brand-400"
+                    >
+                      {/* Subtle PAOZ Watermark behind each recommendations card */}
+                      <div className="absolute inset-0 opacity-[0.02] pointer-events-none flex items-center justify-center p-4">
+                        <img src="/church_logo.png" alt="" className="w-full h-full object-contain" />
+                      </div>
+
+                      <div className="relative z-10 flex-1 min-w-0 pr-2">
+                        <p className="text-sm text-fg-soft leading-relaxed italic break-words">
+                          &ldquo;{item.verse.text}&rdquo;
+                        </p>
+                      </div>
+
+                      <div className="relative z-10 flex items-center gap-3 sm:flex-col sm:items-end shrink-0 sm:border-l sm:border-white/10 sm:pl-4 pt-2 sm:pt-0 border-t border-white/5 sm:border-t-0 mt-2 sm:mt-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 whitespace-nowrap">
+                            {Math.round(item.score * 100)}% Match
+                          </span>
+                          <span className="text-xs text-fg-muted uppercase font-bold tracking-widest sm:hidden">
+                            {item.verse.translation}
+                          </span>
+                        </div>
+                        <span className="text-xs font-semibold text-fg-muted whitespace-nowrap">
+                          {item.book.name} {item.verse.chapter}:{item.verse.verseNumber}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="glass-card p-6 text-center">
+                  <p className="text-fg-muted text-sm">No related scriptures found in cache yet.</p>
+                  <p className="text-fg-muted text-xs mt-1">Read more scriptures to populate AI connections!</p>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* History Teaser */}
-      <div
-        className={`mt-10 glass-card-hover p-5 animate-slide-up cursor-pointer ${CLICKABLE_FOCUS}`}
-        style={{ animationDelay: '0.2s' }}
-        {...clickableProps(() => setShowHistory(true))}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-fg-soft font-semibold text-sm">Past Verses</h3>
-            <p className="text-fg-muted text-xs mt-0.5">Revisit recent readings</p>
-          </div>
-          <svg
-            className="w-5 h-5 text-fg-muted transition-transform group-hover:translate-x-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+
+          {/* History Teaser */}
+          <div
+            className={`mt-10 glass-card-hover p-5 animate-slide-up cursor-pointer ${CLICKABLE_FOCUS}`}
+            style={{ animationDelay: '0.2s' }}
+            {...clickableProps(() => setShowHistory(true))}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
-      </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-fg-soft font-semibold text-sm">Past Verses</h3>
+                <p className="text-fg-muted text-xs mt-0.5">Revisit recent readings</p>
+              </div>
+              <svg
+                className="w-5 h-5 text-fg-muted transition-transform group-hover:translate-x-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </TabPanel>
+      </Tabs>
 
       {/* History Drawer/Modal */}
       <Sheet

@@ -4,6 +4,8 @@ import { api } from '../lib/api';
 import {  } from '../components/ui';
 import { usePWA } from '../lib/usePWA';
 import SmsPreferencesCard from '../components/SmsPreferencesCard';
+import { useTabParam } from '../hooks/useTabParam';
+import { TabPanel, Tabs, TabItem } from '../components/ui';
 
 function initials(name?: string | null, email?: string) {
   const label = name?.trim() || email || 'Member';
@@ -14,9 +16,22 @@ function initials(name?: string | null, email?: string) {
     .join('') || 'M';
 }
 
+const PROFILE_TAB_IDS = ['details', 'notifications', 'app'] as const;
+type ProfileTab = (typeof PROFILE_TAB_IDS)[number];
+const PROFILE_TABS: TabItem[] = [
+  { id: 'details', label: 'Details' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'app', label: 'App' },
+];
+
 export default function ProfilePage() {
   const { profile, setProfile } = useAuthStore();
   const { isInstallable, isInstalled, install } = usePWA();
+  const [tab, setTab] = useTabParam(PROFILE_TAB_IDS, 'details');
+  // The App tab only exists where the app can be installed (or already is).  A link to it elsewhere shows Details.
+  const showApp = isInstallable || isInstalled;
+  const activeTab: ProfileTab = tab === 'app' && !showApp ? 'details' : tab;
+  const tabs = showApp ? PROFILE_TABS : PROFILE_TABS.filter((item) => item.id !== 'app');
   const [displayName, setDisplayName] = useState('');
   const [congregation, setCongregation] = useState('');
   const [translation, setTranslation] = useState('KJV');
@@ -223,227 +238,233 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="glass-card p-5 border border-white/10">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="text-fg-muted text-xs">Loading profile details...</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {message && (
-              <div
-                className={`p-3 rounded-xl text-sm font-medium border ${
-                  message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
-                    : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
-                }`}
-              >
-                {message.text}
+      <Tabs tabs={tabs} value={activeTab} onChange={(id) => setTab(id as ProfileTab)} label="Profile sections">
+        <TabPanel id="details" className="space-y-5">
+          <section className="glass-card p-5 border border-white/10">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-fg-muted text-xs">Loading profile details...</p>
               </div>
-            )}
-
-            {avatarError && (
-              <div className="p-3.5 rounded-xl text-xs bg-amber-500/15 border border-amber-500/40 text-amber-200 flex items-start gap-2.5 shadow-md">
-                <span className="text-lg shrink-0">⚠️</span>
-                <div>
-                  <p className="font-bold text-amber-100">The link entered is a webpage, not an image file.</p>
-                  <p className="opacity-90 mt-1 leading-relaxed">
-                    Pinterest pin pages (like <code>pinterest.com/pin/...</code>) cannot load directly inside an image tag. You can upload your picture directly from your device below, or right-click the Pinterest picture and choose <strong>"Copy Image Address"</strong>.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Display Name</span>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Full name"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-                />
-              </label>
-
-              <label className="block">
-                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Congregation</span>
-                <input
-                  type="text"
-                  value={congregation}
-                  onChange={(e) => setCongregation(e.target.value)}
-                  placeholder="Victory Tabernacle"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-                />
-              </label>
-            </div>
-
-            <label className="block">
-              <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Bio</span>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Share your ministry, family, testimony, or how people can pray with you."
-                maxLength={500}
-                rows={4}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none resize-none"
-              />
-              <span className="block text-xs text-fg-muted mt-1">{bio.length}/500</span>
-            </label>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Phone</span>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+263..."
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-                />
-              </label>
-
-              <label className="block">
-                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Location</span>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="City or area"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-                />
-              </label>
-            </div>
-
-            {/* Profile Avatar Section: Direct Upload & URL */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="block text-xs font-bold text-fg-soft uppercase tracking-wider">
-                  Profile Photo / Avatar
-                </span>
-                {avatarUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAvatarUrl('');
-                      setAvatarError(false);
-                    }}
-                    className="text-xs text-rose-400 hover:text-rose-300 underline"
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {message && (
+                  <div
+                    className={`p-3 rounded-xl text-sm font-medium border ${
+                      message.type === 'success'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                        : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                    }`}
                   >
-                    Remove Photo
-                  </button>
+                    {message.text}
+                  </div>
                 )}
-              </div>
 
-              {/* Upload directly from device */}
-              <div>
-                <input
-                  id="avatar-file-upload"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="avatar-file-upload"
-                  className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 active:scale-[0.99] border border-white/15 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all"
-                >
-                  <span>📷</span>
-                  <span>Upload Photo from Phone / Computer</span>
+                {avatarError && (
+                  <div className="p-3.5 rounded-xl text-xs bg-amber-500/15 border border-amber-500/40 text-amber-200 flex items-start gap-2.5 shadow-md">
+                    <span className="text-lg shrink-0">⚠️</span>
+                    <div>
+                      <p className="font-bold text-amber-100">The link entered is a webpage, not an image file.</p>
+                      <p className="opacity-90 mt-1 leading-relaxed">
+                        Pinterest pin pages (like <code>pinterest.com/pin/...</code>) cannot load directly inside an image tag. You can upload your picture directly from your device below, or right-click the Pinterest picture and choose <strong>"Copy Image Address"</strong>.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Display Name</span>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Full name"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Congregation</span>
+                    <input
+                      type="text"
+                      value={congregation}
+                      onChange={(e) => setCongregation(e.target.value)}
+                      placeholder="Victory Tabernacle"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Bio</span>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Share your ministry, family, testimony, or how people can pray with you."
+                    maxLength={500}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none resize-none"
+                  />
+                  <span className="block text-xs text-fg-muted mt-1">{bio.length}/500</span>
                 </label>
-              </div>
 
-              <div className="flex items-center gap-2 my-2">
-                <div className="h-px flex-1 bg-white/10" />
-                <span className="text-xs text-fg-muted uppercase tracking-widest font-bold">Or paste direct link</span>
-                <div className="h-px flex-1 bg-white/10" />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Phone</span>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+263..."
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                    />
+                  </label>
 
-              <div>
-                <input
-                  type="url"
-                  value={avatarUrl}
-                  onChange={(e) => handleAvatarUrlChange(e.target.value)}
-                  placeholder="https://example.com/photo.jpg"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-xs text-white outline-none font-mono"
-                />
-                {isResolvingUrl && (
-                  <p className="text-xs text-amber-300 mt-1 flex items-center gap-1">
-                    <span className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin inline-block" />
-                    Converting webpage link to direct image...
-                  </p>
-                )}
-                <p className="text-xs text-fg-muted mt-1.5 leading-normal">
-                  Tip: Webpage links (like Pinterest, Facebook, or Instagram pin links) are not image files. If linking an image online, right-click the image and choose <em>"Copy Image Address"</em> so it ends in <code>.jpg</code> or <code>.png</code>.
-                </p>
-              </div>
-            </div>
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Location</span>
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="City or area"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                    />
+                  </label>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Birthday</span>
-                <input
-                  type="date"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-                />
-              </label>
+                {/* Profile Avatar Section: Direct Upload & URL */}
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="block text-xs font-bold text-fg-soft uppercase tracking-wider">
+                      Profile Photo / Avatar
+                    </span>
+                    {avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAvatarUrl('');
+                          setAvatarError(false);
+                        }}
+                        className="text-xs text-rose-400 hover:text-rose-300 underline"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
 
-              <label className="block">
-                <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Birthday Visibility</span>
-                <select
-                  value={birthdayVisibility}
-                  onChange={(e) => setBirthdayVisibility(e.target.value as 'members' | 'private')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                  {/* Upload directly from device */}
+                  <div>
+                    <input
+                      id="avatar-file-upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="avatar-file-upload"
+                      className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 active:scale-[0.99] border border-white/15 text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <span>📷</span>
+                      <span>Upload Photo from Phone / Computer</span>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2 my-2">
+                    <div className="h-px flex-1 bg-white/10" />
+                    <span className="text-xs text-fg-muted uppercase tracking-widest font-bold">Or paste direct link</span>
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
+
+                  <div>
+                    <input
+                      type="url"
+                      value={avatarUrl}
+                      onChange={(e) => handleAvatarUrlChange(e.target.value)}
+                      placeholder="https://example.com/photo.jpg"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-xs text-white outline-none font-mono"
+                    />
+                    {isResolvingUrl && (
+                      <p className="text-xs text-amber-300 mt-1 flex items-center gap-1">
+                        <span className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin inline-block" />
+                        Converting webpage link to direct image...
+                      </p>
+                    )}
+                    <p className="text-xs text-fg-muted mt-1.5 leading-normal">
+                      Tip: Webpage links (like Pinterest, Facebook, or Instagram pin links) are not image files. If linking an image online, right-click the image and choose <em>"Copy Image Address"</em> so it ends in <code>.jpg</code> or <code>.png</code>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Birthday</span>
+                    <input
+                      type="date"
+                      value={birthday}
+                      onChange={(e) => setBirthday(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Birthday Visibility</span>
+                    <select
+                      value={birthdayVisibility}
+                      onChange={(e) => setBirthdayVisibility(e.target.value as 'members' | 'private')}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                    >
+                      <option value="members" className="bg-surface-900 text-white">Members can celebrate</option>
+                      <option value="private" className="bg-surface-900 text-white">Keep private</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Preferred Bible Translation</span>
+                  <select
+                    value={translation}
+                    onChange={(e) => setTranslation(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
+                  >
+                    <option value="KJV" className="bg-surface-900 text-white">King James Version (KJV)</option>
+                    <option value="ESV" className="bg-surface-900 text-white">English Standard Version (ESV)</option>
+                  </select>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-amber-600 hover:from-brand-400 hover:to-amber-500 active:scale-[0.98] text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-brand-500/20 disabled:opacity-70"
                 >
-                  <option value="members" className="bg-surface-900 text-white">Members can celebrate</option>
-                  <option value="private" className="bg-surface-900 text-white">Keep private</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="block">
-              <span className="block text-xs font-semibold text-fg-muted uppercase tracking-wider mb-2">Preferred Bible Translation</span>
-              <select
-                value={translation}
-                onChange={(e) => setTranslation(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500/60 rounded-xl text-sm text-white outline-none"
-              >
-                <option value="KJV" className="bg-surface-900 text-white">King James Version (KJV)</option>
-                <option value="ESV" className="bg-surface-900 text-white">English Standard Version (ESV)</option>
-              </select>
-            </label>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-amber-600 hover:from-brand-400 hover:to-amber-500 active:scale-[0.98] text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-brand-500/20 disabled:opacity-70"
-            >
-              {isSaving ? 'Saving Profile...' : 'Save Profile'}
-            </button>
-          </form>
-        )}
-      </section>
-
-      <SmsPreferencesCard />
-
-      {(isInstallable || isInstalled) && (
-        <section className="glass-card p-5 border border-white/10">
-          <h3 className="text-sm font-bold text-white mb-2">{isInstalled ? 'Installed on Device' : 'Install UNSTPBL App'}</h3>
-          <p className="text-fg-muted text-xs mb-4">
-            {isInstalled
-              ? 'Running standalone as an installed web app with automatic updates.'
-              : 'Install the app for quick access, offline reading, and birthday push notifications.'}
-          </p>
-          {isInstallable && (
-            <button onClick={install} className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-white text-xs font-bold rounded-xl">
-              Add to Home Screen
-            </button>
+                  {isSaving ? 'Saving Profile...' : 'Save Profile'}
+                </button>
+              </form>
+            )}
+          </section>
+        </TabPanel>
+        <TabPanel id="notifications" className="space-y-5">
+          <SmsPreferencesCard />
+        </TabPanel>
+        <TabPanel id="app" className="space-y-5">
+          {(isInstallable || isInstalled) && (
+            <section className="glass-card p-5 border border-white/10">
+              <h3 className="text-sm font-bold text-white mb-2">{isInstalled ? 'Installed on Device' : 'Install UNSTPBL App'}</h3>
+              <p className="text-fg-muted text-xs mb-4">
+                {isInstalled
+                  ? 'Running standalone as an installed web app with automatic updates.'
+                  : 'Install the app for quick access, offline reading, and birthday push notifications.'}
+              </p>
+              {isInstallable && (
+                <button onClick={install} className="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-white text-xs font-bold rounded-xl">
+                  Add to Home Screen
+                </button>
+              )}
+            </section>
           )}
-        </section>
-      )}
+        </TabPanel>
+      </Tabs>
     </div>
   );
 }

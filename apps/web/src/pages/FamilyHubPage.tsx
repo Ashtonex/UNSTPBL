@@ -4,12 +4,22 @@ import type { Sermon } from '@unstpbl/shared';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
 import { CLICKABLE_FOCUS, clickableProps } from '../lib/clickable';
-import { PageHeader, PendingState, Sheet } from '../components/ui';
+import { PageHeader, PendingState, Sheet, TabItem, TabPanel, Tabs } from '../components/ui';
+import { useTabParam } from '../hooks/useTabParam';
+
+const FAMILY_TAB_IDS = ['milestones', 'trivia', 'circles', 'sermons'] as const;
+type FamilyTab = (typeof FAMILY_TAB_IDS)[number];
+const FAMILY_TABS: TabItem[] = [
+  { id: 'milestones', label: 'Congregation Goals', icon: '🏆' },
+  { id: 'trivia', label: 'Weekly Trivia', icon: '🧠' },
+  { id: 'circles', label: 'Home Circles', icon: '👥' },
+  { id: 'sermons', label: 'Sermon Notes', icon: '📖' },
+];
 
 export default function FamilyHubPage() {
   const queryClient = useQueryClient();
   const keys = useQueryKeys();
-  const [activeTab, setActiveTab] = useState<'milestones' | 'trivia' | 'circles' | 'sermons'>('milestones');
+  const [activeTab, setActiveTab] = useTabParam(FAMILY_TAB_IDS, 'milestones');
 
   // 1. Fetch data
   const { data: milestonesData, isLoading: milestonesLoading } = useQuery({
@@ -90,52 +100,10 @@ export default function FamilyHubPage() {
       {/* Title */}
       <PageHeader title="Family Hub" subtitle="Grow, learn, and coordinate with the church body." />
 
-      {/* Tabs Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-1 border-b border-white/5 no-scrollbar">
-        <button
-          onClick={() => setActiveTab('milestones')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
-            activeTab === 'milestones'
-              ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-fg-muted border-transparent hover:text-fg-soft'
-          }`}
-        >
-          🏆 Congregation Goals
-        </button>
-        <button
-          onClick={() => setActiveTab('trivia')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
-            activeTab === 'trivia'
-              ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-fg-muted border-transparent hover:text-fg-soft'
-          }`}
-        >
-          🧠 Weekly Trivia
-        </button>
-        <button
-          onClick={() => setActiveTab('circles')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
-            activeTab === 'circles'
-              ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-fg-muted border-transparent hover:text-fg-soft'
-          }`}
-        >
-          👥 Home Circles
-        </button>
-        <button
-          onClick={() => setActiveTab('sermons')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all shrink-0 border ${
-            activeTab === 'sermons'
-              ? 'bg-brand-500/10 text-brand-400 border-brand-500/20 font-bold'
-              : 'text-fg-muted border-transparent hover:text-fg-soft'
-          }`}
-        >
-          📖 Sermon Notes
-        </button>
-      </div>
+      <Tabs tabs={FAMILY_TABS} value={activeTab} onChange={(id) => setActiveTab(id as FamilyTab)} label="Family Hub sections">
 
       {/* ── Tab Content: Milestones ────────────────────────────────────────── */}
-      {activeTab === 'milestones' && (
+      <TabPanel id="milestones">
         <div className="space-y-6">
           {milestonesLoading ? (
             <PendingState count={2} />
@@ -212,10 +180,10 @@ export default function FamilyHubPage() {
             </>
           )}
         </div>
-      )}
+      </TabPanel>
 
       {/* ── Tab Content: Trivia ────────────────────────────────────────────── */}
-      {activeTab === 'trivia' && (
+      <TabPanel id="trivia">
         <div className="space-y-4 animate-fade-in">
           {triviaLoading ? (
             <PendingState count={2} />
@@ -293,10 +261,10 @@ export default function FamilyHubPage() {
             </div>
           )}
         </div>
-      )}
+      </TabPanel>
 
       {/* ── Tab Content: Circles ───────────────────────────────────────────── */}
-      {activeTab === 'circles' && (
+      <TabPanel id="circles">
         <div className="space-y-4 animate-fade-in">
           {circlesLoading ? (
             <PendingState count={2} />
@@ -332,10 +300,10 @@ export default function FamilyHubPage() {
             </div>
           )}
         </div>
-      )}
+      </TabPanel>
 
       {/* ── Tab Content: Sermons ───────────────────────────────────────────── */}
-      {activeTab === 'sermons' && (
+      <TabPanel id="sermons">
         <div className="space-y-4 animate-fade-in">
           {sermonsLoading ? (
             <PendingState count={2} />
@@ -361,7 +329,8 @@ export default function FamilyHubPage() {
             </div>
           )}
         </div>
-      )}
+      </TabPanel>
+      </Tabs>
 
       {/* ── Sermon Drawer Modal ────────────────────────────────────────────── */}
       {activeSermon && (

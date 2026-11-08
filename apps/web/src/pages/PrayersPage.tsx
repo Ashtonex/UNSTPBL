@@ -3,8 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PrayerRequest } from '@unstpbl/shared';
 import { api } from '../lib/api';
 import { useQueryKeys } from '../lib/queryKeys';
-import { PageHeader, PendingState } from '../components/ui';
+import { PageHeader, PendingState, TabItem, TabPanel, Tabs } from '../components/ui';
 import { useAuthStore } from '../stores/auth';
+
+type PrayerFilter = 'all' | 'request' | 'praise';
+const PRAYER_TABS: TabItem[] = [
+  { id: 'all', label: 'All Shared' },
+  { id: 'request', label: 'Requests', icon: '🙏' },
+  { id: 'praise', label: 'Praises', icon: '🙌' },
+];
 
 export default function PrayersPage() {
   const queryClient = useQueryClient();
@@ -190,156 +197,126 @@ export default function PrayersPage() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-white/5 pb-1">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            filter === 'all'
-              ? 'bg-white/10 text-white font-bold'
-              : 'text-fg-muted hover:text-fg-soft'
-          }`}
-        >
-          All Shared
-        </button>
-        <button
-          onClick={() => setFilter('request')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            filter === 'request'
-              ? 'bg-brand-500/10 text-brand-400 font-bold border border-brand-500/20'
-              : 'text-fg-muted hover:text-fg-soft'
-          }`}
-        >
-          🙏 Requests
-        </button>
-        <button
-          onClick={() => setFilter('praise')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-            filter === 'praise'
-              ? 'bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20'
-              : 'text-fg-muted hover:text-fg-soft'
-          }`}
-        >
-          🙌 praises
-        </button>
-      </div>
-
-      {/* List Feed */}
-      {isLoading ? (
-        <PendingState label="Loading prayers" />
-      ) : filteredPrayers.length > 0 ? (
-        <div className="space-y-4">
-          {filteredPrayers.map((prayer: PrayerRequest) => (
-            <div
-              key={prayer.id}
-              className={`glass-card p-5 relative overflow-hidden border-l-4 transition-all ${
-                prayer.status === 'answered'
-                  ? 'border-l-emerald-500 bg-emerald-950/5'
-                  : prayer.type === 'praise'
-                  ? 'border-l-amber-500 bg-amber-950/5'
-                  : 'border-l-brand-500'
-              }`}
-            >
-              {/* Top Row: Meta info */}
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-fg-soft">
-                      {prayer.user?.displayName || 'Family Member'}
-                    </span>
-                    {prayer.user?.congregation && (
-                      <span className="text-xs text-fg-muted font-medium">
-                        • {prayer.user.congregation}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-fg-muted">
-                    {new Date(prayer.createdAt).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
-                      prayer.status === 'answered'
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        : prayer.type === 'praise'
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                        : 'bg-brand-500/10 text-brand-400 border-brand-500/20'
-                    }`}
-                  >
-                    {prayer.status === 'answered' ? 'Answered!' : prayer.type}
-                  </span>
-                </div>
-              </div>
-
-              {/* Title & Body */}
-              <div className="mb-4 relative z-10">
-                <h4 className="text-sm font-bold text-white mb-1.5">{prayer.title}</h4>
-                <p className="text-xs text-fg-soft leading-relaxed whitespace-pre-line">{prayer.content}</p>
-              </div>
-
-              {/* Bottom Row: Actions */}
-              <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1 relative z-10">
-                <button
-                  onClick={() => {
-                    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                      try {
-                        navigator.vibrate(25);
-                      } catch {
-                        /* haptics are optional */
-                      }
-                    }
-                    handleToggleJoin(prayer);
-                  }}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] border ${
-                    prayer.hasJoined
-                      ? 'bg-amber-500/20 border-amber-400/40 text-amber-200 ring-2 ring-amber-400/25 shadow-lg shadow-amber-500/15'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft hover:text-white'
+      <Tabs tabs={PRAYER_TABS} value={filter} onChange={(id) => setFilter(id as PrayerFilter)} label="Filter prayers">
+        <TabPanel id={filter}>
+          {/* List Feed */}
+          {isLoading ? (
+            <PendingState label="Loading prayers" />
+          ) : filteredPrayers.length > 0 ? (
+            <div className="space-y-4">
+              {filteredPrayers.map((prayer: PrayerRequest) => (
+                <div
+                  key={prayer.id}
+                  className={`glass-card p-5 relative overflow-hidden border-l-4 transition-all ${
+                    prayer.status === 'answered'
+                      ? 'border-l-emerald-500 bg-emerald-950/5'
+                      : prayer.type === 'praise'
+                      ? 'border-l-amber-500 bg-amber-950/5'
+                      : 'border-l-brand-500'
                   }`}
                 >
-                  {prayer.hasJoined ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-base animate-pulse">🕯️</span>
-                      <span className="font-bold text-amber-300">Candle Lit</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-base opacity-70">🕯️</span>
-                      <span>Light Candle & Pray</span>
-                    </span>
-                  )}
-                  {prayer._count?.joins > 0 && (
-                    <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-xs font-bold border border-amber-400/30">
-                      {prayer._count.joins} praying
-                    </span>
-                  )}
-                </button>
+                  {/* Top Row: Meta info */}
+                  <div className="flex justify-between items-start mb-2 relative z-10">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-fg-soft">
+                          {prayer.user?.displayName || 'Family Member'}
+                        </span>
+                        {prayer.user?.congregation && (
+                          <span className="text-xs text-fg-muted font-medium">
+                            • {prayer.user.congregation}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-fg-muted">
+                        {new Date(prayer.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
 
-                {/* Mark as answered if owned by user */}
-                {profile?.id === prayer.userId && prayer.status === 'open' && (
-                  <button
-                    onClick={() => markAnsweredMutation.mutate(prayer.id)}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg font-semibold transition-all"
-                  >
-                    Mark Answered / Thanksgiving
-                  </button>
-                )}
-              </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                          prayer.status === 'answered'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : prayer.type === 'praise'
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            : 'bg-brand-500/10 text-brand-400 border-brand-500/20'
+                        }`}
+                      >
+                        {prayer.status === 'answered' ? 'Answered!' : prayer.type}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Title & Body */}
+                  <div className="mb-4 relative z-10">
+                    <h4 className="text-sm font-bold text-white mb-1.5">{prayer.title}</h4>
+                    <p className="text-xs text-fg-soft leading-relaxed whitespace-pre-line">{prayer.content}</p>
+                  </div>
+
+                  {/* Bottom Row: Actions */}
+                  <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1 relative z-10">
+                    <button
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                          try {
+                            navigator.vibrate(25);
+                          } catch {
+                            /* haptics are optional */
+                          }
+                        }
+                        handleToggleJoin(prayer);
+                      }}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] border ${
+                        prayer.hasJoined
+                          ? 'bg-amber-500/20 border-amber-400/40 text-amber-200 ring-2 ring-amber-400/25 shadow-lg shadow-amber-500/15'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 text-fg-soft hover:text-white'
+                      }`}
+                    >
+                      {prayer.hasJoined ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-base animate-pulse">🕯️</span>
+                          <span className="font-bold text-amber-300">Candle Lit</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-base opacity-70">🕯️</span>
+                          <span>Light Candle & Pray</span>
+                        </span>
+                      )}
+                      {prayer._count?.joins > 0 && (
+                        <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-xs font-bold border border-amber-400/30">
+                          {prayer._count.joins} praying
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Mark as answered if owned by user */}
+                    {profile?.id === prayer.userId && prayer.status === 'open' && (
+                      <button
+                        onClick={() => markAnsweredMutation.mutate(prayer.id)}
+                        className="text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg font-semibold transition-all"
+                      >
+                        Mark Answered / Thanksgiving
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="glass-card p-10 text-center text-fg-muted space-y-2">
-          <p className="text-sm font-semibold">The prayer wall is empty.</p>
-          <p className="text-xs text-fg-muted">Click "Share Something" above to post your request or praise.</p>
-        </div>
-      )}
+          ) : (
+            <div className="glass-card p-10 text-center text-fg-muted space-y-2">
+              <p className="text-sm font-semibold">The prayer wall is empty.</p>
+              <p className="text-xs text-fg-muted">Click "Share Something" above to post your request or praise.</p>
+            </div>
+          )}
+        </TabPanel>
+      </Tabs>
     </div>
   );
 }
