@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { RECOVERY_FLAG, supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
+import AuthForm from '../components/AuthForm';
 
 export default function LoginPage() {
   const { user } = useAuthStore();
@@ -79,45 +78,7 @@ export default function LoginPage() {
             {recovering ? 'Choose a new password' : 'Sign In / Register'}
           </h2>
 
-          <Auth
-            supabaseClient={supabase}
-            view={recovering ? 'update_password' : undefined}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#f59e0b',
-                    brandAccent: '#d97706',
-                    inputBackground: 'rgba(255, 255, 255, 0.03)',
-                    inputBorder: 'rgba(255, 255, 255, 0.08)',
-                    inputText: '#ffffff',
-                    inputPlaceholder: 'rgba(255, 255, 255, 0.25)',
-                    inputLabelText: 'rgba(255, 255, 255, 0.6)',
-                    anchorTextColor: '#fbbf24',
-                    dividerBackground: 'rgba(255, 255, 255, 0.08)',
-                  },
-                  borderWidths: {
-                    buttonBorderWidth: '0px',
-                    inputBorderWidth: '1px',
-                  },
-                  radii: {
-                    borderRadiusButton: '12px',
-                    buttonBorderRadius: '12px',
-                    inputBorderRadius: '12px',
-                  },
-                  fontSizes: {
-                    baseBodySize: '13px',
-                    baseInputSize: '13px',
-                    baseLabelSize: '12px',
-                    baseButtonSize: '14px',
-                  },
-                },
-              },
-            }}
-            providers={[]}
-            redirectTo={`${window.location.origin}/auth/callback`}
-          />
+          <AuthForm recovering={recovering} />
         </div>
 
         {/* Social Media Row */}
