@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { PrayerRequest } from '@unstpbl/shared';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import { useAuthStore } from '../stores/auth';
 
 export default function PrayersPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const { profile } = useAuthStore();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -16,7 +19,7 @@ export default function PrayersPage() {
 
   // Fetch all prayer requests
   const { data: prayersData, isLoading } = useQuery({
-    queryKey: ['prayer-requests'],
+    queryKey: keys.prayerRequests(),
     queryFn: api.getPrayerRequests,
     refetchInterval: 10000, // Auto-refresh every 10 seconds to keep the wall live
   });
@@ -30,8 +33,8 @@ export default function PrayersPage() {
       setIsAnonymous(false);
       setType('request');
       setShowAddForm(false);
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      queryClient.invalidateQueries({ queryKey: keys.prayerRequests() });
+      queryClient.invalidateQueries({ queryKey: keys.userProgress() });
     },
   });
 
@@ -39,14 +42,14 @@ export default function PrayersPage() {
   const joinPrayerMutation = useMutation({
     mutationFn: api.joinPrayer,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: keys.prayerRequests() });
     },
   });
 
   const leavePrayerMutation = useMutation({
     mutationFn: api.leavePrayer,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
+      queryClient.invalidateQueries({ queryKey: keys.prayerRequests() });
     },
   });
 
@@ -54,8 +57,8 @@ export default function PrayersPage() {
   const markAnsweredMutation = useMutation({
     mutationFn: api.markPrayerAnswered,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      queryClient.invalidateQueries({ queryKey: keys.prayerRequests() });
+      queryClient.invalidateQueries({ queryKey: keys.userProgress() });
     },
   });
 
@@ -77,7 +80,7 @@ export default function PrayersPage() {
     }
   };
 
-  const handleToggleJoin = (prayer: any) => {
+  const handleToggleJoin = (prayer: PrayerRequest) => {
     if (prayer.hasJoined) {
       leavePrayerMutation.mutate(prayer.id);
     } else {
@@ -85,7 +88,7 @@ export default function PrayersPage() {
     }
   };
 
-  const filteredPrayers = prayersData?.prayers?.filter((prayer: any) => {
+  const filteredPrayers = prayersData?.prayers?.filter((prayer: PrayerRequest) => {
     if (filter === 'all') return true;
     return prayer.type === filter;
   }) || [];
@@ -231,7 +234,7 @@ export default function PrayersPage() {
         </div>
       ) : filteredPrayers.length > 0 ? (
         <div className="space-y-4">
-          {filteredPrayers.map((prayer: any) => (
+          {filteredPrayers.map((prayer: PrayerRequest) => (
             <div
               key={prayer.id}
               className={`glass-card p-5 relative overflow-hidden border-l-4 transition-all ${

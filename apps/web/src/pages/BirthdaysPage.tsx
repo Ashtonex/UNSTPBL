@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import { useAuthStore } from '../stores/auth';
 
 function nameFor(user: { displayName?: string | null; id?: string }) {
@@ -23,11 +24,12 @@ function formatBirthday(date: string) {
 
 export default function BirthdaysPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   // Running the broadcast is a leadership action (the server enforces it too).
   const role = useAuthStore((state) => state.profile?.role);
   const canRunAutomation = role === 'bishop' || role === 'admin';
   const { data, isLoading, error } = useQuery({
-    queryKey: ['birthdays'],
+    queryKey: keys.birthdays(),
     queryFn: api.getBirthdays,
     refetchInterval: 60_000,
   });
@@ -35,7 +37,7 @@ export default function BirthdaysPage() {
   const dispatchMutation = useMutation({
     mutationFn: api.dispatchTodaysBirthdays,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['birthdays'] });
+      queryClient.invalidateQueries({ queryKey: keys.birthdays() });
     },
   });
 

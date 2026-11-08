@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type MessageAudience, type MessageLogEntry, type MessagePreview } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import { can } from '@unstpbl/shared';
 import SmsModeBanner from '../components/SmsModeBanner';
 import { useAuthStore } from '../stores/auth';
@@ -65,6 +66,7 @@ const PASTOR_AUDIENCES: AudienceType[] = ['visitors', 'congregation', 'circle'];
 
 export default function MessagesPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const role = useAuthStore((state) => state.profile?.role);
   const textsEveryone = can(role, 'messages.sendToAll');
   const audienceChoices = (Object.keys(AUDIENCE_LABEL) as AudienceType[]).filter((type) => textsEveryone || PASTOR_AUDIENCES.includes(type));
@@ -76,10 +78,10 @@ export default function MessagesPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; good: boolean } | null>(null);
 
-  const circles = useQuery({ queryKey: ['circles'], queryFn: api.getCircles, enabled: audienceType === 'circle' });
-  const saved = useQuery({ queryKey: ['saved-messages'], queryFn: api.getSavedMessages, retry: false });
+  const circles = useQuery({ queryKey: keys.circles(), queryFn: api.getCircles, enabled: audienceType === 'circle' });
+  const saved = useQuery({ queryKey: keys.savedMessages(), queryFn: api.getSavedMessages, retry: false });
   const [saveTitle, setSaveTitle] = useState<string | null>(null);
-  const log = useQuery({ queryKey: ['message-log'], queryFn: api.getMessageLog, refetchInterval: 15_000 });
+  const log = useQuery({ queryKey: keys.messageLog(), queryFn: api.getMessageLog, refetchInterval: 15_000 });
 
   const audience: MessageAudience | null =
     audienceType === 'congregation'
@@ -114,14 +116,14 @@ export default function MessagesPage() {
     onSuccess: () => {
       setSaveTitle(null);
       setFeedback({ good: true, text: 'Saved. Find it under "Start from" next time.' });
-      queryClient.invalidateQueries({ queryKey: ['saved-messages'] });
+      queryClient.invalidateQueries({ queryKey: keys.savedMessages() });
     },
     onError: (err: Error) => setFeedback({ good: false, text: cleanError(err) }),
   });
 
   const deleteSavedMutation = useMutation({
     mutationFn: (id: string) => api.deleteSavedMessage(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-messages'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.savedMessages() }),
     onError: (err: Error) => setFeedback({ good: false, text: cleanError(err) }),
   });
 
@@ -143,8 +145,8 @@ export default function MessagesPage() {
               ? 'Test text sent to your own phone.'
               : `Test text not sent${result.detail ? `: ${result.detail}` : '.'}`,
       });
-      queryClient.invalidateQueries({ queryKey: ['message-log'] });
-      queryClient.invalidateQueries({ queryKey: ['messaging-status'] });
+      queryClient.invalidateQueries({ queryKey: keys.messageLog() });
+      queryClient.invalidateQueries({ queryKey: keys.messagingStatus() });
     },
     onError: (err: Error) => setFeedback({ good: false, text: cleanError(err) }),
   });
@@ -162,8 +164,8 @@ export default function MessagesPage() {
       setPreview(null);
       setConfirmed(false);
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['message-log'] });
-        queryClient.invalidateQueries({ queryKey: ['messaging-status'] });
+        queryClient.invalidateQueries({ queryKey: keys.messageLog() });
+        queryClient.invalidateQueries({ queryKey: keys.messagingStatus() });
       }, 1500);
     },
     onError: (err: Error) => {

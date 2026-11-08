@@ -40,8 +40,8 @@ export default function ProfilePage() {
       try {
         const { profile: loadedProfile } = await api.getProfile();
         setProfile(loadedProfile);
-      } catch (err: any) {
-        setMessage({ text: err.message || 'Failed to load profile.', type: 'error' });
+      } catch (err) {
+        setMessage({ text: (err instanceof Error && err.message) || 'Failed to load profile.', type: 'error' });
       } finally {
         setIsLoading(false);
       }
@@ -165,8 +165,8 @@ export default function ProfilePage() {
       });
       setProfile(updatedProfile);
       setMessage({ text: 'Profile saved. Birthday automation will use your latest details.', type: 'success' });
-    } catch (err: any) {
-      setMessage({ text: err.message || 'Failed to update profile.', type: 'error' });
+    } catch (err) {
+      setMessage({ text: (err instanceof Error && err.message) || 'Failed to update profile.', type: 'error' });
     } finally {
       setIsSaving(false);
     }

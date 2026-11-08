@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -86,6 +87,7 @@ const LOCAL_BIBLE_BOOKS = [
 
 export default function BishopPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const [bookId, setBookId] = useState<number | ''>('');
   const [chapter, setChapter] = useState<number | ''>('');
   const [verseNumber, setVerseNumber] = useState<number | ''>('');
@@ -121,7 +123,7 @@ export default function BishopPage() {
 
   // 1. Fetch Admin Stats (Read rates and total members count)
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
-    queryKey: ['admin-stats'],
+    queryKey: keys.adminStats(),
     queryFn: api.getAdminStats,
     refetchInterval: 15000,
   });
@@ -129,7 +131,7 @@ export default function BishopPage() {
   // Only used to label the outreach cards (test mode vs live). The links themselves always
   // show: a slow or sleeping API must never hide the way into the Visitors and Messages pages.
   const { data: messagingStatus } = useQuery({
-    queryKey: ['messaging-status'],
+    queryKey: keys.messagingStatus(),
     queryFn: api.getMessagingStatus,
     retry: false,
     staleTime: 60_000,
@@ -137,32 +139,32 @@ export default function BishopPage() {
 
   // Fetch Trends and Translation Breakdown
   const { data: trendsData, isLoading: trendsLoading } = useQuery({
-    queryKey: ['admin-stats-trends'],
+    queryKey: keys.adminStatsTrends(),
     queryFn: api.getAdminStatsTrends,
     refetchInterval: 60000,
   });
 
   const { data: translationsData, isLoading: translationsLoading } = useQuery({
-    queryKey: ['admin-stats-translations'],
+    queryKey: keys.adminStatsTranslations(),
     queryFn: api.getAdminStatsTranslations,
     refetchInterval: 60000,
   });
 
   const { data: congregationData, isLoading: congregationLoading } = useQuery({
-    queryKey: ['admin-stats-congregations'],
+    queryKey: keys.adminStatsCongregations(),
     queryFn: api.getAdminStatsCongregations,
     refetchInterval: 60000,
   });
 
   const { data: scheduledPushData } = useQuery({
-    queryKey: ['scheduled-push-notifications'],
+    queryKey: keys.scheduledPushNotifications(),
     queryFn: api.getScheduledPushNotifications,
     refetchInterval: 60000,
   });
 
   // 2. Fetch Bible Books for dropdown selection
   const { data: booksData } = useQuery({
-    queryKey: ['admin-books'],
+    queryKey: keys.adminBooks(),
     queryFn: api.getAdminBooks,
   });
 
@@ -179,12 +181,12 @@ export default function BishopPage() {
       setChapter('');
       setVerseNumber('');
       setPastoralNote('');
-      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['verse-today'] });
-      queryClient.invalidateQueries({ queryKey: ['verse-history'] });
+      queryClient.invalidateQueries({ queryKey: keys.adminStats() });
+      queryClient.invalidateQueries({ queryKey: keys.verseToday() });
+      queryClient.invalidateQueries({ queryKey: keys.verseHistory() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to schedule verse. Please check inputs and try again.');
       setSuccessMsg(null);
     },
@@ -198,10 +200,10 @@ export default function BishopPage() {
       setPushTitle('');
       setPushBody('');
       setPushScheduledFor('');
-      queryClient.invalidateQueries({ queryKey: ['scheduled-push-notifications'] });
+      queryClient.invalidateQueries({ queryKey: keys.scheduledPushNotifications() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to schedule notification.');
       setSuccessMsg(null);
     },
@@ -212,10 +214,10 @@ export default function BishopPage() {
     onSuccess: (result) => {
       setSuccessMsg(`Dispatched ${result.processed} scheduled notifications (${result.sent} sent, ${result.failed} failed).`);
       setErrorMsg(null);
-      queryClient.invalidateQueries({ queryKey: ['scheduled-push-notifications'] });
+      queryClient.invalidateQueries({ queryKey: keys.scheduledPushNotifications() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to dispatch scheduled notifications.');
       setSuccessMsg(null);
     },
@@ -229,10 +231,10 @@ export default function BishopPage() {
       setSermonTitle('');
       setSermonPreacher('');
       setSermonOutline('');
-      queryClient.invalidateQueries({ queryKey: ['sermons'] });
+      queryClient.invalidateQueries({ queryKey: keys.sermons() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to publish sermon.');
       setSuccessMsg(null);
     },
@@ -247,10 +249,10 @@ export default function BishopPage() {
       setTriviaOptions('');
       setCorrectOptionIdx('');
       setTriviaExplanation('');
-      queryClient.invalidateQueries({ queryKey: ['weekly-trivia'] });
+      queryClient.invalidateQueries({ queryKey: keys.weeklyTrivia() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to add trivia question.');
       setSuccessMsg(null);
     },
@@ -263,10 +265,10 @@ export default function BishopPage() {
       setErrorMsg(null);
       setCircleName('');
       setCircleDesc('');
-      queryClient.invalidateQueries({ queryKey: ['circles'] });
+      queryClient.invalidateQueries({ queryKey: keys.circles() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to create circle.');
       setSuccessMsg(null);
     },
@@ -503,7 +505,7 @@ export default function BishopPage() {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {(translationsData?.translations || []).map((_entry: any, index: number) => (
+                    {(translationsData?.translations || []).map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? '#eab308' : '#06b6d4'} />
                     ))}
                   </Pie>

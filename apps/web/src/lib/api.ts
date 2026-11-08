@@ -11,7 +11,25 @@ import {
   setPendingReads,
 } from './offlineQueue';
 import { cleanVerseText } from '@unstpbl/shared';
-import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User, UserRole } from '@unstpbl/shared';
+import type {
+  BibleBook,
+  BirthdayWallPost,
+  CircleWithMembership,
+  Circle,
+  DailyVerse,
+  Milestone,
+  PrayerRequest,
+  PrayerRequestRecord,
+  PrayerType,
+  ScheduledPushNotification,
+  Sermon,
+  TriviaQuestion,
+  UpcomingBirthday,
+  User,
+  UserRole,
+  VerseMatch,
+  VerseReflection,
+} from '@unstpbl/shared';
 
 // Bible APIs return text with translator braces, margin notes and hard line breaks;
 // clean it once here so every screen (card, search, history, favorites) reads well.
@@ -121,8 +139,8 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions, retriedAfter
         ...init.headers,
       },
     });
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
       throw new NetworkError(
         `Failed to fetch – the server took longer than ${Math.round(timeoutLimit / 1000)}s to respond (${API_BASE})`,
       );
@@ -193,25 +211,6 @@ export interface FavoriteVerse {
   translation: string;
   bookName: string;
   bookAbbreviation: string;
-}
-
-export interface VerseReflection {
-  id: string;
-  userId: string;
-  verseId: number;
-  verseScheduleId?: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PrayerRequest {
-  id: string;
-  title: string;
-  content: string;
-  status: 'open' | 'answered';
-  createdAt: string;
-  answeredAt?: string;
 }
 
 export interface BirthdayFeed {
@@ -377,7 +376,7 @@ export const api = {
     apiFetch<{ congregations: Array<{ congregation: string; members: number; readsToday: number; readRate: number }> }>('/admin/stats/congregations'),
   getAdminAuditLogs: (limit = 10) =>
     apiFetch<{ logs: AdminAuditLog[] }>(`/admin/audit?limit=${limit}`),
-  subscribePush: (subscription: any) =>
+  subscribePush: (subscription: PushSubscription) =>
     apiFetch<{ success: boolean }>('/push/subscribe', {
       method: 'POST',
       body: JSON.stringify(subscription),
@@ -413,23 +412,23 @@ export const api = {
     if (verseId) params.push(`verseId=${verseId}`);
     if (verseScheduleId) params.push(`verseScheduleId=${verseScheduleId}`);
     if (params.length > 0) url += `?${params.join('&')}`;
-    return apiFetch<{ reflections: any[] }>(url);
+    return apiFetch<{ reflections: VerseReflection[] }>(url);
   },
   createVerseReflection: (data: { verseId: number; verseScheduleId?: string; content: string }) =>
-    apiFetch<{ reflection: any }>('/verses/reflections', {
+    apiFetch<{ reflection: VerseReflection }>('/verses/reflections', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   getPrayerRequests: () =>
-    apiFetch<{ prayers: any[] }>('/prayers'),
+    apiFetch<{ prayers: PrayerRequest[] }>('/prayers'),
   getBirthdays: () =>
     apiFetch<BirthdayFeed>('/birthdays'),
   dispatchTodaysBirthdays: () =>
     apiFetch<{ success: boolean; processed: number; created: number; sent: number; failed: number }>('/birthdays/dispatch-today', {
       method: 'POST',
     }),
-  createPrayerRequest: (data: { title: string; content: string; type?: string; isAnonymous?: boolean }) =>
-    apiFetch<{ prayer: any }>('/prayers', {
+  createPrayerRequest: (data: { title: string; content: string; type?: PrayerType; isAnonymous?: boolean }) =>
+    apiFetch<{ prayer: PrayerRequestRecord }>('/prayers', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -442,16 +441,16 @@ export const api = {
       method: 'DELETE',
     }),
   markPrayerAnswered: (id: string) =>
-    apiFetch<{ prayer: any }>(`/prayers/${id}/answered`, {
+    apiFetch<{ prayer: PrayerRequestRecord }>(`/prayers/${id}/answered`, {
       method: 'PUT',
     }),
   schedulePushNotification: (data: { title: string; body: string; url?: string; scheduledFor: string }) =>
-    apiFetch<{ notification: any }>('/admin/push/schedule', {
+    apiFetch<{ notification: ScheduledPushNotification }>('/admin/push/schedule', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   getScheduledPushNotifications: () =>
-    apiFetch<{ notifications: any[] }>('/admin/push/scheduled'),
+    apiFetch<{ notifications: ScheduledPushNotification[] }>('/admin/push/scheduled'),
   dispatchDuePushNotifications: () =>
     apiFetch<{ success: boolean; processed: number; sent: number; failed: number }>('/admin/push/dispatch-due', {
       method: 'POST',
@@ -507,7 +506,7 @@ export const api = {
   getProfile: async () => {
     try {
       return await apiFetch<{ profile: User }>('/profile');
-    } catch (err: any) {
+    } catch (err) {
       console.warn('API /profile failed, falling back to direct Supabase query:', err);
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -581,7 +580,7 @@ export const api = {
             createdAt: newProfile.created_at,
           }
         };
-      } catch (subErr: any) {
+      } catch (subErr) {
         console.error('Supabase fallback also failed:', subErr);
         throw new Error('Connection error: Failed to fetch profile. Please check your internet connection or disable any ad-blockers.');
       }
@@ -603,7 +602,7 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       });
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof NetworkError) {
         const userId = await currentUserId();
         const current = useAuthStore.getState().profile;
@@ -622,7 +621,7 @@ export const api = {
         const user = session?.user;
         if (!user) throw new Error('User session not found. Please log in again.');
 
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         if (data.displayName !== undefined) updateData.display_name = data.displayName;
         if (data.congregation !== undefined) updateData.congregation = data.congregation;
         if (data.translation !== undefined) updateData.translation = data.translation;
@@ -665,7 +664,7 @@ export const api = {
             createdAt: updatedProfile.created_at,
           }
         };
-      } catch (subErr: any) {
+      } catch (subErr) {
         console.error('Supabase fallback also failed:', subErr);
         throw new Error('Connection error: Failed to save profile. Please check your internet connection or disable any ad-blockers.');
       }
@@ -679,18 +678,18 @@ export const api = {
       body: JSON.stringify({ role }),
     }),
   searchVerses: (query: string) =>
-    apiFetch<{ matches: Array<{ verse: any; book: any; score: number }> }>(`/verses/search?q=${encodeURIComponent(query)}`).then(
+    apiFetch<{ matches: VerseMatch[] }>(`/verses/search?q=${encodeURIComponent(query)}`).then(
       (r) => ({ ...r, matches: r.matches.map(cleanVerseMatch) }),
     ),
   getRelatedVerses: (verseId: number) =>
-    apiFetch<{ related: Array<{ verse: any; book: any; score: number }> }>(`/verses/${verseId}/related`).then((r) => ({
+    apiFetch<{ related: VerseMatch[] }>(`/verses/${verseId}/related`).then((r) => ({
       ...r,
       related: r.related.map(cleanVerseMatch),
     })),
   getCircles: () =>
-    apiFetch<{ circles: any[] }>('/circles'),
+    apiFetch<{ circles: CircleWithMembership[] }>('/circles'),
   createCircle: (data: { name: string; description?: string }) =>
-    apiFetch<{ circle: any }>('/circles', {
+    apiFetch<{ circle: Circle }>('/circles', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -703,9 +702,9 @@ export const api = {
       method: 'DELETE',
     }),
   getSermons: () =>
-    apiFetch<{ sermons: any[] }>('/sermons'),
+    apiFetch<{ sermons: Sermon[] }>('/sermons'),
   createSermon: (data: { title: string; preacher: string; date: string; outline: string }) =>
-    apiFetch<{ sermon: any }>('/sermons', {
+    apiFetch<{ sermon: Sermon }>('/sermons', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -717,19 +716,19 @@ export const api = {
       body: JSON.stringify({ notes }),
     }),
   getWeeklyTrivia: () =>
-    apiFetch<{ trivia: any[] }>('/trivia/weekly'),
+    apiFetch<{ trivia: TriviaQuestion[] }>('/trivia/weekly'),
   submitTriviaAnswer: (questionId: string, selectedOptionIndex: number) =>
     apiFetch<{ success: boolean; isCorrect: boolean; correctOptionIndex: number; explanation?: string }>('/trivia/submit', {
       method: 'POST',
       body: JSON.stringify({ questionId, selectedOptionIndex }),
     }),
   createTriviaQuestion: (data: { question: string; options: string[]; correctOptionIndex: number; explanation?: string; weekDate: string }) =>
-    apiFetch<{ trivia: any }>('/admin/trivia', {
+    apiFetch<{ trivia: TriviaQuestion }>('/admin/trivia', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   getMilestones: () =>
-    apiFetch<{ totalReads: number; milestones: any[] }>('/stats/milestones'),
+    apiFetch<{ totalReads: number; milestones: Milestone[] }>('/stats/milestones'),
 
   // ── Visitors & text messages (bishops/admins; preferences are for every member) ──
   getVisitors: (search = '') =>

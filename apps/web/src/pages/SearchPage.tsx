@@ -1,31 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { DailyVerse } from '@unstpbl/shared';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import VerseCard from '../components/VerseCard';
 
-interface SearchMatch {
-  verse: {
-    id: number;
-    text: string;
-    chapter: number;
-    verseNumber: number;
-    translation: string;
-  };
-  book: {
-    name: string;
-    abbreviation: string;
-  };
-  score: number;
-}
-
 export default function SearchPage() {
+  const keys = useQueryKeys();
   const [queryText, setQueryText] = useState('');
   const [searchTriggered, setSearchTriggered] = useState(false);
-  const [activeVerse, setActiveVerse] = useState<any | null>(null);
+  const [activeVerse, setActiveVerse] = useState<DailyVerse | null>(null);
 
   // Fetch search results on demand
   const { data, isLoading, error } = useQuery({
-    queryKey: ['semantic-search', queryText],
+    queryKey: keys.semanticSearch(queryText),
     queryFn: () => api.searchVerses(queryText),
     enabled: searchTriggered && queryText.trim().length > 0,
   });
@@ -99,7 +87,7 @@ export default function SearchPage() {
               <p className="text-center py-12 text-white/30 text-sm">No scriptures matched your query closely. Try different terms.</p>
             ) : (
               <div className="space-y-3">
-                {data.matches.map((match: SearchMatch) => {
+                {data.matches.map((match) => {
                   const matchPercentage = Math.round(match.score * 100);
                   
                   return (
@@ -108,8 +96,13 @@ export default function SearchPage() {
                       onClick={() => setActiveVerse({
                         verse: match.verse,
                         book: match.book,
-                        schedule: { date: new Date().toISOString().split('T')[0] }
-                      } as any)}
+                        schedule: {
+                          id: `search-${match.verse.id}`,
+                          date: new Date().toISOString().split('T')[0],
+                          verseId: match.verse.id,
+                          mode: 'manual',
+                        },
+                      })}
                       className={`glass-card p-5 cursor-pointer hover:bg-white/[0.04] transition-colors border border-white/5 relative overflow-hidden group ${
                         activeVerse?.verse?.id === match.verse.id ? 'border-brand-500/40 ring-1 ring-brand-500/20' : ''
                       }`}

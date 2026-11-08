@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 
 /**
  * Tells leaders, on every messaging screen, whether texts are real. In test mode a
  * "sent" message is only recorded, so nobody should mistake that for delivery.
  */
 export default function SmsModeBanner() {
-  const { data } = useQuery({ queryKey: ['messaging-status'], queryFn: api.getMessagingStatus, refetchInterval: 30_000 });
+  const keys = useQueryKeys();
+  const { data } = useQuery({ queryKey: keys.messagingStatus(), queryFn: api.getMessagingStatus, refetchInterval: 30_000 });
   if (!data) return null;
 
   if (data.configError) {

@@ -2,21 +2,23 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ROLE_LABELS, USER_ROLES, isUserRole, type UserRole } from '@unstpbl/shared';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const [searchQuery, setSearchQuery] = useState('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // 1. Fetch Users List
   const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery({
-    queryKey: ['admin-users'],
+    queryKey: keys.adminUsers(),
     queryFn: api.getAdminUsersList,
   });
 
   const { data: auditData, isLoading: auditLoading } = useQuery({
-    queryKey: ['admin-audit'],
+    queryKey: keys.adminAudit(),
     queryFn: () => api.getAdminAuditLogs(10),
   });
 
@@ -24,14 +26,14 @@ export default function AdminPage() {
   const updateRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: UserRole }) =>
       api.updateUserRole(userId, role),
-    onSuccess: (data: any, variables) => {
+    onSuccess: (_data, variables) => {
       setSuccessMsg(`Successfully updated user to role: ${variables.role}`);
       setErrorMsg(null);
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-audit'] });
+      queryClient.invalidateQueries({ queryKey: keys.adminUsers() });
+      queryClient.invalidateQueries({ queryKey: keys.adminAudit() });
       setTimeout(() => setSuccessMsg(null), 5000);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       setErrorMsg(err.message || 'Failed to update user role.');
       setSuccessMsg(null);
     },
@@ -198,7 +200,7 @@ export default function AdminPage() {
                   </span>
                   <select
                     value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
+                    onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                     disabled={updateRoleMutation.isPending}
                     aria-label={`Change role for ${user.displayName || user.email}`}
                     className="flex-1 sm:flex-none min-w-[11rem] bg-neutral-900 border border-white/10 rounded-xl px-3 py-2 min-h-[40px] text-white text-xs focus:border-brand-500 focus:outline-none transition-colors cursor-pointer"

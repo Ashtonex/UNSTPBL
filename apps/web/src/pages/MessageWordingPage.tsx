@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type MessageTemplate, type TemplatePreview } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import SmsModeBanner from '../components/SmsModeBanner';
 
 const FIELD =
@@ -17,6 +18,7 @@ const formatTime = (iso: string) =>
 
 function TemplateCard({ template }: { template: MessageTemplate }) {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const textarea = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState(template.body);
   const [live, setLive] = useState<TemplatePreview | null>(null);
@@ -63,7 +65,7 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
     });
   };
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['message-templates'] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.messageTemplates() });
 
   const save = useMutation({
     mutationFn: () => api.saveMessageTemplate(template.key, draft),
@@ -181,7 +183,8 @@ function TemplateCard({ template }: { template: MessageTemplate }) {
 }
 
 export default function MessageWordingPage() {
-  const templates = useQuery({ queryKey: ['message-templates'], queryFn: api.getMessageTemplates });
+  const keys = useQueryKeys();
+  const templates = useQuery({ queryKey: keys.messageTemplates(), queryFn: api.getMessageTemplates });
 
   return (
     <div className="w-full max-w-lg mx-auto py-4 animate-fade-in space-y-5">

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './stores/auth';
 import { shouldResetCache } from './lib/sessionReset';
@@ -44,7 +45,7 @@ export default function App() {
     // report the same session at login, so only fetch the profile once per user.
     let syncedUserId: string | null = null;
 
-    const syncProfile = async (session: any, force = false) => {
+    const syncProfile = async (session: Session | null, force = false) => {
       const userId: string | undefined = session?.user?.id;
       if (!userId) {
         syncedUserId = null;

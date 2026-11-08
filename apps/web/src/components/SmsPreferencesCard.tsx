@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 
 type Topic = 'announcements' | 'dailyVerse' | 'birthday';
 type Channel = 'sms' | 'whatsapp';
@@ -18,7 +19,8 @@ const TOPICS: Array<{ key: Topic; title: string; detail: string }> = [
  */
 export default function SmsPreferencesCard() {
   const queryClient = useQueryClient();
-  const { data, isLoading, error } = useQuery({ queryKey: ['sms-preferences'], queryFn: api.getSmsPreferences });
+  const keys = useQueryKeys();
+  const { data, isLoading, error } = useQuery({ queryKey: keys.smsPreferences(), queryFn: api.getSmsPreferences });
   const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState<{ text: string; good: boolean } | null>(null);
 
@@ -32,7 +34,7 @@ export default function SmsPreferencesCard() {
     onSuccess: () => {
       setDraft(null);
       setMessage({ good: true, text: 'Your text message choices are saved.' });
-      queryClient.invalidateQueries({ queryKey: ['sms-preferences'] });
+      queryClient.invalidateQueries({ queryKey: keys.smsPreferences() });
     },
     onError: (err: Error) => setMessage({ good: false, text: err.message.replace(/^API error: \d+ – /, '') }),
   });

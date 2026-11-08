@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import IosInstallHint from '../components/IosInstallHint';
 import { usePWA } from '../lib/usePWA';
 import { readCachedVerse, saveCachedVerse } from '../lib/verseCache';
@@ -34,6 +35,7 @@ function VerseLoading() {
 
 export default function HomePage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const navigate = useNavigate();
   const userId = useAuthStore((state) => state.user?.id);
   // Today's verse from this device (same user, same day), shown instantly while
@@ -68,7 +70,7 @@ export default function HomePage() {
     isLoading,
     error,
   } = useQuery<DailyVerse>({
-    queryKey: ['verse-today'],
+    queryKey: keys.verseToday(),
     queryFn: async () => {
       const verse = await api.getVerseToday();
       saveCachedVerse(userId, verse);
@@ -87,7 +89,7 @@ export default function HomePage() {
     data: historyData,
     isLoading: historyLoading,
   } = useQuery({
-    queryKey: ['verse-history'],
+    queryKey: keys.verseHistory(),
     queryFn: () => api.getVerseHistory(10),
     enabled: verseSettled,
   });
@@ -96,31 +98,31 @@ export default function HomePage() {
     data: relatedData,
     isLoading: relatedLoading,
   } = useQuery({
-    queryKey: ['related-verses', dailyVerse?.verse?.id],
+    queryKey: keys.relatedVerses(dailyVerse?.verse?.id),
     queryFn: () => api.getRelatedVerses(dailyVerse!.verse.id),
     enabled: !!dailyVerse?.verse?.id && dailyVerse.verse.id !== 0,
   });
 
   const { data: progress } = useQuery({
-    queryKey: ['user-progress'],
+    queryKey: keys.userProgress(),
     queryFn: api.getUserProgress,
     enabled: !!dailyVerse?.verse?.id,
   });
 
   const { data: favoritesData } = useQuery({
-    queryKey: ['favorite-verses'],
+    queryKey: keys.favoriteVerses(),
     queryFn: api.getFavoriteVerses,
     enabled: !!dailyVerse?.verse?.id,
   });
 
   const { data: reflectionsData } = useQuery({
-    queryKey: ['verse-reflections', dailyVerse?.schedule?.id],
+    queryKey: keys.verseReflections(dailyVerse?.schedule?.id),
     queryFn: () => api.getVerseReflections(undefined, dailyVerse?.schedule?.id),
     enabled: !!dailyVerse?.schedule?.id && dailyVerse.schedule.id !== 'fallback',
   });
 
   const { data: prayersData } = useQuery({
-    queryKey: ['prayer-requests'],
+    queryKey: keys.prayerRequests(),
     queryFn: api.getPrayerRequests,
     enabled: verseSettled,
   });
@@ -128,16 +130,16 @@ export default function HomePage() {
   const addFavoriteMutation = useMutation({
     mutationFn: api.addFavoriteVerse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorite-verses'] });
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      queryClient.invalidateQueries({ queryKey: keys.favoriteVerses() });
+      queryClient.invalidateQueries({ queryKey: keys.userProgress() });
     },
   });
 
   const removeFavoriteMutation = useMutation({
     mutationFn: api.removeFavoriteVerse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorite-verses'] });
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      queryClient.invalidateQueries({ queryKey: keys.favoriteVerses() });
+      queryClient.invalidateQueries({ queryKey: keys.userProgress() });
     },
   });
 
@@ -145,7 +147,7 @@ export default function HomePage() {
     mutationFn: api.createVerseReflection,
     onSuccess: () => {
       setReflection('');
-      queryClient.invalidateQueries({ queryKey: ['verse-reflections', dailyVerse?.schedule?.id] });
+      queryClient.invalidateQueries({ queryKey: keys.verseReflections(dailyVerse?.schedule?.id) });
     },
   });
 
@@ -154,8 +156,8 @@ export default function HomePage() {
     onSuccess: () => {
       setPrayerTitle('');
       setPrayerContent('');
-      queryClient.invalidateQueries({ queryKey: ['prayer-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      queryClient.invalidateQueries({ queryKey: keys.prayerRequests() });
+      queryClient.invalidateQueries({ queryKey: keys.userProgress() });
     },
   });
 
@@ -196,7 +198,7 @@ export default function HomePage() {
     localStorage.setItem(`read-verse-${dailyVerse.schedule.id}`, 'true');
     try {
       await api.markAsRead(dailyVerse.schedule.id);
-      queryClient.invalidateQueries({ queryKey: ['user-progress'] });
+      queryClient.invalidateQueries({ queryKey: keys.userProgress() });
     } catch (err) {
       console.error('Failed to report reading completion to API:', err);
     }
@@ -518,7 +520,7 @@ export default function HomePage() {
 
         {reflectionsData?.reflections && reflectionsData.reflections.length > 0 && (
           <div className="space-y-3 border-t border-white/10 pt-4 mt-2 max-h-[220px] overflow-y-auto pr-1">
-            {reflectionsData.reflections.map((ref: any) => (
+            {reflectionsData.reflections.map((ref) => (
               <div key={ref.id} className="p-3 rounded-xl bg-white/5 border border-white/5 relative">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-semibold text-brand-400">
@@ -575,7 +577,7 @@ export default function HomePage() {
         >
           Add to Wall
         </button>
-        {prayersData?.prayers?.filter((prayer: any) => prayer.status === 'open').slice(0, 2).map((prayer: any) => (
+        {prayersData?.prayers?.filter((prayer) => prayer.status === 'open').slice(0, 2).map((prayer) => (
           <div key={prayer.id} className="border-t border-white/10 pt-3 flex justify-between items-start">
             <div>
               <p className="text-white/70 text-sm font-semibold">{prayer.title}</p>

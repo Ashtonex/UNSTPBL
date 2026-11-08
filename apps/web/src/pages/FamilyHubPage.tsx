@@ -1,47 +1,50 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Sermon } from '@unstpbl/shared';
 import { api } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 
 export default function FamilyHubPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const [activeTab, setActiveTab] = useState<'milestones' | 'trivia' | 'circles' | 'sermons'>('milestones');
 
   // 1. Fetch data
   const { data: milestonesData, isLoading: milestonesLoading } = useQuery({
-    queryKey: ['milestones'],
+    queryKey: keys.milestones(),
     queryFn: api.getMilestones,
   });
 
   const { data: triviaData, isLoading: triviaLoading } = useQuery({
-    queryKey: ['weekly-trivia'],
+    queryKey: keys.weeklyTrivia(),
     queryFn: api.getWeeklyTrivia,
   });
 
   const { data: circlesData, isLoading: circlesLoading } = useQuery({
-    queryKey: ['circles'],
+    queryKey: keys.circles(),
     queryFn: api.getCircles,
   });
 
   const { data: sermonsData, isLoading: sermonsLoading } = useQuery({
-    queryKey: ['sermons'],
+    queryKey: keys.sermons(),
     queryFn: api.getSermons,
   });
 
   // 2. Mutations
   const joinCircleMutation = useMutation({
     mutationFn: api.joinCircle,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['circles'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.circles() }),
   });
 
   const leaveCircleMutation = useMutation({
     mutationFn: api.leaveCircle,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['circles'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.circles() }),
   });
 
   const submitTriviaMutation = useMutation({
     mutationFn: ({ questionId, optionIndex }: { questionId: string; optionIndex: number }) =>
       api.submitTriviaAnswer(questionId, optionIndex),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['weekly-trivia'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.weeklyTrivia() }),
   });
 
   const [activeSermon, setActiveSermon] = useState<any | null>(null);
@@ -49,12 +52,12 @@ export default function FamilyHubPage() {
   const [notesSaving, setNotesSaving] = useState(false);
 
   const { data: notesData } = useQuery({
-    queryKey: ['sermon-notes', activeSermon?.id],
+    queryKey: keys.sermonNotes(activeSermon?.id),
     queryFn: () => api.getSermonNotes(activeSermon.id),
     enabled: !!activeSermon?.id,
   });
 
-  const handleOpenSermon = (sermon: any) => {
+  const handleOpenSermon = (sermon: Sermon) => {
     setActiveSermon(sermon);
     setSermonNotes('');
     // Wait for query enabled trigger
@@ -179,7 +182,7 @@ export default function FamilyHubPage() {
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest px-1">Collective Family Goals</h4>
                 <div className="space-y-3">
-                  {milestonesData?.milestones?.map((m: any) => (
+                  {milestonesData?.milestones?.map((m) => (
                     <div
                       key={m.target}
                       className={`glass-card p-4 flex gap-4 items-center transition-all ${
@@ -222,7 +225,7 @@ export default function FamilyHubPage() {
               <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : triviaData?.trivia && triviaData.trivia.length > 0 ? (
-            triviaData.trivia.map((q: any) => (
+            triviaData.trivia.map((q) => (
               <div key={q.id} className="glass-card p-5 space-y-4">
                 <div>
                   <span className="text-xs bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
@@ -305,7 +308,7 @@ export default function FamilyHubPage() {
               <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : circlesData?.circles && circlesData.circles.length > 0 ? (
-            circlesData.circles.map((c: any) => (
+            circlesData.circles.map((c) => (
               <div key={c.id} className="glass-card p-5 flex justify-between items-start gap-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-white">{c.name}</h4>
@@ -346,7 +349,7 @@ export default function FamilyHubPage() {
               <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : sermonsData?.sermons && sermonsData.sermons.length > 0 ? (
-            sermonsData.sermons.map((s: any) => (
+            sermonsData.sermons.map((s) => (
               <div
                 key={s.id}
                 onClick={() => handleOpenSermon(s)}

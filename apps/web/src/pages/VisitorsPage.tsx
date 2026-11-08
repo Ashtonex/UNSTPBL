@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type RegisterVisitorResult, type Visitor } from '../lib/api';
+import { useQueryKeys } from '../lib/queryKeys';
 import { can } from '@unstpbl/shared';
 import SmsModeBanner from '../components/SmsModeBanner';
 import { useAuthStore } from '../stores/auth';
@@ -35,6 +36,7 @@ const formatDate = (iso: string) =>
 
 export default function VisitorsPage() {
   const queryClient = useQueryClient();
+  const keys = useQueryKeys();
   const [search, setSearch] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -45,11 +47,11 @@ export default function VisitorsPage() {
   const [feedback, setFeedback] = useState<{ text: string; good: boolean } | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['visitors', search],
+    queryKey: keys.visitors(search),
     queryFn: () => api.getVisitors(search),
   });
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['visitors'] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.visitors() });
 
   const register = useMutation({
     mutationFn: api.registerVisitor,
@@ -68,8 +70,8 @@ export default function VisitorsPage() {
       setNotes('');
       setSmsConsent(false);
       refresh();
-      queryClient.invalidateQueries({ queryKey: ['messaging-status'] });
-      queryClient.invalidateQueries({ queryKey: ['message-log'] });
+      queryClient.invalidateQueries({ queryKey: keys.messagingStatus() });
+      queryClient.invalidateQueries({ queryKey: keys.messageLog() });
     },
     onError: (err: Error) => setFeedback({ good: false, text: err.message.replace(/^API error: \d+ – /, '') }),
   });
@@ -84,7 +86,7 @@ export default function VisitorsPage() {
     onSuccess: (result) => {
       setFeedback(describeWelcome(result as RegisterVisitorResult['welcome']));
       refresh();
-      queryClient.invalidateQueries({ queryKey: ['message-log'] });
+      queryClient.invalidateQueries({ queryKey: keys.messageLog() });
     },
     onError: (err: Error) => setFeedback({ good: false, text: err.message.replace(/^API error: \d+ – /, '') }),
   });

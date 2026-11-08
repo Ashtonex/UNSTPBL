@@ -99,24 +99,28 @@ export interface ApiError {
   statusCode?: number;
 }
 
-export interface PrayerRequest {
+export type PrayerType = 'request' | 'praise';
+
+/** A prayer row as stored. POST /prayers and PUT /prayers/:id/answered return this. */
+export interface PrayerRequestRecord {
   id: string;
   userId: string;
   title: string;
   content: string;
   status: 'open' | 'answered';
+  type: PrayerType;
+  isAnonymous: boolean;
+  circleId: string | null;
   createdAt: string;
-  answeredAt?: string | null;
-  user?: {
-    id: string;
-    email: string;
-    displayName?: string | null;
-    congregation?: string | null;
-  } | null;
-  _count?: {
-    joins: number;
-  };
-  hasJoined?: boolean;
+  answeredAt: string | null;
+}
+
+/** A prayer as listed by GET /prayers: the row plus its author, how many joined, and whether you did. */
+export interface PrayerRequest extends Omit<PrayerRequestRecord, 'circleId'> {
+  /** The author, or a generic name when the prayer was posted anonymously. */
+  user: { displayName: string | null; congregation: string | null };
+  _count: { joins: number };
+  hasJoined: boolean;
 }
 
 export interface PrayerJoin {
@@ -187,4 +191,39 @@ export interface UserTriviaResponse {
   selectedOptionIndex: number;
   isCorrect: boolean;
   createdAt: string;
+}
+
+/** A family circle as returned by GET /circles: the circle plus whether the caller has joined. */
+export interface CircleWithMembership extends Circle {
+  hasJoined: boolean;
+}
+
+/** One church-wide reading goal from GET /stats/milestones. */
+export interface Milestone {
+  target: number;
+  label: string;
+  desc: string;
+  achieved: boolean;
+}
+
+export type ScheduledPushStatus = 'scheduled' | 'sent' | 'cancelled';
+
+/** A push notification a leader scheduled (admin/push endpoints). */
+export interface ScheduledPushNotification {
+  id: string;
+  createdByUserId: string;
+  title: string;
+  body: string;
+  url: string | null;
+  scheduledFor: string;
+  status: ScheduledPushStatus;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+/** A verse that matched a search or is related to another verse, with its book and a 0..1 score. */
+export interface VerseMatch {
+  verse: BibleVerse;
+  book: BibleBook;
+  score: number;
 }
