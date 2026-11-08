@@ -1,4 +1,15 @@
 import { supabase } from './supabase';
+import { NetworkError } from './errors';
+import { useAuthStore } from '../stores/auth';
+import {
+  clearPendingProfile,
+  dropLegacyQueues,
+  getPendingProfile,
+  getPendingReads,
+  queueProfileEdit,
+  queueRead,
+  setPendingReads,
+} from './offlineQueue';
 import { cleanVerseText } from '@unstpbl/shared';
 import type { BirthdayWallPost, DailyVerse, BibleBook, UpcomingBirthday, User, UserRole } from '@unstpbl/shared';
 
@@ -48,6 +59,16 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
+async function currentUserId(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
+}
+
+// Only one sync at a time: the app asks for one on start-up and again when it comes back online.
+let queueSync: Promise<void> | null = null;
+
 // The API runs on a free tier that sleeps when idle and can take most of a minute
 // to wake. A short cut-off (it used to be 3.5s) aborts the very request that would
 // have succeeded, and the app then shows the fallback verse and empty dashboards.
@@ -79,7 +100,7 @@ function refreshSessionOnce(): Promise<boolean> {
 
 async function apiFetch<T>(path: string, options?: ApiFetchOptions, retriedAfterRefresh = false): Promise<T> {
   if (!navigator.onLine) {
-    throw new Error('Offline');
+    throw new NetworkError('Offline');
   }
   const { timeoutMs, ...init } = options ?? {};
   const method = (init.method || 'GET').toUpperCase();
@@ -102,13 +123,14 @@ async function apiFetch<T>(path: string, options?: ApiFetchOptions, retriedAfter
     });
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      throw new TypeError(
+      throw new NetworkError(
         `Failed to fetch – the server took longer than ${Math.round(timeoutLimit / 1000)}s to respond (${API_BASE})`,
       );
     }
-    // Keep the "Failed to fetch" wording: the offline queueing below matches on it.
+    // A TypeError from fetch means the request never reached the server. Callers queue work for
+    // later on `instanceof NetworkError`, not on message text.
     if (err instanceof TypeError) {
-      throw new Error(`Failed to fetch – cannot reach the API at ${API_BASE}`);
+      throw new NetworkError(`Failed to fetch – cannot reach the API at ${API_BASE}`);
     }
     throw err;
   } finally {
@@ -334,17 +356,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ verseScheduleId }),
       });
-    } catch (err: any) {
-      if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('Offline')) {
-        console.warn('Offline: Queueing read verse schedule', verseScheduleId);
-        const pending = JSON.parse(localStorage.getItem('pending-reads') || '[]');
-        if (!pending.includes(verseScheduleId)) {
-          pending.push(verseScheduleId);
-          localStorage.setItem('pending-reads', JSON.stringify(pending));
-        }
-        return { success: true };
-      }
-      throw err;
+    } catch (err) {
+      if (!(err instanceof NetworkError)) throw err;
+      const userId = await currentUserId();
+      if (!userId) throw err;
+      // Offline: remember it for this person only, and send it once they are back online.
+      queueRead(userId, verseScheduleId, localStorage);
+      return { success: true };
     }
   },
   getAdminBooks: () =>
@@ -438,46 +456,53 @@ export const api = {
     apiFetch<{ success: boolean; processed: number; sent: number; failed: number }>('/admin/push/dispatch-due', {
       method: 'POST',
     }),
-  syncPendingQueue: async () => {
-    if (!navigator.onLine) return;
+  syncPendingQueue: (): Promise<void> => {
+    if (!navigator.onLine) return Promise.resolve();
+    if (queueSync) return queueSync;
 
-    // 1. Sync pending reads
-    const pendingReads = JSON.parse(localStorage.getItem('pending-reads') || '[]');
-    if (pendingReads.length > 0) {
-      console.log(`Syncing ${pendingReads.length} pending reads...`);
-      const remaining: string[] = [];
-      for (const verseScheduleId of pendingReads) {
+    queueSync = (async () => {
+      const userId = await currentUserId();
+      if (!userId) return;
+
+      // Queues from older versions were not tied to a person and cannot be sent safely.
+      dropLegacyQueues(localStorage);
+
+      // 1. Verse reads
+      const pendingReads = getPendingReads(userId, localStorage);
+      if (pendingReads.length > 0) {
+        const remaining: string[] = [];
+        for (const verseScheduleId of pendingReads) {
+          try {
+            await apiFetch('/verses/read', {
+              method: 'POST',
+              body: JSON.stringify({ verseScheduleId }),
+            });
+          } catch (err) {
+            console.error(`Failed to sync read for ${verseScheduleId}:`, err);
+            remaining.push(verseScheduleId);
+          }
+        }
+        setPendingReads(userId, remaining, localStorage);
+      }
+
+      // 2. Profile edits
+      const pendingProfile = getPendingProfile(userId, localStorage);
+      if (Object.keys(pendingProfile).length > 0) {
         try {
-          await apiFetch('/verses/read', {
-            method: 'POST',
-            body: JSON.stringify({ verseScheduleId }),
+          await apiFetch('/profile', {
+            method: 'PUT',
+            body: JSON.stringify(pendingProfile),
           });
+          clearPendingProfile(userId, localStorage);
         } catch (err) {
-          console.error(`Failed to sync read for ${verseScheduleId}:`, err);
-          remaining.push(verseScheduleId);
+          console.error('Failed to sync profile update:', err);
         }
       }
-      if (remaining.length > 0) {
-        localStorage.setItem('pending-reads', JSON.stringify(remaining));
-      } else {
-        localStorage.removeItem('pending-reads');
-      }
-    }
+    })().finally(() => {
+      queueSync = null;
+    });
 
-    // 2. Sync pending profile
-    const pendingProfile = JSON.parse(localStorage.getItem('pending-profile') || '{}');
-    if (Object.keys(pendingProfile).length > 0) {
-      console.log(`Syncing pending profile changes:`, pendingProfile);
-      try {
-        await apiFetch('/profile', {
-          method: 'PUT',
-          body: JSON.stringify(pendingProfile),
-        });
-        localStorage.removeItem('pending-profile');
-      } catch (err) {
-        console.error('Failed to sync profile update:', err);
-      }
-    }
+    return queueSync;
   },
   getProfile: async () => {
     try {
@@ -579,22 +604,17 @@ export const api = {
         body: JSON.stringify(data),
       });
     } catch (err: any) {
-      if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('Offline')) {
-        console.warn('Offline: Queueing profile update', data);
-        const pending = JSON.parse(localStorage.getItem('pending-profile') || '{}');
-        const updated = { ...pending, ...data };
-        localStorage.setItem('pending-profile', JSON.stringify(updated));
-
-        return {
-          profile: {
-            id: 'offline-user',
-            email: 'offline@user.com',
-            role: 'member',
-            translation: 'KJV',
-            createdAt: new Date().toISOString(),
-            ...updated,
-          } as any,
-        };
+      if (err instanceof NetworkError) {
+        const userId = await currentUserId();
+        const current = useAuthStore.getState().profile;
+        // Without a known profile for this signed-in person there is nothing correct to show.
+        if (!userId || !current || current.id !== userId) {
+          throw new Error("You're offline, so your profile could not be saved. Please try again when you're back online.");
+        }
+        queueProfileEdit(userId, data, localStorage);
+        // Show the person's own profile with their edits applied. Their id, email and role stay
+        // exactly as they were, so nothing (such as the admin tabs) changes while offline.
+        return { profile: { ...current, ...data } };
       }
       console.warn('API update /profile failed, falling back to direct Supabase update:', err);
       try {
@@ -615,11 +635,8 @@ export const api = {
 
         const { data: updatedProfile, error } = await supabase
           .from('users')
-          .upsert({
-            id: user.id,
-            email: user.email || '',
-            ...updateData
-          })
+          .update(updateData)
+          .eq('id', user.id)
           .select()
           .single();
 

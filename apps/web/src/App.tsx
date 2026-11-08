@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './stores/auth';
+import { shouldResetCache } from './lib/sessionReset';
 import { supabase } from './lib/supabase';
 import { api } from './lib/api';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -35,6 +37,7 @@ function RouteLoading() {
 
 export default function App() {
   const { setUser, setSession, setProfile, setLoading } = useAuthStore();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // getSession() and onAuthStateChange() (INITIAL_SESSION, SIGNED_IN, ...) all
@@ -62,12 +65,17 @@ export default function App() {
 
     let isMounted = true;
 
+    // Whoever is signed in right now. When it changes (sign-out, or a different person signs in on
+    // the same device) everything cached in memory belongs to someone else and must go.
+    let knownUserId: string | null = null;
+
     // Check initial session
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (!isMounted) return;
         setSession(session);
         setUser(session?.user ?? null);
+        knownUserId = session?.user?.id ?? null;
         if (session) {
           syncProfile(session);
         }
@@ -86,6 +94,9 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
+      const nextUserId = session?.user?.id ?? null;
+      if (shouldResetCache(event, knownUserId, nextUserId)) queryClient.clear();
+      knownUserId = nextUserId;
       setSession(session);
       setUser(session?.user ?? null);
       // Token refreshes re-sync so role changes made mid-session still show up.
@@ -96,7 +107,7 @@ export default function App() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [setUser, setSession, setProfile, setLoading]);
+  }, [setUser, setSession, setProfile, setLoading, queryClient]);
 
   return (
     <>
