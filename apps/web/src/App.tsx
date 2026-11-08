@@ -6,6 +6,7 @@ import { api } from './lib/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import RequireCapability from './components/RequireCapability';
+import UpdatePrompt from './components/UpdatePrompt';
 
 import HomePage from './pages/HomePage';
 
@@ -98,6 +99,8 @@ export default function App() {
   }, [setUser, setSession, setProfile, setLoading]);
 
   return (
+    <>
+    <UpdatePrompt />
     <Suspense fallback={<RouteLoading />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -147,5 +150,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
+    </>
   );
 }

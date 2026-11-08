@@ -9,7 +9,9 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      // 'prompt': a new version waits until the person taps Refresh (UpdatePrompt), so the
+      // app never swaps its code underneath someone who is mid-way through typing.
+      registerType: 'prompt',
       injectManifest: {
         // The service worker downloads everything it precaches in the background on
         // the first visit, competing with the page itself on slow mobile data. Keep

@@ -1,9 +1,27 @@
 import { useState, useEffect } from 'react';
 
+function detectStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as any).standalone === true
+  );
+}
+
+// iPhones and iPads never fire beforeinstallprompt. (iPadOS 13+ reports itself as a Mac.)
+function detectIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
 export function usePWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(detectStandalone);
+  const [isIOS] = useState(detectIOS);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -23,15 +41,6 @@ export function usePWA() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
-
-    // Check if already running in standalone (installed) mode
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      (navigator as any).standalone === true;
-      
-    if (isStandalone) {
-      setIsInstalled(true);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -64,5 +73,5 @@ export function usePWA() {
     }
   };
 
-  return { isInstallable, isInstalled, install };
+  return { isInstallable, isInstalled, isIOS, install };
 }

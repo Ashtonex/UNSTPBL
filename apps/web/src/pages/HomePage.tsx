@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import IosInstallHint from '../components/IosInstallHint';
 import { usePWA } from '../lib/usePWA';
 import { readCachedVerse, saveCachedVerse } from '../lib/verseCache';
 import { useAuthStore } from '../stores/auth';
@@ -390,6 +391,8 @@ export default function HomePage() {
           </button>
         </div>
       )}
+
+      <IosInstallHint />
 
       {/* Bishop's Devotional Note */}
       {currentVerse.schedule.pastoralNote && (
