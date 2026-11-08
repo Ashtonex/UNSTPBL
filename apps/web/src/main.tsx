@@ -7,6 +7,7 @@ import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { prewarmApi } from './lib/api';
 import { captureException, initMonitoring } from './lib/monitoring';
+import '@fontsource-variable/inter';
 import './index.css';
 
 // Register PWA Service Worker for offline capability & browser installation

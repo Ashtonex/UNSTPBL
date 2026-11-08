@@ -23,7 +23,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Inter Variable', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out',

@@ -8,6 +8,10 @@ const Interactive3DCanvas = lazy(() => import('./3d/Interactive3DCanvas'));
 function shouldSkipAmbientEffects(): boolean {
   const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
   return (
+    // Users who asked the OS for less motion, and phones (small screens): the WebGL
+    // layer is ~500 kB of JavaScript plus constant GPU work for a purely decorative effect.
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+    window.matchMedia('(max-width: 767px)').matches ||
     Boolean(nav.connection?.saveData) ||
     (nav.deviceMemory !== undefined && nav.deviceMemory <= 2) ||
     (nav.hardwareConcurrency !== undefined && nav.hardwareConcurrency <= 2)

@@ -382,7 +382,7 @@ export default function Layout() {
       {/* Alive Background Image Layer */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <img
-          src="/background_eagle.png"
+          src="/background_eagle.webp"
           alt="Eagle Background"
           className="w-full h-full object-cover animate-bg-alive opacity-30 sm:opacity-20"
         />
@@ -440,7 +440,7 @@ export default function Layout() {
         <nav
           ref={navRef}
           aria-label="Bottom Navigation"
-          className={`fixed bottom-0 left-0 right-0 z-50 bg-surface-950/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom,0px)] transition-all duration-300 transform select-none ${
+          className={`fixed bottom-0 left-0 right-0 z-50 bg-surface-950/95 backdrop-blur-md border-t border-white/10 pb-[env(safe-area-inset-bottom,0px)] transition-all duration-300 transform select-none ${
             visible ? 'translate-y-0 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]' : 'translate-y-full'
           }`}
         >

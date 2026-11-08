@@ -36,7 +36,7 @@ export default function LoginPage() {
       {/* Alive Background Image Layer */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <img
-          src="/background_eagle.png"
+          src="/background_eagle.webp"
           alt="Eagle Background"
           className="w-full h-full object-cover animate-bg-alive"
         />
