@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RECOVERY_FLAG, supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/auth';
 import AuthForm from '../components/AuthForm';
+import PulseBackdrop, { firePulse } from '../components/PulseBackdrop';
 
 export default function LoginPage() {
   const { user } = useAuthStore();
@@ -42,10 +43,8 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-radial-vignette-login" />
       </div>
 
-      {/* Ambient glowing background bubble */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[50%] -translate-x-1/2 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] animate-pulse" />
-      </div>
+      {/* The 65-second pulse (replaces a 500px blurred blob that animated constantly) */}
+      <PulseBackdrop />
 
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-md flex flex-col justify-center h-full max-h-[800px] animate-fade-in">
@@ -53,11 +52,19 @@ export default function LoginPage() {
         {/* Branding Area */}
         <div className="text-center mb-4 sm:mb-6 mt-auto sm:mt-0">
           <div className="inline-block mb-2 sm:mb-4">
-            <img
-              src="/church_logo.png"
-              alt="Church Logo"
-              className="w-12 h-12 sm:w-16 sm:h-16 mx-auto object-contain"
-            />
+            <button
+              type="button"
+              onClick={firePulse}
+              aria-label="UNSTPBL logo. Tap for a heartbeat pulse."
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
+            >
+              <img
+                src="/church_logo.png"
+                alt=""
+                data-pulse-origin
+                className="logo-thump w-12 h-12 sm:w-16 sm:h-16 mx-auto object-contain"
+              />
+            </button>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-1">
             <span className="text-gradient">UNSTPBL</span>

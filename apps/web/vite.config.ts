@@ -16,9 +16,8 @@ export default defineConfig({
         // The service worker downloads everything it precaches in the background on
         // the first visit, competing with the page itself on slow mobile data. Keep
         // the app shell precached, but leave the large, rarely-needed lazy chunks
-        // (3D background, error reporting, leadership dashboards) to load on demand.
+        // (error reporting, leadership dashboards) to load on demand.
         globIgnores: [
-          '**/Interactive3DCanvas-*.js',
           '**/sentry-*.js',
           '**/BishopPage-*.js',
           '**/AdminPage-*.js',

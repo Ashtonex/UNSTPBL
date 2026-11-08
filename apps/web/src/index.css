@@ -21,7 +21,6 @@
     /* Long names, emails and URLs wrap instead of pushing the page wider than the screen. */
     overflow-wrap: anywhere;
     background: linear-gradient(135deg, #070a0d 0%, #111822 50%, #070a0d 100%);
-    background-attachment: fixed;
   }
 
   ::selection {
@@ -103,38 +102,20 @@
   }
 }
 
-/* Custom background animation settings for premium feel */
-@keyframes bg-wake {
-  0% {
+/* The eagle backdrop just fades in once. (It used to animate a blur filter and then drift
+   for ever, which keeps a full-screen layer busy on the GPU for no benefit.) */
+@keyframes bg-fade-in {
+  from {
     opacity: 0;
-    filter: blur(25px) grayscale(100%) brightness(0.3);
-    transform: scale(1.2);
   }
-  100% {
+  to {
     opacity: 0.3;
-    filter: blur(0px) grayscale(10%) brightness(0.95);
-    transform: scale(1.05);
-  }
-}
-
-@keyframes bg-kenburns {
-  0% {
-    transform: scale(1.05) translate(0, 0);
-  }
-  50% {
-    transform: scale(1.15) translate(-1.5%, -1%);
-  }
-  100% {
-    transform: scale(1.05) translate(0, 0);
   }
 }
 
 .animate-bg-alive {
   opacity: 0.3;
-  filter: blur(0px) grayscale(10%) brightness(0.95);
-  transform: scale(1.05);
-  animation: bg-wake 5s cubic-bezier(0.16, 1, 0.3, 1) forwards, bg-kenburns 80s ease-in-out infinite 5s;
-  will-change: transform, opacity, filter;
+  animation: bg-fade-in 1.2s ease-out both;
 }
 
 .bg-radial-vignette {
@@ -189,5 +170,125 @@
 @media (max-width: 767px) {
   :is(input, select, textarea):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']) {
     font-size: 16px;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The 65-second heartbeat. One cycle is 65s and only the first ~4s is visible, so the rest of the
+   time nothing is animating. All three pieces share one period and delay and fire together:
+     - the logo beats twice, a calm half-second apart (lub... dub),
+     - the screen glows faintly on each beat,
+     - on the second beat a thin white-gold ring spreads out from the logo over ~3s and fades past
+       the screen edges.
+   Only transform and opacity change, so it is cheap. (1% of the cycle = 0.65s.)
+   PulseBackdrop.tsx sets --pulse-x / --pulse-y (the logo's position) and --pulse-size (big enough
+   for the ring to clear the farthest corner); the fallbacks below are used until it has measured. */
+:root {
+  --pulse-period: 65s;
+  --pulse-delay: 4s; /* first heartbeat a few seconds after the app opens */
+}
+
+.pulse-ring {
+  position: absolute;
+  left: var(--pulse-x, 50%);
+  top: var(--pulse-y, 38%);
+  width: var(--pulse-size, 160vmax);
+  height: var(--pulse-size, 160vmax);
+  margin: calc(var(--pulse-size, 160vmax) / -2) 0 0 calc(var(--pulse-size, 160vmax) / -2);
+  border-radius: 50%;
+  /* A faint gold trail that builds to a thin, soft white-gold leading edge (at 90% of the radius). */
+  background: radial-gradient(
+    circle closest-side,
+    transparent 70%,
+    rgba(245, 158, 11, 0.07) 83%,
+    rgba(255, 243, 210, 0.4) 89%,
+    transparent 91.5%
+  );
+  opacity: 0;
+  transform: scale(0.03);
+  will-change: transform, opacity;
+  animation: pulse-ring var(--pulse-period) cubic-bezier(0.2, 0.7, 0.3, 1) var(--pulse-delay) infinite;
+}
+
+.pulse-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--pulse-x, 50%) var(--pulse-y, 38%),
+    rgba(255, 243, 214, 0.1),
+    rgba(251, 191, 36, 0.04) 40%,
+    transparent 62%
+  );
+  opacity: 0;
+  animation: pulse-flash var(--pulse-period) ease-out var(--pulse-delay) infinite;
+}
+
+.logo-thump {
+  animation: logo-thump var(--pulse-period) ease-in-out var(--pulse-delay) infinite;
+}
+
+@keyframes pulse-ring {
+  0%,
+  0.77% {
+    transform: scale(0.03);
+    opacity: 0;
+  }
+  1.2% {
+    opacity: 0.8;
+  }
+  5% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  6.2%,
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-flash {
+  0% {
+    opacity: 0;
+  }
+  0.38% {
+    opacity: 0.45;
+  }
+  0.77% {
+    opacity: 0.15;
+  }
+  1.23% {
+    opacity: 1;
+  }
+  4%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes logo-thump {
+  0% {
+    transform: scale(1);
+  }
+  0.38% {
+    transform: scale(1.08);
+  }
+  0.77% {
+    transform: scale(1);
+  }
+  1.23% {
+    transform: scale(1.13);
+  }
+  2.3%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-ring,
+  .pulse-flash,
+  .logo-thump {
+    animation: none !important;
   }
 }

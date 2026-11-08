@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 interface Tilt3DCardProps {
   children: React.ReactNode;
@@ -9,6 +9,24 @@ interface Tilt3DCardProps {
   glareOpacity?: number;
 }
 
+/** Hover tilt only makes sense with a mouse; on touch screens it just costs frames. */
+function canTilt(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+/**
+ * A card that tilts toward the mouse pointer on desktop.
+ *
+ * Performance notes: the tilt is written straight to the element's style inside
+ * requestAnimationFrame, never through React state, so moving the mouse does not re-render
+ * the card or its children. On touch devices (and with reduced motion) it renders as a plain
+ * wrapper: no touch or gyroscope listeners, and the page scrolls normally when a finger
+ * starts on the card.
+ */
 export default function Tilt3DCard({
   children,
   className = '',
@@ -18,151 +36,66 @@ export default function Tilt3DCard({
   glareOpacity = 0.25,
 }: Tilt3DCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({
-    transform: `perspective(${perspective}px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`,
-    transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-  });
+  const glareRef = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
+  const enabled = useRef(canTilt());
 
-  const [glareStyle, setGlareStyle] = useState<React.CSSProperties>({
-    opacity: 0,
-    background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 80%)',
-  });
-
-  const [isHovered, setIsHovered] = useState(false);
-
-  const applyTilt = useCallback(
-    (clientX: number, clientY: number, fastTransition = false) => {
-      if (!cardRef.current) return;
-
-      const rect = cardRef.current.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
-
-      // X & Y inside card relative to center [-1 to 1]
-      const mouseX = clientX - rect.left;
-      const mouseY = clientY - rect.top;
-
-      const normX = Math.max(-1, Math.min(1, (mouseX / width - 0.5) * 2));
-      const normY = Math.max(-1, Math.min(1, (mouseY / height - 0.5) * 2));
-
-      // Calculate tilt angles
-      const rotateX = -normY * maxTilt;
-      const rotateY = normX * maxTilt;
-
-      // Light sheen position
-      const sheenX = Math.max(0, Math.min(100, (mouseX / width) * 100));
-      const sheenY = Math.max(0, Math.min(100, (mouseY / height) * 100));
-
-      setStyle({
-        transform: `perspective(${perspective}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(${scale}, ${scale}, ${scale})`,
-        transition: fastTransition ? 'transform 0.15s ease-out' : 'transform 0.08s ease-out',
-      });
-
-      setGlareStyle({
-        opacity: glareOpacity,
-        background: `radial-gradient(circle at ${sheenX.toFixed(1)}% ${sheenY.toFixed(1)}%, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.18) 40%, rgba(255,255,255,0) 75%)`,
-        transition: 'opacity 0.2s ease',
+  const tiltTo = useCallback(
+    (clientX: number, clientY: number) => {
+      cancelAnimationFrame(frame.current);
+      frame.current = requestAnimationFrame(() => {
+        const card = cardRef.current;
+        const glare = glareRef.current;
+        if (!card) return;
+        const rect = card.getBoundingClientRect();
+        const x = (clientX - rect.left) / rect.width;
+        const y = (clientY - rect.top) / rect.height;
+        const rotateX = -Math.max(-1, Math.min(1, (y - 0.5) * 2)) * maxTilt;
+        const rotateY = Math.max(-1, Math.min(1, (x - 0.5) * 2)) * maxTilt;
+        card.style.transition = 'transform 0.08s ease-out';
+        card.style.transform = `perspective(${perspective}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(${scale}, ${scale}, ${scale})`;
+        if (glare) {
+          const sx = Math.max(0, Math.min(100, x * 100)).toFixed(1);
+          const sy = Math.max(0, Math.min(100, y * 100)).toFixed(1);
+          glare.style.opacity = String(glareOpacity);
+          glare.style.background = `radial-gradient(circle at ${sx}% ${sy}%, rgba(251,191,36,0.45) 0%, rgba(245,158,11,0.18) 40%, rgba(255,255,255,0) 75%)`;
+        }
       });
     },
-    [maxTilt, perspective, scale, glareOpacity]
+    [maxTilt, perspective, scale, glareOpacity],
   );
 
-  const resetTilt = useCallback(() => {
-    setStyle({
-      transform: `perspective(${perspective}px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`,
-      transition: 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-    });
-    setGlareStyle({
-      opacity: 0,
-      background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 80%)',
-      transition: 'opacity 0.5s ease',
-    });
-  }, [perspective]);
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      applyTilt(e.clientX, e.clientY);
-    },
-    [applyTilt]
-  );
-
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    resetTilt();
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    setIsHovered(true);
-    if (e.touches.length > 0) {
-      applyTilt(e.touches[0].clientX, e.touches[0].clientY, true);
+  const reset = useCallback(() => {
+    cancelAnimationFrame(frame.current);
+    const card = cardRef.current;
+    const glare = glareRef.current;
+    if (card) {
+      card.style.transition = 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+      card.style.transform = '';
     }
-  };
+    if (glare) glare.style.opacity = '0';
+  }, []);
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length > 0) {
-      applyTilt(e.touches[0].clientX, e.touches[0].clientY);
-    }
-  };
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
-  const handleTouchEnd = () => {
-    setIsHovered(false);
-    resetTilt();
-  };
-
-  // Mobile Device Gyroscope listener fallback
-  useEffect(() => {
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (!cardRef.current || isHovered) return;
-      const beta = event.beta || 0; // [-180, 180] pitch
-      const gamma = event.gamma || 0; // [-90, 90] roll
-
-      // Clamp values for smooth subtle phone tilt
-      const clampBeta = Math.min(Math.max(beta - 45, -20), 20) / 20;
-      const clampGamma = Math.min(Math.max(gamma, -20), 20) / 20;
-
-      const rotateX = -clampBeta * maxTilt * 0.7;
-      const rotateY = clampGamma * maxTilt * 0.7;
-
-      setStyle({
-        transform: `perspective(${perspective}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1, 1, 1)`,
-        transition: 'transform 0.2s ease-out',
-      });
-    };
-
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', handleOrientation, true);
-    }
-    return () => {
-      if (window.DeviceOrientationEvent) {
-        window.removeEventListener('deviceorientation', handleOrientation, true);
-      }
-    };
-  }, [perspective, maxTilt, isHovered]);
+  if (!enabled.current) {
+    return <div className={`relative rounded-2xl ${className}`}>{children}</div>;
+  }
 
   return (
     <div
       ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
-      style={{
-        transformStyle: 'preserve-3d',
-        ...style,
-      }}
-      className={`relative rounded-2xl will-change-transform touch-none sm:touch-auto ${className}`}
+      onMouseMove={(e) => tiltTo(e.clientX, e.clientY)}
+      onMouseLeave={reset}
+      style={{ transformStyle: 'preserve-3d' }}
+      className={`relative rounded-2xl will-change-transform ${className}`}
     >
-      {/* Dynamic Specular Light Glare Overlay */}
+      {/* Specular light glare that follows the pointer */}
       <div
-        className="absolute inset-0 rounded-2xl pointer-events-none z-30 transition-opacity duration-300 mix-blend-overlay overflow-hidden"
-        style={glareStyle}
+        ref={glareRef}
+        aria-hidden="true"
+        className="absolute inset-0 rounded-2xl pointer-events-none z-30 mix-blend-overlay overflow-hidden"
+        style={{ opacity: 0, transition: 'opacity 0.3s ease' }}
       />
       {children}
     </div>

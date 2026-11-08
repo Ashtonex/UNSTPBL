@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { isStaff } from '@unstpbl/shared';
 import { useAuthStore } from '../stores/auth';
 import { api } from '../lib/api';
-import AmbientBackground from './AmbientBackground';
+import PulseBackdrop, { firePulse } from './PulseBackdrop';
 
 // One column that grows with the screen: a phone-width column on phones, wider on tablets and
 // desktops so dashboards and tables have room instead of being squeezed into 512px.
@@ -348,9 +348,6 @@ export default function Layout() {
 
   return (
     <div className="min-h-dvh flex flex-col relative text-white bg-surface-950 overflow-x-hidden">
-      {/* Live 3D ambient layer: loads last, skipped on low-power devices, failures stay contained */}
-      <AmbientBackground />
-
       {/* Alive Background Image Layer */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <img
@@ -360,6 +357,9 @@ export default function Layout() {
         />
         <div className="absolute inset-0 bg-radial-vignette" />
       </div>
+
+      {/* The 65-second pulse */}
+      <PulseBackdrop />
 
       {/* Main Content Layer */}
       <div className="relative z-10 flex-1 flex flex-col min-h-dvh">
@@ -385,13 +385,22 @@ export default function Layout() {
         >
           <div className={`${CONTAINER} flex items-center justify-between`}>
             <div className="flex items-center gap-3">
-              <img
-                src="/church_logo.png"
-                alt="Church Logo"
-                className={`object-contain transition-all duration-300 ease-out transform origin-left ${
-                  isScrolled ? 'w-8 h-8' : 'w-12 h-12'
-                }`}
-              />
+              {/* Tapping the logo plays the heartbeat now (it also fires by itself every 65 seconds). */}
+              <button
+                type="button"
+                onClick={firePulse}
+                aria-label="UNSTPBL logo. Tap for a heartbeat pulse."
+                className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
+              >
+                <img
+                  src="/church_logo.png"
+                  alt=""
+                  data-pulse-origin
+                  className={`logo-thump object-contain transition-all duration-300 ease-out ${
+                    isScrolled ? 'w-8 h-8' : 'w-12 h-12'
+                  }`}
+                />
+              </button>
               <h1 className="text-xl font-extrabold tracking-tight">
                 <span className="text-gradient">UNSTPBL</span>
               </h1>
