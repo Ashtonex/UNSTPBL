@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './stores/auth';
 import { shouldResetCache } from './lib/sessionReset';
+import { clearPersistedCache } from './lib/persistedCache';
 import { supabase } from './lib/supabase';
 import { api } from './lib/api';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -96,7 +97,10 @@ export default function App() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       const nextUserId = session?.user?.id ?? null;
-      if (shouldResetCache(event, knownUserId, nextUserId)) queryClient.clear();
+      if (shouldResetCache(event, knownUserId, nextUserId)) {
+        queryClient.clear();
+        clearPersistedCache(); // and what was saved on the device for the previous person
+      }
       knownUserId = nextUserId;
       setSession(session);
       setUser(session?.user ?? null);

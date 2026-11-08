@@ -1,11 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { defaultShouldDehydrateQuery, QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { prewarmApi } from './lib/api';
 import { captureException, initMonitoring } from './lib/monitoring';
+import { PERSIST_BUSTER, PERSIST_MAX_AGE_MS, persister, shouldPersistQuery } from './lib/persistedCache';
 import '@fontsource-variable/inter';
 import './index.css';
 
@@ -21,6 +23,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,
       retry: 2,
+      // Saved data (see persistedCache.ts) must be kept in memory at least as long as it may be shown.
+      gcTime: PERSIST_MAX_AGE_MS,
     },
   },
 });
@@ -45,11 +49,21 @@ function CrashScreen() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary fallback={<CrashScreen />} onError={captureException}>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister,
+          maxAge: PERSIST_MAX_AGE_MS,
+          buster: PERSIST_BUSTER,
+          dehydrateOptions: {
+            shouldDehydrateQuery: (query) => defaultShouldDehydrateQuery(query) && shouldPersistQuery(query.queryKey),
+          },
+        }}
+      >
         <BrowserRouter>
           <App />
         </BrowserRouter>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );
